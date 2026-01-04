@@ -198,9 +198,20 @@ export function FocusIndicator() {
   }, [session]);
 
   // Handle dismiss paused state
-  const handleDismissPaused = useCallback(() => {
+  const handleDismissPaused = useCallback(async () => {
     localStorage.removeItem("focus_paused_state");
     setPausedState(null);
+
+    // Also clear from D1
+    try {
+      await fetch("/api/focus/pause", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear" }),
+      });
+    } catch (e) {
+      console.error("Failed to clear pause state from D1:", e);
+    }
   }, []);
 
   // Toggle minimize

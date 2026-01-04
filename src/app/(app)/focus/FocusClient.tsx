@@ -253,7 +253,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       }
     }
 
-    // Restore paused timer state
+    // Restore paused timer state from localStorage first
     const pausedState = localStorage.getItem("focus_paused_state");
     if (pausedState) {
       try {
@@ -277,6 +277,21 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
         localStorage.removeItem("focus_paused_state");
       }
     }
+
+    // Also check D1 for cross-device sync (runs after initial load)
+    fetch("/api/focus/pause")
+      .then((res) => res.json())
+      .then((data) => {
+        const typedData = data as { pauseState?: { mode: FocusMode; timeRemaining: number; pausedAt: string } | null };
+        if (typedData.pauseState) {
+          setMode(typedData.pauseState.mode);
+          setTimeRemaining(typedData.pauseState.timeRemaining);
+          setStatus("paused");
+          // Update localStorage too
+          localStorage.setItem("focus_paused_state", JSON.stringify(typedData.pauseState));
+        }
+      })
+      .catch(console.error);
   }, []);
 
   // Save paused state to localStorage

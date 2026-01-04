@@ -99,37 +99,63 @@ export function GoalsClient() {
   const handleAddMilestone = useCallback((goalId: string, title: string) => {
     if (!title.trim()) return;
 
-    setGoals((prev) =>
-      prev.map((g) => {
-        if (g.id !== goalId) return g;
-        return {
-          ...g,
-          milestones: [
-            ...g.milestones,
-            { id: `ms-${Date.now()}`, title: title.trim(), completed: false },
-          ],
-        };
-      })
-    );
-  }, []);
+    const updatedGoal = goals.find(g => g.id === goalId);
+    if (updatedGoal) {
+      const newMilestones = [
+        ...updatedGoal.milestones,
+        { id: `ms-${Date.now()}`, title: title.trim(), completed: false },
+      ];
+      const updated = { ...updatedGoal, milestones: newMilestones };
+
+      setGoals((prev) =>
+        prev.map((g) => (g.id !== goalId ? g : updated))
+      );
+
+      // Sync to D1
+      fetch("/api/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update", ...updated }),
+      }).catch(console.error);
+    }
+  }, [goals]);
 
   // Toggle milestone completion
   const handleToggleMilestone = useCallback((goalId: string, milestoneId: string) => {
-    setGoals((prev) =>
-      prev.map((g) => {
+    setGoals((prev) => {
+      const newGoals = prev.map((g) => {
         if (g.id !== goalId) return g;
         const milestones = g.milestones.map((m) =>
           m.id === milestoneId ? { ...m, completed: !m.completed } : m
         );
         const allComplete = milestones.length > 0 && milestones.every((m) => m.completed);
         return { ...g, milestones, completed: allComplete };
-      })
-    );
+      });
+
+      // Sync updated goal to D1
+      const updatedGoal = newGoals.find(g => g.id === goalId);
+      if (updatedGoal) {
+        fetch("/api/goals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "update", ...updatedGoal }),
+        }).catch(console.error);
+      }
+
+      return newGoals;
+    });
   }, []);
 
   // Delete goal
   const handleDeleteGoal = useCallback((goalId: string) => {
     setGoals((prev) => prev.filter((g) => g.id !== goalId));
+
+    // Sync to D1
+    fetch("/api/goals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete", id: goalId }),
+    }).catch(console.error);
   }, []);
 
   // Calculate progress
