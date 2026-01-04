@@ -6,6 +6,53 @@ This document tracks the performance optimization work to eliminate Cloudflare W
 
 **Branch:** `perf/cf-cpu-realtime`
 **Date Started:** 2026-01-04
+**Status:** Phase 1-4 Complete
+
+---
+
+## Summary of Optimizations
+
+### Server-Side Optimizations
+
+1. **createAPIHandler wrapper** (`src/lib/perf/api-handler.ts`)
+   - Single auth() call per request (was repeated in middleware + each route)
+   - Single getCloudflareContext() call per request
+   - Single ensureUserExists() call per request
+   - Adds Server-Timing headers when x-perf-debug=1
+
+2. **Middleware optimization** (`src/middleware.ts`)
+   - Set-based O(1) exact route matching (was array.some())
+   - Early bailout for public routes (skips auth() call)
+   - Added timing instrumentation
+
+3. **Parallelized DB queries**
+   - `/api/quests` - 2 queries in parallel (quests + progress)
+   - `/api/habits` - 3 queries in parallel (habits + logs + streaks)
+
+### Client-Side Optimizations
+
+1. **FocusStateContext** (`src/lib/focus/FocusStateContext.tsx`)
+   - Single polling source for focus session state
+   - Shared across BottomBar (and any future components)
+   - Reduces /api/focus/active calls from 2x/30s to 1x/30s
+
+### Routes Refactored
+
+| Route | Before | After |
+|-------|--------|-------|
+| `/api/focus/active` | 3 sequential calls | 1 memoized setup |
+| `/api/focus` GET | 3 sequential calls | 1 memoized setup |
+| `/api/focus` POST | 3 sequential calls | 1 memoized setup |
+| `/api/focus/pause` GET | 3 sequential calls | 1 memoized setup |
+| `/api/focus/pause` POST | 3 sequential calls | 1 memoized setup |
+| `/api/daily-plan` GET | 3 sequential calls | 1 memoized setup |
+| `/api/daily-plan` POST | 3 sequential calls | 1 memoized setup |
+| `/api/auth/accept-tos` GET | 3 sequential calls | 1 memoized setup |
+| `/api/auth/accept-tos` POST | 3 sequential calls | 1 memoized setup |
+| `/api/quests` GET | 3 seq + 2 seq queries | 1 setup + 2 parallel |
+| `/api/quests` POST | 3 sequential calls | 1 memoized setup |
+| `/api/habits` GET | 3 seq + 3 seq queries | 1 setup + 3 parallel |
+| `/api/habits` POST | 3 sequential calls | 1 memoized setup |
 
 ---
 
