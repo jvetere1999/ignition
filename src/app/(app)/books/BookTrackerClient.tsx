@@ -3,9 +3,12 @@
 /**
  * Book Tracker Client Component
  * Track reading progress, log books, and build reading habits
+ *
+ * Auto-refresh: Refetches on focus after 2 minutes staleness (per SYNC.md)
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useAutoRefresh } from "@/lib/hooks";
 import styles from "./page.module.css";
 
 interface Book {
@@ -109,6 +112,18 @@ export function BookTrackerClient() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Auto-refresh: refetch on focus after 2 minute staleness (per SYNC.md)
+  // Pauses on page unload, soft refreshes on reload if stale
+  useAutoRefresh({
+    onRefresh: loadData,
+    refreshKey: "books",
+    stalenessMs: 120000, // 2 minutes per SYNC.md contract
+    refreshOnMount: true,
+    refetchOnFocus: true,
+    refetchOnVisible: true,
+    enabled: !isLoading && !showAddBook && !showLogSession,
+  });
 
   // Add book
   const handleAddBook = async () => {

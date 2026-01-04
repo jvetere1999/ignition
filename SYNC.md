@@ -98,6 +98,37 @@ This document defines the real-time synchronization requirements for each featur
 
 ---
 
+### Progress (`/progress`)
+
+| Aspect | Requirement | Implementation |
+|--------|-------------|----------------|
+| **Cross-device sync** | Stats visible on all devices | Fetch on mount + focus refetch |
+| **Staleness window** | 1 minute | Acceptable for dashboard |
+| **Mutation triggers** | Focus sessions, skill updates | Refetch on focus |
+| **Visibility behavior** | Refetch on focus | After >1 min away |
+
+**Optimization constraints:**
+- CAN add focus-based refetch [IMPLEMENTED]
+- No strict real-time requirement
+
+---
+
+### Books (`/books`)
+
+| Aspect | Requirement | Implementation |
+|--------|-------------|----------------|
+| **Cross-device sync** | Reading progress visible on all devices | Fetch on mount + focus refetch |
+| **Staleness window** | 2 minutes | Acceptable for book tracking |
+| **Mutation triggers** | Add book, log session, complete | POST + refetch |
+| **Visibility behavior** | Refetch on focus | After >2 min away |
+
+**Optimization constraints:**
+- CAN add focus-based refetch [IMPLEMENTED]
+- Disabled during form interactions (add book, log session)
+- No strict real-time requirement
+
+---
+
 ### Admin (`/admin`)
 
 | Aspect | Requirement | Implementation |
@@ -162,7 +193,32 @@ Implementation:
 **Safe for:** All features
 **Staleness:** Respects per-feature staleness window
 
-### 4. Delta Fetching
+### 4. Page Unload/Reload Handling [IMPLEMENTED]
+
+**Pattern:** Pause all refresh activity on page unload, soft refresh on reload if stale
+
+Implementation (`src/lib/hooks/useAutoRefresh.ts`):
+- Listens to `pagehide` and `beforeunload` events to pause activity
+- Listens to `pageshow` for bfcache restoration
+- Persists last fetch time to `sessionStorage` (keyed by `refreshKey`)
+- On mount/reload, checks if data is stale and triggers soft refresh
+- Respects `enabled` flag to disable during form interactions
+
+**Behavior:**
+- Page unload: All polling stops, no new fetches triggered
+- Page reload: If data is stale (per staleness window), triggers soft refresh
+- bfcache restore: Triggers refresh if stale, resumes polling
+
+**Safe for:** All features with `refreshKey` configured
+**Pages using this:**
+- Planner (refreshKey: "planner")
+- Quests (refreshKey: "quests")
+- Habits (refreshKey: "habits")
+- Progress (refreshKey: "progress")
+- Books (refreshKey: "books")
+- Daily Plan (refreshKey: "daily-plan")
+
+### 5. Delta Fetching
 
 **Pattern:** Use `If-None-Match` / `ETag` to avoid full payload
 **Safe for:** All GET endpoints

@@ -3,9 +3,12 @@
 /**
  * Habits Client Component
  * Daily habit tracking with streaks
+ *
+ * Auto-refresh: Refetches on focus after 1 minute staleness (per SYNC.md)
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useAutoRefresh } from "@/lib/hooks";
 import styles from "./page.module.css";
 
 interface Habit {
@@ -74,6 +77,19 @@ export function HabitsClient() {
       setIsLoading(false);
     }
   }, []);
+
+  // Auto-refresh: refetch on focus after 1 minute staleness
+  // Pauses on page unload, soft refreshes on reload if stale
+  // Disabled when add form is open (user might be typing)
+  useAutoRefresh({
+    onRefresh: fetchHabits,
+    refreshKey: "habits",
+    stalenessMs: 60000, // 1 minute per SYNC.md contract
+    refreshOnMount: true,
+    refetchOnFocus: true,
+    refetchOnVisible: true,
+    enabled: !showAddForm, // Disable when form is open
+  });
 
   useEffect(() => {
     fetchHabits();

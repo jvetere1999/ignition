@@ -3,10 +3,13 @@
 /**
  * Daily Plan Component
  * Generates and displays a personalized daily plan
+ *
+ * Auto-refresh: Refetches on focus after 5 minutes staleness (per SYNC.md)
  */
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useAutoRefresh } from "@/lib/hooks";
 import styles from "./DailyPlan.module.css";
 
 interface PlanItem {
@@ -46,6 +49,18 @@ export function DailyPlanWidget() {
       setIsLoading(false);
     }
   }, []);
+
+  // Auto-refresh: refetch on focus after 5 minute staleness (per SYNC.md)
+  // Pauses on page unload, soft refreshes on reload if stale
+  useAutoRefresh({
+    onRefresh: fetchPlan,
+    refreshKey: "daily-plan",
+    stalenessMs: 300000, // 5 minutes per SYNC.md contract
+    refreshOnMount: true,
+    refetchOnFocus: true,
+    refetchOnVisible: true,
+    enabled: !isLoading && !isGenerating,
+  });
 
   useEffect(() => {
     fetchPlan();

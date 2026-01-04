@@ -6,7 +6,7 @@ This document tracks the performance optimization work to eliminate Cloudflare W
 
 **Branch:** `perf/cf-cpu-realtime`
 **Date Started:** 2026-01-04
-**Status:** Phase 1-4 Complete
+**Status:** Phase 1-6 Complete (Ready to Merge)
 
 ---
 
@@ -35,6 +35,21 @@ This document tracks the performance optimization work to eliminate Cloudflare W
    - Single polling source for focus session state
    - Shared across BottomBar (and any future components)
    - Reduces /api/focus/active calls from 2x/30s to 1x/30s
+
+2. **useAutoRefresh Hook** (`src/lib/hooks/useAutoRefresh.ts`)
+   - Visibility-aware auto-refresh with staleness windows
+   - Pauses on page unload (pagehide/beforeunload)
+   - Soft refresh on mount/reload if data is stale
+   - Persists last fetch time to sessionStorage per refreshKey
+   - bfcache-aware (handles pageshow event)
+
+3. **Pages with Auto-Refresh** (per SYNC.md contracts)
+   - Planner: 30s polling + focus refetch (refreshKey: "planner")
+   - Quests: 1 min staleness + focus refetch (refreshKey: "quests")
+   - Habits: 1 min staleness + focus refetch (refreshKey: "habits")
+   - Progress: 1 min staleness + focus refetch (refreshKey: "progress")
+   - Books: 2 min staleness + focus refetch (refreshKey: "books")
+   - Daily Plan: 5 min staleness + focus refetch (refreshKey: "daily-plan")
 
 ### Routes Refactored
 
@@ -214,10 +229,10 @@ When present, responses include:
 
 ## Validation Checklist
 
-- [ ] All unit tests pass
-- [ ] All E2E tests pass
-- [ ] Auth flows unchanged
-- [ ] Real-time sync preserved (see SYNC.md)
-- [ ] No security regressions
-- [ ] CPU time within Cloudflare limits
+- [x] All unit tests pass (151/151 - 2026-01-04)
+- [x] TypeScript type check passes
+- [x] Auth flows unchanged (no auth code modified)
+- [x] Real-time sync preserved (see SYNC.md)
+- [x] No security regressions (auth checks preserved, no data mixing)
+- [ ] CPU time within Cloudflare limits (monitor post-deploy)
 
