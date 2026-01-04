@@ -70,6 +70,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const stats = searchParams.get("stats") === "true";
 
+    // Get the database user ID
+    const dbUser = await ensureUserExists(db, session.user.id, {
+      name: session.user.name,
+      email: session.user.email,
+      image: session.user.image,
+    });
+
     if (stats) {
       const period = searchParams.get("period") || "day";
       let startDate: string | undefined;
@@ -87,14 +94,14 @@ export async function GET(request: NextRequest) {
         startDate = monthAgo.toISOString();
       }
 
-      const focusStats = await getFocusStats(db, session.user.id, startDate);
+      const focusStats = await getFocusStats(db, dbUser.id, startDate);
       return NextResponse.json(focusStats);
     }
 
     const page = parseInt(searchParams.get("page") || "1", 10);
     const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
 
-    const result = await listFocusSessions(db, session.user.id, {
+    const result = await listFocusSessions(db, dbUser.id, {
       page,
       pageSize,
     });
@@ -129,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure user exists in database
-    await ensureUserExists(db, session.user.id, {
+    const dbUser = await ensureUserExists(db, session.user.id, {
       name: session.user.name,
       email: session.user.email,
       image: session.user.image,
@@ -143,7 +150,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + expiryBuffer * 1000).toISOString();
 
     const input: CreateFocusSessionInput = {
-      user_id: session.user.id,
+      user_id: dbUser.id,
       started_at: new Date().toISOString(),
       planned_duration: plannedDuration,
       status: "active" as FocusSessionStatus,

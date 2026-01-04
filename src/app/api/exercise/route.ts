@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { D1Database } from "@cloudflare/workers-types";
 import { auth } from "@/lib/auth";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { ensureUserExists } from "@/lib/db/repositories/users";
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +10,17 @@ interface CloudflareEnv {
   DB?: D1Database;
 }
 
-function getDB(): D1Database | null {
+async function getDB(): Promise<D1Database | null> {
   try {
-    const env = (globalThis as unknown as { env?: CloudflareEnv }).env;
-    return env?.DB ?? null;
+    const { env } = await getCloudflareContext({ async: true });
+    return (env as unknown as CloudflareEnv).DB ?? null;
   } catch {
-    return null;
+    try {
+      const env = (globalThis as unknown as { env?: CloudflareEnv }).env;
+      return env?.DB ?? null;
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -25,12 +32,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = getDB();
+    const db = await getDB();
     if (!db) {
       return NextResponse.json({ error: "Database not available" }, { status: 503 });
     }
 
-    const userId = session.user.id;
+    // Get the database user ID
+    const dbUser = await ensureUserExists(db, session.user.id, {
+      name: session.user.name,
+      email: session.user.email,
+      image: session.user.image,
+    });
+    const userId = dbUser.id;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "exercises";
     const category = searchParams.get("category");
@@ -143,12 +157,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = getDB();
+    const db = await getDB();
     if (!db) {
       return NextResponse.json({ error: "Database not available" }, { status: 503 });
     }
 
-    const userId = session.user.id;
+    // Get the database user ID
+    const dbUser = await ensureUserExists(db, session.user.id, {
+      name: session.user.name,
+      email: session.user.email,
+      image: session.user.image,
+    });
+    const userId = dbUser.id;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const body: any = await request.json();
     const type = body.type as string;
@@ -420,12 +441,19 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = getDB();
+    const db = await getDB();
     if (!db) {
       return NextResponse.json({ error: "Database not available" }, { status: 503 });
     }
 
-    const userId = session.user.id;
+    // Get the database user ID
+    const dbUser = await ensureUserExists(db, session.user.id, {
+      name: session.user.name,
+      email: session.user.email,
+      image: session.user.image,
+    });
+    const userId = dbUser.id;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
     const id = searchParams.get("id");

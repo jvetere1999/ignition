@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import type { D1Database } from "@cloudflare/workers-types";
 import { auth } from "@/lib/auth";
 import { getActiveFocusSession } from "@/lib/db";
+import { ensureUserExists } from "@/lib/db/repositories/users";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,14 @@ export async function GET() {
       return NextResponse.json({ session: null });
     }
 
-    const activeSession = await getActiveFocusSession(db, session.user.id);
+    // Get the database user ID
+    const dbUser = await ensureUserExists(db, session.user.id, {
+      name: session.user.name,
+      email: session.user.email,
+      image: session.user.image,
+    });
+
+    const activeSession = await getActiveFocusSession(db, dbUser.id);
     return NextResponse.json({ session: activeSession });
   } catch (error) {
     console.error("GET /api/focus/active error:", error);

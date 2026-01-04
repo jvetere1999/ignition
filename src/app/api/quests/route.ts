@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { ensureUserExists } from "@/lib/db/repositories/users";
 import type { CloudflareEnv } from "@/env";
 
 export const dynamic = "force-dynamic";
@@ -99,15 +100,21 @@ export async function GET() {
       `)
       .all();
 
+    // Get the database user ID
+    const dbUser = await ensureUserExists(db, session.user.id, {
+      name: session.user.name,
+      email: session.user.email,
+      image: session.user.image,
+    });
+
     // Also fetch user progress for these quests
-    const userId = session.user.id;
     const progressResult = await db
       .prepare(`
         SELECT quest_id, progress, completed, completed_at
         FROM user_quest_progress 
         WHERE user_id = ?
       `)
-      .bind(userId)
+      .bind(dbUser.id)
       .all<{ quest_id: string; progress: number; completed: number; completed_at: string | null }>();
 
     const progressMap: Record<string, { progress: number; completed: boolean }> = {};
@@ -149,7 +156,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, persisted: false });
     }
 
-    const userId = session.user.id;
+    // Get the database user ID
+    const dbUser = await ensureUserExists(db, session.user.id, {
+      name: session.user.name,
+      email: session.user.email,
+      image: session.user.image,
+    });
+    const userId = dbUser.id;
     const now = new Date().toISOString();
 
     if (type === "progress") {

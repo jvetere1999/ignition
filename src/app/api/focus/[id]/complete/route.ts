@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { D1Database } from "@cloudflare/workers-types";
 import { auth } from "@/lib/auth";
 import { completeFocusSession } from "@/lib/db";
+import { ensureUserExists } from "@/lib/db/repositories/users";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const dynamic = "force-dynamic";
@@ -43,8 +44,15 @@ export async function POST(
       );
     }
 
+    // Get the database user ID
+    const dbUser = await ensureUserExists(db, session.user.id, {
+      name: session.user.name,
+      email: session.user.email,
+      image: session.user.image,
+    });
+
     const { id } = await params;
-    const focusSession = await completeFocusSession(db, id, session.user.id);
+    const focusSession = await completeFocusSession(db, id, dbUser.id);
 
     if (!focusSession) {
       return NextResponse.json(
