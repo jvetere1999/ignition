@@ -7,13 +7,9 @@
  * - Parallel DB queries for habits, logs, and streaks
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createAPIHandler, type APIContext } from "@/lib/perf";
-import { auth } from "@/lib/auth";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { ensureUserExists } from "@/lib/db/repositories/users";
 import { logActivityEvent } from "@/lib/db/repositories/activity-events";
-import type { CloudflareEnv } from "@/env";
 
 export const dynamic = "force-dynamic";
 
@@ -70,95 +66,69 @@ export const GET = createAPIHandler(async (ctx: APIContext) => {
     streaks: streakMap
   });
 });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
 
 /**
  * POST /api/habits
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const POST = createAPIHandler(async (ctx: APIContext) => {
+  const body = await ctx.request.json() as {
+    action: string;
+    id?: string;
+    habit_id?: string;
+    title?: string;
+    description?: string;
+    frequency?: string;
+    target_count?: number;
+    category?: string;
+    xp_reward?: number;
+    coin_reward?: number;
+    skill_id?: string;
+    notes?: string;
+  };
+  const now = new Date().toISOString();
 
-    const ctx = await getCloudflareContext();
-    const db = (ctx.env as unknown as CloudflareEnv).DB;
-
-    if (!db) {
-      return NextResponse.json({ success: true, persisted: false });
-    }
-
-    const dbUser = await ensureUserExists(db, session.user.id, {
-      name: session.user.name,
-      email: session.user.email,
-      image: session.user.image,
-    });
-
-    const body = await request.json() as {
-      action: string;
-      id?: string;
-      habit_id?: string;
-      title?: string;
-      description?: string;
-      frequency?: string;
-      target_count?: number;
-      category?: string;
-      xp_reward?: number;
-      coin_reward?: number;
-      skill_id?: string;
-      notes?: string;
-    };
-    const now = new Date().toISOString();
-
-    if (body.action === "create") {
-      const id = `habit_${Date.now()}`;
-      await db
-        .prepare(`INSERT INTO habits (id, user_id, title, description, frequency, target_count, category, xp_reward, coin_reward, skill_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`)
-        .bind(id, dbUser.id, body.title, body.description || null, body.frequency || "daily", body.target_count || 1, body.category || "general", body.xp_reward || 10, body.coin_reward || 5, body.skill_id || null, now, now)
-        .run();
-      return NextResponse.json({ success: true, id });
-    }
-
-    if (body.action === "log") {
-      const logId = `hlog_${Date.now()}`;
-      await db
-        .prepare(`INSERT INTO habit_logs (id, habit_id, user_id, completed_at, notes) VALUES (?, ?, ?, ?, ?)`)
-        .bind(logId, body.habit_id, dbUser.id, now, body.notes || null)
-        .run();
-
-      const habit = await db.prepare(`SELECT * FROM habits WHERE id = ?`).bind(body.habit_id).first<Habit>();
-      if (habit) {
-        await logActivityEvent(db, dbUser.id, "habit_complete", {
-          entityType: "habit",
-          entityId: body.habit_id,
-          customXp: habit.xp_reward,
-          customCoins: habit.coin_reward,
-          skillId: habit.skill_id || undefined,
-          metadata: { habitTitle: habit.title },
-        });
-      }
-      return NextResponse.json({ success: true, id: logId });
-    }
-
-    if (body.action === "update") {
-      await db
-        .prepare(`UPDATE habits SET title = ?, description = ?, frequency = ?, target_count = ?, category = ?, xp_reward = ?, coin_reward = ?, skill_id = ?, updated_at = ? WHERE id = ? AND user_id = ?`)
-        .bind(body.title, body.description || null, body.frequency || "daily", body.target_count || 1, body.category || "general", body.xp_reward || 10, body.coin_reward || 5, body.skill_id || null, now, body.id, dbUser.id)
-        .run();
-      return NextResponse.json({ success: true });
-    }
-
-    if (body.action === "delete") {
-      await db.prepare(`UPDATE habits SET is_active = 0, updated_at = ? WHERE id = ? AND user_id = ?`).bind(now, body.id, dbUser.id).run();
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-  } catch (error) {
-    console.error("POST /api/habits error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  if (body.action === "create") {
+    const id = `habit_${Date.now()}`;
+    await ctx.db
+      .prepare(`INSERT INTO habits (id, user_id, title, description, frequency, target_count, category, xp_reward, coin_reward, skill_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`)
+      .bind(id, ctx.dbUser.id, body.title, body.description || null, body.frequency || "daily", body.target_count || 1, body.category || "general", body.xp_reward || 10, body.coin_reward || 5, body.skill_id || null, now, now)
+      .run();
+    return NextResponse.json({ success: true, id });
   }
-}
+
+  if (body.action === "log") {
+    const logId = `hlog_${Date.now()}`;
+    await ctx.db
+      .prepare(`INSERT INTO habit_logs (id, habit_id, user_id, completed_at, notes) VALUES (?, ?, ?, ?, ?)`)
+      .bind(logId, body.habit_id, ctx.dbUser.id, now, body.notes || null)
+      .run();
+
+    const habit = await ctx.db.prepare(`SELECT * FROM habits WHERE id = ?`).bind(body.habit_id).first<Habit>();
+    if (habit) {
+      await logActivityEvent(ctx.db, ctx.dbUser.id, "habit_complete", {
+        entityType: "habit",
+        entityId: body.habit_id,
+        customXp: habit.xp_reward,
+        customCoins: habit.coin_reward,
+        skillId: habit.skill_id || undefined,
+        metadata: { habitTitle: habit.title },
+      });
+    }
+    return NextResponse.json({ success: true, id: logId });
+  }
+
+  if (body.action === "update") {
+    await ctx.db
+      .prepare(`UPDATE habits SET title = ?, description = ?, frequency = ?, target_count = ?, category = ?, xp_reward = ?, coin_reward = ?, skill_id = ?, updated_at = ? WHERE id = ? AND user_id = ?`)
+      .bind(body.title, body.description || null, body.frequency || "daily", body.target_count || 1, body.category || "general", body.xp_reward || 10, body.coin_reward || 5, body.skill_id || null, now, body.id, ctx.dbUser.id)
+      .run();
+    return NextResponse.json({ success: true });
+  }
+
+  if (body.action === "delete") {
+    await ctx.db.prepare(`UPDATE habits SET is_active = 0, updated_at = ? WHERE id = ? AND user_id = ?`).bind(now, body.id, ctx.dbUser.id).run();
+    return NextResponse.json({ success: true });
+  }
+
+  return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+});

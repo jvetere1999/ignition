@@ -141,10 +141,15 @@ This document defines the real-time synchronization requirements for each featur
 
 ## Optimization Strategies (Sync-Safe)
 
-### 1. Polling Deduplication
+### 1. Polling Deduplication [IMPLEMENTED]
 
-**Current:** Both BottomBar and FocusIndicator poll `/api/focus/active` every 30s
-**Optimized:** Single polling source, shared via React context or store
+**Before:** Both BottomBar and FocusIndicator poll `/api/focus/active` every 30s
+**After:** Single polling source via FocusStateContext (shared React context)
+
+Implementation:
+- `src/lib/focus/FocusStateContext.tsx` - Centralized polling and state
+- `src/components/shell/AppShell.tsx` - Wraps app with FocusStateProvider
+- `src/components/shell/BottomBar.tsx` - Uses useFocusState() hook
 
 ### 2. Visibility-Based Pause
 

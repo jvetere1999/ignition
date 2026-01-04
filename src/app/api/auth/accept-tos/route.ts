@@ -7,10 +7,7 @@
 
 import { NextResponse } from "next/server";
 import { createAPIHandler, type APIContext } from "@/lib/perf";
-import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import type { CloudflareEnv } from "@/env";
 
 // Current TOS version
 const CURRENT_TOS_VERSION = "1.0";

@@ -5,12 +5,8 @@
  * Optimized with createAPIHandler for timing instrumentation
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createAPIHandler, type APIContext } from "@/lib/perf";
-import { auth } from "@/lib/auth";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { ensureUserExists } from "@/lib/db/repositories/users";
-import type { CloudflareEnv } from "@/env";
 
 export const dynamic = "force-dynamic";
 
@@ -55,123 +51,100 @@ export const GET = createAPIHandler(async (ctx: APIContext) => {
 /**
  * POST /api/daily-plan
  */
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const POST = createAPIHandler(async (ctx: APIContext) => {
+  const body = await ctx.request.json() as { action: string; item_id?: string };
+  const now = new Date().toISOString();
+  const today = now.split("T")[0];
 
-    const ctx = await getCloudflareContext();
-    const db = (ctx.env as unknown as CloudflareEnv).DB;
+  if (body.action === "generate") {
+    const items: PlanItem[] = [];
+    let priority = 0;
 
-    if (!db) {
-      return NextResponse.json({ success: true, persisted: false });
-    }
-
-    const dbUser = await ensureUserExists(db, session.user.id, {
-      name: session.user.name,
-      email: session.user.email,
-      image: session.user.image,
+    // Add focus session
+    items.push({
+      id: `plan_focus_${Date.now()}`,
+      type: "focus",
+      title: "Focus Session",
+      description: "Complete a 25-minute focus session",
+      duration: 25,
+      actionUrl: "/focus",
+      completed: false,
+      priority: priority++,
     });
 
-    const body = await request.json() as { action: string; item_id?: string };
-    const now = new Date().toISOString();
-    const today = now.split("T")[0];
+    // Add quests
+    const quests = await ctx.db
+      .prepare(`
+        SELECT q.id, q.title, q.description
+        FROM universal_quests q
+        LEFT JOIN user_quest_progress p ON q.id = p.quest_id AND p.user_id = ?
+        WHERE q.is_active = 1 AND (p.completed IS NULL OR p.completed = 0)
+        LIMIT 3
+      `)
+      .bind(ctx.dbUser.id)
+      .all<{ id: string; title: string; description: string }>();
 
-    if (body.action === "generate") {
-      const items: PlanItem[] = [];
-      let priority = 0;
-
-      // Add focus session
+    for (const quest of quests.results || []) {
       items.push({
-        id: `plan_focus_${Date.now()}`,
-        type: "focus",
-        title: "Focus Session",
-        description: "Complete a 25-minute focus session",
-        duration: 25,
-        actionUrl: "/focus",
+        id: `plan_quest_${quest.id}`,
+        type: "quest",
+        title: quest.title,
+        description: quest.description,
+        actionUrl: "/quests",
         completed: false,
         priority: priority++,
       });
-
-      // Add quests
-      const quests = await db
-        .prepare(`
-          SELECT q.id, q.title, q.description
-          FROM universal_quests q
-          LEFT JOIN user_quest_progress p ON q.id = p.quest_id AND p.user_id = ?
-          WHERE q.is_active = 1 AND (p.completed IS NULL OR p.completed = 0)
-          LIMIT 3
-        `)
-        .bind(dbUser.id)
-        .all<{ id: string; title: string; description: string }>();
-
-      for (const quest of quests.results || []) {
-        items.push({
-          id: `plan_quest_${quest.id}`,
-          type: "quest",
-          title: quest.title,
-          description: quest.description,
-          actionUrl: "/quests",
-          completed: false,
-          priority: priority++,
-        });
-      }
-
-      // Add workout if scheduled
-      const workout = await db
-        .prepare(`SELECT id, title FROM calendar_events WHERE user_id = ? AND event_type = 'workout' AND date(start_time) = ? LIMIT 1`)
-        .bind(dbUser.id, today)
-        .first<{ id: string; title: string }>();
-
-      if (workout) {
-        items.push({
-          id: `plan_workout_${workout.id}`,
-          type: "workout",
-          title: workout.title,
-          actionUrl: "/exercise",
-          completed: false,
-          priority: priority++,
-        });
-      }
-
-      // Save plan
-      const planId = `plan_${Date.now()}`;
-      await db
-        .prepare(`INSERT OR REPLACE INTO daily_plans (id, user_id, plan_date, items, completed_count, total_count, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?, ?)`)
-        .bind(planId, dbUser.id, today, JSON.stringify(items), items.length, now, now)
-        .run();
-
-      return NextResponse.json({ success: true, plan: { id: planId, date: today, items, completedCount: 0, totalCount: items.length } });
     }
 
-    if (body.action === "complete_item") {
-      const plan = await db
-        .prepare(`SELECT id, items, completed_count FROM daily_plans WHERE user_id = ? AND plan_date = ?`)
-        .bind(dbUser.id, today)
-        .first<{ id: string; items: string; completed_count: number }>();
+    // Add workout if scheduled
+    const workout = await ctx.db
+      .prepare(`SELECT id, title FROM calendar_events WHERE user_id = ? AND event_type = 'workout' AND date(start_time) = ? LIMIT 1`)
+      .bind(ctx.dbUser.id, today)
+      .first<{ id: string; title: string }>();
 
-      if (!plan) {
-        return NextResponse.json({ error: "Plan not found" }, { status: 404 });
-      }
-
-      const items: PlanItem[] = JSON.parse(plan.items);
-      const idx = items.findIndex((i) => i.id === body.item_id);
-      if (idx >= 0) items[idx].completed = true;
-
-      const completedCount = items.filter((i) => i.completed).length;
-      await db
-        .prepare(`UPDATE daily_plans SET items = ?, completed_count = ?, updated_at = ? WHERE id = ?`)
-        .bind(JSON.stringify(items), completedCount, now, plan.id)
-        .run();
-
-      return NextResponse.json({ success: true, completedCount });
+    if (workout) {
+      items.push({
+        id: `plan_workout_${workout.id}`,
+        type: "workout",
+        title: workout.title,
+        actionUrl: "/exercise",
+        completed: false,
+        priority: priority++,
+      });
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-  } catch (error) {
-    console.error("POST /api/daily-plan error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    // Save plan
+    const planId = `plan_${Date.now()}`;
+    await ctx.db
+      .prepare(`INSERT OR REPLACE INTO daily_plans (id, user_id, plan_date, items, completed_count, total_count, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?, ?)`)
+      .bind(planId, ctx.dbUser.id, today, JSON.stringify(items), items.length, now, now)
+      .run();
+
+    return NextResponse.json({ success: true, plan: { id: planId, date: today, items, completedCount: 0, totalCount: items.length } });
   }
-}
+
+  if (body.action === "complete_item") {
+    const plan = await ctx.db
+      .prepare(`SELECT id, items, completed_count FROM daily_plans WHERE user_id = ? AND plan_date = ?`)
+      .bind(ctx.dbUser.id, today)
+      .first<{ id: string; items: string; completed_count: number }>();
+
+    if (!plan) {
+      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    }
+
+    const items: PlanItem[] = JSON.parse(plan.items);
+    const idx = items.findIndex((i) => i.id === body.item_id);
+    if (idx >= 0) items[idx].completed = true;
+
+    const completedCount = items.filter((i) => i.completed).length;
+    await ctx.db
+      .prepare(`UPDATE daily_plans SET items = ?, completed_count = ?, updated_at = ? WHERE id = ?`)
+      .bind(JSON.stringify(items), completedCount, now, plan.id)
+      .run();
+
+    return NextResponse.json({ success: true, completedCount });
+  }
+
+  return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+});
