@@ -12,18 +12,27 @@ const ADSENSE_PUBLISHER_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "";
 
 export const metadata: Metadata = {
   title: {
-    default: "Passion OS",
+    default: "Passion OS - Personal Productivity & Music Production Companion",
     template: "%s | Passion OS",
   },
   description:
-    "Your personal productivity and music production companion. Plan, focus, and create.",
+    "Your personal productivity and music production companion. Plan your day, focus with Pomodoro timers, track quests, learn DAW shortcuts, and level up your creative skills.",
   keywords: [
-    "productivity",
+    "productivity app",
     "music production",
-    "DAW",
-    "shortcuts",
-    "planner",
+    "DAW shortcuts",
+    "Ableton shortcuts",
+    "Logic Pro shortcuts",
+    "FL Studio shortcuts",
     "focus timer",
+    "pomodoro timer",
+    "habit tracker",
+    "quest tracker",
+    "skill development",
+    "creative workflow",
+    "music producer tools",
+    "daily planner",
+    "goal tracking",
   ],
   authors: [{ name: "Passion OS Team" }],
   creator: "Passion OS",
@@ -31,26 +40,55 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
     apple: "/icon.svg",
   },
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://passion-os-next.jvetere1999.workers.dev"
+  ),
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
     siteName: "Passion OS",
-    title: "Passion OS",
+    title: "Passion OS - Personal Productivity & Music Production Companion",
     description:
-      "Your personal productivity and music production companion. Plan, focus, and create.",
+      "Plan your day, focus with Pomodoro timers, track quests, learn DAW shortcuts, and level up your creative skills.",
+    url: "/",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Passion OS - Your Creative Productivity Companion",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Passion OS",
+    title: "Passion OS - Personal Productivity & Music Production Companion",
     description:
-      "Your personal productivity and music production companion. Plan, focus, and create.",
+      "Plan your day, focus with Pomodoro timers, track quests, learn DAW shortcuts, and level up your creative skills.",
+    images: ["/og-image.png"],
   },
+  verification: {
+    // Add your verification codes here when available
+    // google: "your-google-verification-code",
+    // yandex: "your-yandex-verification-code",
+  },
+  category: "productivity",
 };
 
 export const viewport: Viewport = {
