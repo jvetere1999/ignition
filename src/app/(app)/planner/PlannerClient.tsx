@@ -150,22 +150,37 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
   // Fetch events from API
   const fetchEvents = useCallback(async () => {
     try {
+      setIsLoading(true);
       const response = await fetch("/api/calendar");
       if (response.ok) {
         const data = await response.json() as { events?: APICalendarEvent[] };
         const localEvents = (data.events || []).map(apiEventToLocal);
         setEvents(localEvents);
+      } else {
+        console.error("[planner] Failed to fetch events:", response.status, response.statusText);
       }
     } catch (error) {
-      console.error("Failed to fetch events:", error);
+      console.error("[planner] Failed to fetch events:", error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Fetch events on mount
+  // Fetch events on mount and set up polling for multi-device sync
   useEffect(() => {
     fetchEvents();
+
+    // Poll for updates every 30 seconds for multi-device sync
+    const pollInterval = setInterval(fetchEvents, 30000);
+
+    // Also refetch when window regains focus
+    const handleFocus = () => fetchEvents();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [fetchEvents]);
 
   // Form state
@@ -295,25 +310,15 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
           body: JSON.stringify({ id: editingEvent.id, ...eventData }),
         });
 
-        if (response.ok) {
-          const data = await response.json() as { event: APICalendarEvent };
-          const updatedEvent = apiEventToLocal(data.event);
-          setEvents(events.map((e) => (e.id === editingEvent.id ? updatedEvent : e)));
-        } else {
-          // Fallback to local update if API fails (local dev without D1)
-          const localEvent: CalendarEvent = {
-            id: editingEvent.id,
-            title: formData.title,
-            description: formData.description || undefined,
-            event_type: formData.event_type,
-            start_time: new Date(formData.start_time),
-            end_time: new Date(formData.end_time),
-            all_day: formData.all_day,
-            location: formData.location || undefined,
-            color: getEventTypeColor(formData.event_type),
-          };
-          setEvents(events.map((e) => (e.id === editingEvent.id ? localEvent : e)));
+        if (!response.ok) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const errorData: any = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to update event: ${response.status}`);
         }
+
+        const data = await response.json() as { event: APICalendarEvent };
+        const updatedEvent = apiEventToLocal(data.event);
+        setEvents(events.map((e) => (e.id === editingEvent.id ? updatedEvent : e)));
       } else {
         // Create new event
         const response = await fetch("/api/calendar", {
@@ -322,71 +327,48 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
           body: JSON.stringify(eventData),
         });
 
-        if (response.ok) {
-          const data = await response.json() as { event: APICalendarEvent };
-          const newEvent = apiEventToLocal(data.event);
-          setEvents([...events, newEvent]);
-        } else {
-          // Fallback to local create if API fails (local dev without D1)
-          const localEvent: CalendarEvent = {
-            id: crypto.randomUUID(),
-            title: formData.title,
-            description: formData.description || undefined,
-            event_type: formData.event_type,
-            start_time: new Date(formData.start_time),
-            end_time: new Date(formData.end_time),
-            all_day: formData.all_day,
-            location: formData.location || undefined,
-            color: getEventTypeColor(formData.event_type),
-          };
-          setEvents([...events, localEvent]);
+        if (!response.ok) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const errorData: any = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to create event: ${response.status}`);
         }
+
+        const data = await response.json() as { event: APICalendarEvent };
+        const newEvent = apiEventToLocal(data.event);
+        setEvents([...events, newEvent]);
       }
 
       closeModal();
     } catch (error) {
-      console.error("Failed to save event:", error);
-      // Still close modal and update locally as fallback
-      const localEvent: CalendarEvent = {
-        id: editingEvent?.id || crypto.randomUUID(),
-        title: formData.title,
-        description: formData.description || undefined,
-        event_type: formData.event_type,
-        start_time: new Date(formData.start_time),
-        end_time: new Date(formData.end_time),
-        all_day: formData.all_day,
-        location: formData.location || undefined,
-        color: getEventTypeColor(formData.event_type),
-      };
-
-      if (editingEvent) {
-        setEvents(events.map((e) => (e.id === editingEvent.id ? localEvent : e)));
-      } else {
-        setEvents([...events, localEvent]);
-      }
-      closeModal();
+      console.error("[planner] Failed to save event:", error);
+      alert(`Failed to save event: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const deleteEvent = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this event?")) return;
+
     setIsSaving(true);
     try {
       const response = await fetch(`/api/calendar?id=${id}`, {
         method: "DELETE",
       });
 
-      if (response.ok || response.status === 404) {
-        setEvents(events.filter((e) => e.id !== id));
+      if (!response.ok && response.status !== 404) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const errorData: any = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to delete event: ${response.status}`);
       }
-    } catch (error) {
-      console.error("Failed to delete event:", error);
-      // Still remove locally as fallback
+
       setEvents(events.filter((e) => e.id !== id));
+      closeModal();
+    } catch (error) {
+      console.error("[planner] Failed to delete event:", error);
+      alert(`Failed to delete event: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSaving(false);
-      closeModal();
     }
   };
 

@@ -20,6 +20,7 @@ interface Quest {
   target: number;
   completed: boolean;
   expiresAt?: string;
+  skillId?: string;
 }
 
 // Storage keys
@@ -48,9 +49,13 @@ export function QuestsClient() {
         // Fetch universal quests from API
         const response = await fetch("/api/quests");
         let apiQuests: Quest[] = [];
+        let d1Progress: Record<string, { progress: number; completed: boolean }> = {};
 
         if (response.ok) {
-          const data = await response.json() as { quests?: Record<string, unknown>[] };
+          const data = await response.json() as {
+            quests?: Record<string, unknown>[];
+            userProgress?: Record<string, { progress: number; completed: boolean }>;
+          };
           apiQuests = (data.quests || []).map((q: Record<string, unknown>) => ({
             id: String(q.id || ""),
             title: String(q.title || ""),
@@ -61,20 +66,22 @@ export function QuestsClient() {
             target: Number(q.target || 1),
             progress: 0,
             completed: false,
+            skillId: q.skillId as string | undefined,
           }));
+          d1Progress = data.userProgress || {};
         }
 
-        // Load local progress
+        // Load local progress as fallback
         const storedProgress = localStorage.getItem(QUEST_PROGRESS_KEY);
-        const progress: Record<string, { progress: number; completed: boolean }> = storedProgress
+        const localProgress: Record<string, { progress: number; completed: boolean }> = storedProgress
           ? JSON.parse(storedProgress)
           : {};
 
-        // Merge progress with quests
+        // Merge progress - D1 takes priority, then local
         const questsWithProgress = apiQuests.map((q) => ({
           ...q,
-          progress: progress[q.id]?.progress || 0,
-          completed: progress[q.id]?.completed || false,
+          progress: d1Progress[q.id]?.progress ?? localProgress[q.id]?.progress ?? 0,
+          completed: d1Progress[q.id]?.completed ?? localProgress[q.id]?.completed ?? false,
         }));
 
         setQuests(questsWithProgress);
@@ -100,7 +107,7 @@ export function QuestsClient() {
     }
   }, [wallet, isLoading]);
 
-  // Save quest progress when it changes
+  // Save quest progress when it changes - sync to D1
   useEffect(() => {
     if (!isLoading && quests.length > 0) {
       const progress: Record<string, { progress: number; completed: boolean }> = {};
@@ -111,8 +118,44 @@ export function QuestsClient() {
     }
   }, [quests, isLoading]);
 
+  // Sync quest progress to D1
+  const syncProgressToD1 = useCallback(async (questId: string, progress: number) => {
+    try {
+      await fetch("/api/quests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "progress", questId, progress }),
+      });
+    } catch (e) {
+      console.error("[quests] Failed to sync progress to D1:", e);
+    }
+  }, []);
+
+  // Sync quest completion to D1
+  const syncCompletionToD1 = useCallback(async (quest: Quest) => {
+    try {
+      await fetch("/api/quests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "complete",
+          questId: quest.id,
+          progress: quest.target,
+          xpReward: quest.xpReward,
+          coinReward: quest.coinReward,
+          skillId: quest.skillId,
+        }),
+      });
+    } catch (e) {
+      console.error("[quests] Failed to sync completion to D1:", e);
+    }
+  }, []);
+
   // Complete a quest manually (for testing)
   const handleCompleteQuest = useCallback((questId: string) => {
+    const quest = quests.find((q) => q.id === questId);
+    if (!quest || quest.completed) return;
+
     setQuests((prev) =>
       prev.map((q) => {
         if (q.id !== questId || q.completed) return q;
@@ -120,14 +163,14 @@ export function QuestsClient() {
       })
     );
 
-    const quest = quests.find((q) => q.id === questId);
-    if (quest && !quest.completed) {
-      setWallet((prev) => ({
-        coins: prev.coins + quest.coinReward,
-        totalXp: prev.totalXp + quest.xpReward,
-      }));
-    }
-  }, [quests]);
+    setWallet((prev) => ({
+      coins: prev.coins + quest.coinReward,
+      totalXp: prev.totalXp + quest.xpReward,
+    }));
+
+    // Sync to D1
+    syncCompletionToD1({ ...quest, progress: quest.target, completed: true });
+  }, [quests, syncCompletionToD1]);
 
   // Add progress to a quest
   const handleAddProgress = useCallback((questId: string) => {
@@ -143,12 +186,17 @@ export function QuestsClient() {
             coins: w.coins + q.coinReward,
             totalXp: w.totalXp + q.xpReward,
           }));
+          // Sync completion to D1
+          syncCompletionToD1({ ...q, progress: newProgress, completed: true });
+        } else {
+          // Just sync progress
+          syncProgressToD1(q.id, newProgress);
         }
 
         return { ...q, progress: newProgress, completed };
       })
     );
-  }, []);
+  }, [syncProgressToD1, syncCompletionToD1]);
 
   // Refresh quests from server
   const handleRefreshDaily = useCallback(async () => {

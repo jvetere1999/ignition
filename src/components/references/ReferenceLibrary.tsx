@@ -104,6 +104,7 @@ export function ReferenceLibrary() {
   const [newLibraryName, setNewLibraryName] = useState("");
   const [processingCount, setProcessingCount] = useState(0);
   const [isRestoringUrls, setIsRestoringUrls] = useState(false);
+  const [showImportOptions, setShowImportOptions] = useState(false);
 
   const playerStore = usePlayerStore();
 
@@ -204,7 +205,128 @@ export function ReferenceLibrary() {
     setSelectedTrackId(null);
   }, [selectedLibraryId, libraries]);
 
-  // Import files
+  // Import files - now a shared function that processes files
+  const processImportedFiles = useCallback(async (files: FileList | File[]) => {
+    if (!selectedLibraryId || !selectedLibrary) return;
+
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    const audioFiles = fileArray.filter(
+      (f) =>
+        f.type.startsWith("audio/") ||
+        /\.(mp3|wav|flac|ogg|m4a|aac|webm)$/i.test(f.name)
+    );
+
+    if (audioFiles.length === 0) {
+      alert("No audio files found in selection");
+      return;
+    }
+
+    setProcessingCount(audioFiles.length);
+    setShowImportOptions(false);
+
+    const newTracks: ReferenceTrack[] = [];
+
+    for (const file of audioFiles) {
+      const trackId = generateId();
+      const storageId = `audio_${trackId}`;
+
+      // Store file in IndexedDB for persistence
+      try {
+        await storeAudioFile(storageId, file);
+      } catch (e) {
+        console.error("Failed to store audio file:", file.name, e);
+        setProcessingCount((c) => c - 1);
+        continue;
+      }
+
+      // Create blob URL for immediate playback
+      const audioUrl = URL.createObjectURL(file);
+
+      const track: ReferenceTrack = {
+        id: trackId,
+        name: file.name,
+        mimeType: file.type,
+        size: file.size,
+        audioUrl,
+        storageId,
+      };
+
+      newTracks.push(track);
+
+      // Analyze track in background with caching
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+
+        // Generate content hash for cache lookup
+        const contentHash = await generateContentHash(arrayBuffer);
+
+        // Check cache first
+        const cachedAnalysis = await getCachedAnalysis(contentHash);
+
+        if (cachedAnalysis) {
+          // Use cached analysis - construct proper AudioAnalysis object
+          track.analysis = {
+            version: 1,
+            source: "webaudio",
+            bpm: cachedAnalysis.bpm,
+          } as AudioAnalysis;
+          track.durationMs = cachedAnalysis.durationMs;
+        } else {
+          // Compute analysis
+          const analysis = await analyzeAudio(arrayBuffer);
+          track.analysis = analysis || undefined;
+
+          // Get duration from audio context
+          const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          const audioContext = new AudioContextClass();
+          try {
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            track.durationMs = Math.round(audioBuffer.duration * 1000);
+          } finally {
+            await audioContext.close();
+          }
+
+          // Save to cache - only save properties we have
+          await saveAnalysisToCache({
+            id: trackId,
+            contentHash,
+            name: file.name,
+            durationMs: track.durationMs,
+            bpm: analysis?.bpm,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to analyze track:", file.name, e);
+      }
+
+      setProcessingCount((c) => c - 1);
+    }
+
+    const updatedLibrary = {
+      ...selectedLibrary,
+      tracks: [...selectedLibrary.tracks, ...newTracks],
+    };
+
+    const updated = libraries.map((l) =>
+      l.id === selectedLibraryId ? updatedLibrary : l
+    );
+    setLibraries(updated);
+    saveLibraries(updated);
+  }, [selectedLibraryId, selectedLibrary, libraries]);
+
+  // Handle file input change (for visible file input on iOS)
+  const handleFileInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      processImportedFiles(files);
+    }
+    // Reset input so same file can be selected again
+    event.target.value = "";
+  }, [processImportedFiles]);
+
+  // Legacy import files method (uses hidden input - kept for desktop)
   const handleImportFiles = useCallback(async () => {
     if (!selectedLibraryId || !selectedLibrary) return;
 
@@ -214,114 +336,14 @@ export function ReferenceLibrary() {
     input.accept = "audio/*";
 
     input.onchange = async () => {
-      const files = Array.from(input.files || []);
-      if (files.length === 0) return;
-
-      const audioFiles = files.filter(
-        (f) =>
-          f.type.startsWith("audio/") ||
-          /\.(mp3|wav|flac|ogg|m4a|aac|webm)$/i.test(f.name)
-      );
-
-      if (audioFiles.length === 0) {
-        alert("No audio files found in selection");
-        return;
+      const files = input.files;
+      if (files) {
+        await processImportedFiles(files);
       }
-
-      setProcessingCount(audioFiles.length);
-
-      const newTracks: ReferenceTrack[] = [];
-
-      for (const file of audioFiles) {
-        const trackId = generateId();
-        const storageId = `audio_${trackId}`;
-
-        // Store file in IndexedDB for persistence
-        try {
-          await storeAudioFile(storageId, file);
-        } catch (e) {
-          console.error("Failed to store audio file:", file.name, e);
-          setProcessingCount((c) => c - 1);
-          continue;
-        }
-
-        // Create blob URL for immediate playback
-        const audioUrl = URL.createObjectURL(file);
-
-        const track: ReferenceTrack = {
-          id: trackId,
-          name: file.name,
-          mimeType: file.type,
-          size: file.size,
-          audioUrl,
-          storageId,
-        };
-
-        newTracks.push(track);
-
-        // Analyze track in background with caching
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-
-          // Generate content hash for cache lookup
-          const contentHash = await generateContentHash(arrayBuffer);
-
-          // Check cache first
-          const cachedAnalysis = await getCachedAnalysis(contentHash);
-
-          if (cachedAnalysis) {
-            // Use cached analysis - construct proper AudioAnalysis object
-            track.analysis = {
-              version: 1,
-              source: "webaudio",
-              bpm: cachedAnalysis.bpm,
-            } as AudioAnalysis;
-            track.durationMs = cachedAnalysis.durationMs;
-          } else {
-            // Compute analysis
-            const analysis = await analyzeAudio(arrayBuffer);
-            track.analysis = analysis || undefined;
-
-            // Get duration from audio context
-            const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-            const audioContext = new AudioContextClass();
-            try {
-              const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-              track.durationMs = Math.round(audioBuffer.duration * 1000);
-            } finally {
-              await audioContext.close();
-            }
-
-            // Save to cache - only save properties we have
-            await saveAnalysisToCache({
-              id: trackId,
-              contentHash,
-              name: file.name,
-              durationMs: track.durationMs,
-              bpm: analysis?.bpm,
-            });
-          }
-        } catch (e) {
-          console.error("Failed to analyze track:", file.name, e);
-        }
-
-        setProcessingCount((c) => c - 1);
-      }
-
-      const updatedLibrary = {
-        ...selectedLibrary,
-        tracks: [...selectedLibrary.tracks, ...newTracks],
-      };
-
-      const updated = libraries.map((l) =>
-        l.id === selectedLibraryId ? updatedLibrary : l
-      );
-      setLibraries(updated);
-      saveLibraries(updated);
     };
 
     input.click();
-  }, [selectedLibraryId, selectedLibrary, libraries]);
+  }, [selectedLibraryId, selectedLibrary, processImportedFiles]);
 
   // Select and play track
   const handleSelectTrack = useCallback(
@@ -502,13 +524,47 @@ export function ReferenceLibrary() {
                 )}
               </div>
               <div className={styles.libraryActions}>
-                <button
-                  className={styles.actionButton}
-                  onClick={handleImportFiles}
-                  type="button"
-                >
-                  + Import Files
-                </button>
+                {/* Hidden file input for iOS PWA compatibility */}
+                <input
+                  type="file"
+                  id="audio-file-input"
+                  multiple
+                  accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a,.aac,.webm"
+                  onChange={handleFileInputChange}
+                  style={{ display: "none" }}
+                />
+
+                {/* Import button with options dropdown */}
+                <div className={styles.importDropdown}>
+                  <button
+                    className={styles.actionButton}
+                    onClick={() => setShowImportOptions(!showImportOptions)}
+                    type="button"
+                  >
+                    + Import
+                  </button>
+                  {showImportOptions && (
+                    <div className={styles.dropdownMenu}>
+                      <label
+                        htmlFor="audio-file-input"
+                        className={styles.dropdownItem}
+                      >
+                        Select Files
+                      </label>
+                      <button
+                        className={styles.dropdownItem}
+                        onClick={() => {
+                          setShowImportOptions(false);
+                          handleImportFiles();
+                        }}
+                        type="button"
+                      >
+                        Browse (Desktop)
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   className={`${styles.actionButton} ${styles.danger}`}
                   onClick={handleDeleteLibrary}
