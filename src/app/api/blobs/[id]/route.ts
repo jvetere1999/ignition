@@ -5,17 +5,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { R2Bucket } from "@cloudflare/workers-types";
 import { auth } from "@/lib/auth";
 import { getBlobById, deleteBlobById, getBlobMetadata } from "@/lib/storage";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
-
-// Environment interface for type safety
-interface CloudflareEnv {
-  BLOBS?: R2Bucket;
-}
 
 /**
  * GET /api/blobs/[id]
@@ -35,9 +31,11 @@ export async function GET(
     const { id } = await params;
     const userId = session.user.id;
 
-    // Get R2 bucket from environment
-    const env = (globalThis as unknown as { env?: CloudflareEnv }).env;
-    if (!env?.BLOBS) {
+    // Get R2 bucket from Cloudflare context
+    const ctx = await getCloudflareContext();
+    const bucket = (ctx.env as unknown as { BLOBS?: R2Bucket }).BLOBS;
+
+    if (!bucket) {
       return NextResponse.json(
         { error: "Storage not available" },
         { status: 503 }
@@ -45,7 +43,7 @@ export async function GET(
     }
 
     // Get blob
-    const blob = await getBlobById(env.BLOBS, userId, id);
+    const blob = await getBlobById(bucket, userId, id);
     if (!blob) {
       return NextResponse.json({ error: "Blob not found" }, { status: 404 });
     }
@@ -103,9 +101,11 @@ export async function DELETE(
     const { id } = await params;
     const userId = session.user.id;
 
-    // Get R2 bucket from environment
-    const env = (globalThis as unknown as { env?: CloudflareEnv }).env;
-    if (!env?.BLOBS) {
+    // Get R2 bucket from Cloudflare context
+    const ctx = await getCloudflareContext();
+    const bucket = (ctx.env as unknown as { BLOBS?: R2Bucket }).BLOBS;
+
+    if (!bucket) {
       return NextResponse.json(
         { error: "Storage not available" },
         { status: 503 }
@@ -113,7 +113,7 @@ export async function DELETE(
     }
 
     // Delete blob
-    const deleted = await deleteBlobById(env.BLOBS, userId, id);
+    const deleted = await deleteBlobById(bucket, userId, id);
     if (!deleted) {
       return NextResponse.json({ error: "Blob not found" }, { status: 404 });
     }
@@ -146,21 +146,23 @@ export async function HEAD(
     const { id } = await params;
     const userId = session.user.id;
 
-    // Get R2 bucket from environment
-    const env = (globalThis as unknown as { env?: CloudflareEnv }).env;
-    if (!env?.BLOBS) {
+    // Get R2 bucket from Cloudflare context
+    const ctx = await getCloudflareContext();
+    const bucket = (ctx.env as unknown as { BLOBS?: R2Bucket }).BLOBS;
+
+    if (!bucket) {
       return new NextResponse(null, { status: 503 });
     }
 
-    // Get blob metadata by searching for key
+    // Try to find the blob by checking all categories
     const categories = ["audio", "images", "exports", "other"];
     for (const category of categories) {
       const prefix = `${userId}/${category}/${id}`;
-      const listed = await env.BLOBS.list({ prefix, limit: 1 });
+      const listed = await bucket.list({ prefix, limit: 1 });
 
       if (listed.objects.length > 0) {
         const key = listed.objects[0].key;
-        const metadata = await getBlobMetadata(env.BLOBS, key);
+        const metadata = await getBlobMetadata(bucket, key);
 
         if (metadata) {
           const headers = new Headers();

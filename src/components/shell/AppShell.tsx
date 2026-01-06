@@ -12,7 +12,8 @@ import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
-import { BottomBar } from "./BottomBar";
+import { UnifiedBottomBar } from "./UnifiedBottomBar";
+import { MobileNav } from "./MobileNav";
 import { Omnibar } from "./Omnibar";
 import { TOSModal } from "./TOSModal";
 import { FocusStateProvider } from "@/lib/focus";
@@ -117,7 +118,8 @@ export function AppShell({ children }: AppShellProps) {
         <main className={styles.main}>
           <div className={styles.content}>{children}</div>
         </main>
-        <BottomBar />
+        <UnifiedBottomBar />
+        <MobileNav onMoreClick={toggleSidebar} />
         <Omnibar
           isOpen={omnibarOpen}
           onClose={() => setOmnibarOpen(false)}

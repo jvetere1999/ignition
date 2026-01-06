@@ -8,12 +8,12 @@ import Link from "next/link";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "Help - Passion OS",
-  description: "User guide and documentation for Passion OS.",
+  title: "Help - Ignition",
+  description: "User guide and documentation for Ignition.",
 };
 
 const sections = [
-  { title: "Getting Started", href: "/help/getting-started", description: "First steps with Passion OS" },
+  { title: "Getting Started", href: "/help/getting-started", description: "First steps with Ignition" },
   { title: "Today Dashboard", href: "/help/today", description: "Your daily command center" },
   { title: "Focus Timer", href: "/help/focus", description: "Pomodoro-style focus sessions" },
   { title: "Planner", href: "/help/planner", description: "Calendar and event management" },
@@ -38,7 +38,7 @@ export default function HelpPage() {
       <header className={styles.header}>
         <h1 className={styles.title}>Help Center</h1>
         <p className={styles.subtitle}>
-          Learn how to get the most out of Passion OS.
+          Learn how to get started with Ignition.
         </p>
       </header>
 

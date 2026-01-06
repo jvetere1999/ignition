@@ -9,7 +9,7 @@ import styles from "../page.module.css";
 
 // Topic metadata
 const topics: Record<string, { title: string; description: string }> = {
-  "getting-started": { title: "Getting Started", description: "First steps with Passion OS" },
+  "getting-started": { title: "Getting Started", description: "First steps with Ignition" },
   "today": { title: "Today Dashboard", description: "Your daily command center" },
   "focus": { title: "Focus Timer", description: "Pomodoro-style focus sessions" },
   "planner": { title: "Planner", description: "Calendar and event management" },
@@ -31,16 +31,16 @@ const topics: Record<string, { title: string; description: string }> = {
 // Markdown content (embedded for static rendering)
 const content: Record<string, string> = {
   "getting-started": `
-## Welcome to Passion OS
+## Welcome to Ignition
 
-Passion OS is a productivity and skill-building platform designed to help you grow in music production, fitness, and personal development.
+Ignition is a starter engine for focus, movement, and learning. Begin with one thing. Build momentum naturally.
 
 ### First Steps
 
 1. **Sign In** - Use Google or Microsoft authentication
 2. **Age Verification** - Confirm you are 16 or older
 3. **Approval** - Wait for admin approval (usually within 24 hours)
-4. **Explore** - Start with the Today dashboard
+4. **Start** - Pick one thing from the Today dashboard
 
 ### Core Features
 
@@ -48,7 +48,7 @@ Passion OS is a productivity and skill-building platform designed to help you gr
 - **Planner** - Calendar for scheduling events and workouts
 - **Quests** - Daily and weekly challenges for XP
 - **Exercise** - Track workouts and personal records
-- **Habits** - Build consistent daily routines
+- **Habits** - Build routines at your own pace
 - **Goals** - Set and track long-term objectives
 
 ### Earning Rewards
@@ -56,7 +56,6 @@ Passion OS is a productivity and skill-building platform designed to help you gr
 - Complete focus sessions: 25 XP + 10 coins
 - Finish workouts: 50 XP + 20 coins
 - Complete quests: Variable XP + coins
-- Maintain streaks: Bonus multipliers
 `,
   "today": `
 ## Today Dashboard
@@ -382,7 +381,7 @@ Daily reflection entries:
   "settings": `
 ## Settings
 
-Customize your Passion OS experience.
+Customize your Ignition experience.
 
 ### Theme
 
@@ -405,11 +404,11 @@ Customize your Passion OS experience.
   "mobile": `
 ## Mobile App
 
-Install Passion OS as a PWA on iOS/iPadOS.
+Install Ignition as a PWA on iOS/iPadOS.
 
 ### Installation
 
-1. Open passion-os.ecent.online in Safari
+1. Open ignition.ecent.online in Safari
 2. Tap Share button
 3. Select "Add to Home Screen"
 4. Launch from home screen
@@ -495,7 +494,7 @@ export async function generateMetadata({ params }: { params: Promise<{ topic: st
   const topic = topics[topicSlug];
   if (!topic) return { title: "Not Found" };
   return {
-    title: `${topic.title} - Help - Passion OS`,
+    title: `${topic.title} - Help - Ignition`,
     description: topic.description,
   };
 }

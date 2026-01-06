@@ -10,8 +10,8 @@ import { isAdminEmail } from "@/lib/admin";
 import { AdminClient } from "./AdminClient";
 
 export const metadata: Metadata = {
-  title: "Admin Console - Passion OS",
-  description: "Administrator dashboard for Passion OS.",
+  title: "Admin Console - Ignition",
+  description: "Administrator dashboard for Ignition.",
 };
 
 export default async function AdminPage() {

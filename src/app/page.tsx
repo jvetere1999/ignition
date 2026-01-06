@@ -6,18 +6,18 @@ export default function HomePage() {
     <main className={styles.main}>
       <div className={styles.hero}>
         <div className={styles.heroContent}>
-          <div className={styles.badge}>Free Productivity App for Creators</div>
+          <div className={styles.badge}>A Starter Engine for Creators</div>
           <h1 className={styles.title}>
-            Passion OS: Level Up Your Productivity
+            Ignition - start without friction
           </h1>
           <p className={styles.subtitle}>
-            The gamified productivity app for music producers, fitness enthusiasts, and lifelong learners.
-            Track focus sessions, log workouts, build habits, and earn XP as you grow.
+            A starter engine for focus, movement, and learning.
+            Begin with one thing. Build momentum naturally.
           </p>
 
           <div className={styles.actions}>
             <Link href="/auth/signin" className={styles.primaryButton}>
-              Get Started Free
+              Start Ignition
             </Link>
             <Link href="/about" className={styles.secondaryButton}>
               See All Features
@@ -31,7 +31,7 @@ export default function HomePage() {
       </div>
 
       <section className={styles.features}>
-        <h2 className={styles.sectionTitle}>Everything You Need to Stay Productive</h2>
+        <h2 className={styles.sectionTitle}>Pick One Thing to Start</h2>
 
         <div className={styles.featureGrid}>
           <div className={styles.feature}>
@@ -44,7 +44,7 @@ export default function HomePage() {
             <h3 className={styles.featureTitle}>Focus Timer</h3>
             <p className={styles.featureDescription}>
               Pomodoro-style deep work sessions with 25/5/15 minute intervals.
-              Track focus hours and build consistency streaks.
+              Start a session when you are ready.
             </p>
           </div>
 
@@ -99,7 +99,7 @@ export default function HomePage() {
             <h3 className={styles.featureTitle}>XP and Levels</h3>
             <p className={styles.featureDescription}>
               Earn XP for focus sessions, workouts, and completed quests.
-              Level up and track five skills on your progress wheel.
+              See your progress grow over time.
             </p>
           </div>
 
@@ -122,13 +122,13 @@ export default function HomePage() {
       </section>
 
       <section className={styles.howItWorks}>
-        <h2 className={styles.sectionTitle}>Get Started in 3 Simple Steps</h2>
+        <h2 className={styles.sectionTitle}>Begin in 3 Simple Steps</h2>
         <div className={styles.steps}>
           <div className={styles.step}>
             <div className={styles.stepNumber}>1</div>
             <h3 className={styles.stepTitle}>Verify Your Age</h3>
             <p className={styles.stepDescription}>
-              Passion OS is designed for users 16 and older. Quick age verification ensures a safe community.
+              Ignition is designed for users 16 and older. Quick age verification ensures a safe community.
             </p>
           </div>
           <div className={styles.stepDivider} aria-hidden="true" />
@@ -142,42 +142,42 @@ export default function HomePage() {
           <div className={styles.stepDivider} aria-hidden="true" />
           <div className={styles.step}>
             <div className={styles.stepNumber}>3</div>
-            <h3 className={styles.stepTitle}>Start Earning XP</h3>
+            <h3 className={styles.stepTitle}>Pick One Thing</h3>
             <p className={styles.stepDescription}>
-              Complete focus sessions, log workouts, and finish quests to earn XP. Watch your level grow.
+              Start with focus, movement, or learning. One action. Good start.
             </p>
           </div>
         </div>
       </section>
 
       <section className={styles.useCases}>
-        <h2 className={styles.sectionTitle}>Built for Creators Who Want More</h2>
+        <h2 className={styles.sectionTitle}>Built for Creators Ready to Begin</h2>
         <div className={styles.useCaseGrid}>
           <div className={styles.useCase}>
             <h3>Music Producers</h3>
-            <p>Master DAW shortcuts, analyze reference tracks, and schedule focused production sessions. Track your output and level up your craft.</p>
+            <p>Reference DAW shortcuts, analyze tracks, and schedule focused production sessions. Start where you left off.</p>
           </div>
           <div className={styles.useCase}>
-            <h3>Fitness Enthusiasts</h3>
-            <p>Log every workout, track personal records, and follow structured programs. Build strength while building streaks.</p>
+            <h3>Movement Focused</h3>
+            <p>Log workouts, track personal records, and follow structured programs. One rep at a time.</p>
           </div>
           <div className={styles.useCase}>
             <h3>Lifelong Learners</h3>
-            <p>Track books, take courses, review flashcards, and journal your progress. Turn knowledge into measurable growth.</p>
+            <p>Track books, take courses, review flashcards, and journal your progress. Start with one page.</p>
           </div>
         </div>
       </section>
 
       <section className={styles.cta}>
-        <h2 className={styles.ctaTitle}>Ready to Level Up Your Life?</h2>
+        <h2 className={styles.ctaTitle}>Ready When You Are</h2>
         <p className={styles.ctaDescription}>
-          Join thousands of creators using Passion OS to build better habits, ship more work, and track their progress with XP and levels.
+          Start with focus, movement, or learning. Pick one thing. Build momentum.
         </p>
         <Link href="/auth/signin" className={styles.ctaButton}>
-          Create Your Free Account
+          Start Ignition
         </Link>
         <p className={styles.ageNotice}>
-          Must be 16 or older to use Passion OS. We respect your privacy.{" "}
+          Must be 16 or older to use Ignition. We respect your privacy.{" "}
           <Link href="/privacy">Read our Privacy Policy</Link>.
         </p>
       </section>
@@ -191,7 +191,7 @@ export default function HomePage() {
           <Link href="/contact">Contact Us</Link>
         </div>
         <p className={styles.copyright}>
-          Passion OS - Free productivity app for creators. Focus, train, learn, create.
+          Ignition - A starter engine for focus, movement, and learning.
         </p>
       </footer>
     </main>

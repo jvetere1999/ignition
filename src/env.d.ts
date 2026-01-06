@@ -22,6 +22,16 @@ declare global {
       // App config
       NODE_ENV: "development" | "preview" | "production";
       NEXT_PUBLIC_APP_URL: string;
+
+      // Feature Flags (optional - default to OFF when unset)
+      // Accepts: "1", "true", "on" (case-insensitive) as truthy
+      FLAG_TODAY_FEATURES_MASTER?: string;
+      FLAG_TODAY_DECISION_SUPPRESSION_V1?: string;
+      FLAG_TODAY_NEXT_ACTION_RESOLVER_V1?: string;
+      FLAG_TODAY_MOMENTUM_FEEDBACK_V1?: string;
+      FLAG_TODAY_SOFT_LANDING_V1?: string;
+      FLAG_TODAY_REDUCED_MODE_V1?: string;
+      FLAG_TODAY_DYNAMIC_UI_V1?: string;
     }
   }
 }

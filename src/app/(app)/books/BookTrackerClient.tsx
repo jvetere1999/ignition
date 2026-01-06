@@ -63,7 +63,7 @@ const GENRES = [
 
 export function BookTrackerClient() {
   const [books, setBooks] = useState<Book[]>([]);
-  const [sessions, setSessions] = useState<ReadingSession[]>([]);
+  const [_sessions, setSessions] = useState<ReadingSession[]>([]);
   const [stats, setStats] = useState<ReadingStats>({
     booksThisYear: 0,
     pagesThisMonth: 0,

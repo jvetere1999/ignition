@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { R2Bucket } from "@cloudflare/workers-types";
 import { auth } from "@/lib/auth";
 import {
@@ -14,12 +15,6 @@ import {
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
-
-
-// Environment interface for type safety
-interface CloudflareEnv {
-  BLOBS?: R2Bucket;
-}
 
 /**
  * POST /api/blobs/upload
@@ -39,9 +34,11 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
 
-    // Get R2 bucket from environment
-    const env = (globalThis as unknown as { env?: CloudflareEnv }).env;
-    if (!env?.BLOBS) {
+    // Get R2 bucket from Cloudflare context
+    const ctx = await getCloudflareContext();
+    const bucket = (ctx.env as unknown as { BLOBS?: R2Bucket }).BLOBS;
+
+    if (!bucket) {
       return NextResponse.json(
         { error: "Storage not available" },
         { status: 503 }
@@ -103,7 +100,7 @@ export async function POST(request: NextRequest) {
     const data = await file.arrayBuffer();
 
     // Upload to R2
-    const result = await uploadBlob(env.BLOBS, {
+    const result = await uploadBlob(bucket, {
       userId,
       filename: file.name,
       mimeType,

@@ -11,7 +11,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { CloudflareEnv } from "@/env";
 
 // Current database version
-const CURRENT_DB_VERSION = 12;
+const CURRENT_DB_VERSION = 14;
 
 async function isAdmin(email: string | null | undefined): Promise<boolean> {
   return isAdminEmail(email);
@@ -73,6 +73,23 @@ function migrateData(backup: BackupData): BackupData {
       data.tables.db_metadata = [];
     }
     version = 12;
+  }
+
+  // Migration: v12 -> v13 (add last_activity_at)
+  if (version < 13) {
+    data.tables.users = (data.tables.users || []).map((user) => ({
+      ...user,
+      // last_activity_at is derived from activity_events on restore
+      // Set to null; will be populated on next activity
+      last_activity_at: user.last_activity_at ?? null,
+    }));
+    version = 13;
+  }
+
+  // Migration: v13 -> v14 (performance indexes)
+  // No data migration needed - indexes are created by migration SQL
+  if (version < 14) {
+    version = 14;
   }
 
   data.version = version;

@@ -7,12 +7,12 @@ import Link from "next/link";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy - Passion OS",
-  description: "Privacy policy and data collection practices for Passion OS.",
+  title: "Privacy Policy - Ignition",
+  description: "Privacy policy and data collection practices for Ignition.",
 };
 
 export default function PrivacyPolicyPage() {
-  const lastUpdated = "January 3, 2026";
+  const lastUpdated = "January 5, 2026";
 
   return (
     <div className={styles.page}>
@@ -29,9 +29,8 @@ export default function PrivacyPolicyPage() {
           <section className={styles.section}>
             <h2>1. Introduction</h2>
             <p>
-              Welcome to Passion OS (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). This Privacy Policy explains how we collect,
-              use, disclose, and safeguard your information when you use our productivity and personal
-              development application (&quot;Service&quot;).
+              Welcome to Ignition (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). This Privacy Policy explains how we collect,
+              use, disclose, and safeguard your information when you use our application (&quot;Service&quot;).
             </p>
             <p>
               <strong>Age Requirement:</strong> This Service is intended for users who are 16 years of age
@@ -59,9 +58,17 @@ export default function PrivacyPolicyPage() {
               <li>Quest progress and completion data</li>
               <li>Calendar events and planner data you create</li>
               <li>Exercise logs and workout data</li>
+              <li>Habit completion records</li>
+              <li>Learning progress (lessons, reviews)</li>
               <li>Skill progression and XP earned</li>
               <li>Virtual currency (coins) balance and transactions</li>
+              <li>Last activity timestamp (when you last used any feature)</li>
+              <li>Aggregate counts of feature usage by type (e.g., number of focus sessions completed)</li>
             </ul>
+            <p>
+              <strong>Note:</strong> We collect when and what type of activity occurred, but not the content
+              of your work (e.g., we know you completed a focus session, but not what you were focusing on).
+            </p>
 
             <h3>2.3 Technical Data</h3>
             <p>We may collect:</p>
@@ -72,10 +79,22 @@ export default function PrivacyPolicyPage() {
               <li>Access timestamps</li>
             </ul>
 
-            <h3>2.4 Audio Files (Reference Tracks)</h3>
+            <h3>2.4 Audio Files and Uploads</h3>
             <p>
-              If you use the Reference Library feature, audio files are stored locally on your device
-              only. We do not upload, store, or have access to your audio files on our servers.
+              If you use features that involve file uploads (such as Reference Library or audio assets for ear training):
+            </p>
+            <ul>
+              <li>Files you upload are stored securely on Cloudflare R2 (object storage)</li>
+              <li>Files are associated with your user account and accessible only to you</li>
+              <li>We store metadata about uploaded files (filename, size, upload date, file type)</li>
+              <li>Uploaded files are encrypted at rest and in transit</li>
+              <li>You can delete your uploaded files at any time</li>
+              <li>When you delete your account, all associated uploaded files are also deleted</li>
+            </ul>
+            <p>
+              <strong>Important:</strong> You are responsible for ensuring you have the right to upload any
+              files, including music or audio tracks. We do not analyze, share, or use your uploaded content
+              for any purpose other than providing the Service to you.
             </p>
           </section>
 
@@ -90,7 +109,23 @@ export default function PrivacyPolicyPage() {
               <li>Send important account notifications</li>
               <li>Improve and optimize the Service</li>
               <li>Respond to your feedback and support requests</li>
+              <li>Provide a personalized experience based on your usage patterns (see 3.1)</li>
             </ul>
+
+            <h3>3.1 Personalized Experience</h3>
+            <p>
+              We may use aggregate counts of your feature usage to personalize your dashboard. This includes:
+            </p>
+            <ul>
+              <li>Showing shortcuts to features you use most frequently</li>
+              <li>Reminding you of features you used recently</li>
+              <li>Providing a gentler experience if you return after an extended absence</li>
+            </ul>
+            <p>
+              This personalization uses only aggregate counts (e.g., &quot;15 focus sessions in 14 days&quot;),
+              not content. It is based on explicit, deterministic rules (not AI or machine learning)
+              and does not share any data with third parties.
+            </p>
           </section>
 
           <section className={styles.section}>
@@ -139,7 +174,9 @@ export default function PrivacyPolicyPage() {
             <p>We use:</p>
             <ul>
               <li><strong>Session cookies:</strong> For authentication</li>
-              <li><strong>Local storage:</strong> For theme preferences and temporary UI state</li>
+              <li><strong>Local storage:</strong> For theme preferences, expand/collapse states, and UI settings</li>
+              <li><strong>Session storage:</strong> For temporary UI state within a browser session
+                (e.g., acknowledgment banners). Session storage data is automatically cleared when you close your browser.</li>
             </ul>
             <p>We do not use third-party tracking cookies or advertising cookies.</p>
           </section>
@@ -183,14 +220,14 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul>
               <li>Email: <a href="mailto:privacy@passion-os.app">privacy@passion-os.app</a></li>
-              <li>Contact Page: <Link href="/contact">passion-os.app/contact</Link></li>
+              <li>Contact Page: <Link href="/contact">ignition.ecent.online/contact</Link></li>
             </ul>
           </section>
 
           <section className={styles.section}>
             <h2>12. Consent</h2>
             <p>
-              By using Passion OS, you consent to this Privacy Policy and agree to its terms.
+              By using Ignition, you consent to this Privacy Policy and agree to its terms.
             </p>
           </section>
         </main>

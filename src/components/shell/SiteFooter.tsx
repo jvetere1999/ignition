@@ -12,7 +12,7 @@ export function SiteFooter() {
     <footer className={styles.footer}>
       <div className={styles.content}>
         <span className={styles.copyright}>
-          {String.fromCharCode(169)} {currentYear} Passion OS
+          {String.fromCharCode(169)} {currentYear} Ignition
         </span>
         <span className={styles.separator}>{String.fromCharCode(8226)}</span>
         <Link href="/privacy" className={styles.link}>

@@ -4,11 +4,15 @@
  * Focus Indicator Component
  * Shows a persistent bottom indicator when a focus session is active
  * Displays timer, mode, and quick actions
+ *
+ * STORAGE RULE: Focus pause state is fetched from D1 via /api/focus/pause API.
+ * localStorage is DEPRECATED for focus_paused_state (behavior-affecting data).
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePlayerVisible } from "@/lib/player";
+import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./FocusIndicator.module.css";
 
 interface FocusSession {
@@ -78,25 +82,44 @@ export function FocusIndicator() {
     };
   }, [shouldShow, isPlayerVisible, isMinimized]);
 
-  // Check for paused state in localStorage
-  const checkPausedState = useCallback(() => {
+  // Check for paused state - D1 is source of truth
+  const checkPausedState = useCallback(async () => {
+    // Always check D1 first (source of truth)
     try {
-      const stored = localStorage.getItem("focus_paused_state");
-      if (stored) {
-        const parsed = JSON.parse(stored) as PausedState;
-        const pausedTime = new Date(parsed.pausedAt).getTime();
-        const hourAgo = Date.now() - 60 * 60 * 1000;
-        if (pausedTime > hourAgo) {
-          setPausedState(parsed);
-          setTimeRemaining(parsed.timeRemaining);
+      const response = await fetch("/api/focus/pause");
+      if (response.ok) {
+        const data = await response.json() as { pauseState: PausedState | null };
+        if (data.pauseState) {
+          setPausedState(data.pauseState);
+          setTimeRemaining(data.pauseState.timeRemaining);
           return true;
-        } else {
-          localStorage.removeItem("focus_paused_state");
         }
       }
-    } catch {
-      localStorage.removeItem("focus_paused_state");
+    } catch (e) {
+      console.error("Failed to fetch pause state from D1:", e);
     }
+
+    // Only fall back to localStorage if deprecation is disabled
+    if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+      try {
+        const stored = localStorage.getItem("focus_paused_state");
+        if (stored) {
+          const parsed = JSON.parse(stored) as PausedState;
+          const pausedTime = new Date(parsed.pausedAt).getTime();
+          const hourAgo = Date.now() - 60 * 60 * 1000;
+          if (pausedTime > hourAgo) {
+            setPausedState(parsed);
+            setTimeRemaining(parsed.timeRemaining);
+            return true;
+          } else {
+            localStorage.removeItem("focus_paused_state");
+          }
+        }
+      } catch {
+        localStorage.removeItem("focus_paused_state");
+      }
+    }
+
     setPausedState(null);
     return false;
   }, []);
@@ -119,7 +142,7 @@ export function FocusIndicator() {
         } else {
           setSession(null);
           // Check for paused state if no active session
-          checkPausedState();
+          await checkPausedState();
         }
       }
     } catch (error) {
@@ -138,9 +161,9 @@ export function FocusIndicator() {
     // Poll for session changes every 30 seconds
     const pollInterval = setInterval(fetchActiveSession, 30000);
 
-    // Listen for storage changes (when paused state changes in another tab or component)
+    // Listen for storage changes only if deprecation is disabled
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "focus_paused_state") {
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE && e.key === "focus_paused_state") {
         checkPausedState();
       }
     };
@@ -199,10 +222,13 @@ export function FocusIndicator() {
 
   // Handle dismiss paused state
   const handleDismissPaused = useCallback(async () => {
-    localStorage.removeItem("focus_paused_state");
+    // Always clean up localStorage (even if deprecated, for cleanup)
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("focus_paused_state");
+    }
     setPausedState(null);
 
-    // Also clear from D1
+    // Clear from D1 (source of truth)
     try {
       await fetch("/api/focus/pause", {
         method: "POST",

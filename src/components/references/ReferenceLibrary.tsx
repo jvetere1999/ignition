@@ -4,6 +4,7 @@
  *
  * Audio files are stored in IndexedDB for persistence across sessions.
  * Files are only accessible on the machine they were added on.
+ * Supports quick mode via ?quick=1 query param
  */
 
 "use client";
@@ -27,6 +28,7 @@ import {
   deleteAudioFiles,
 } from "@/lib/player/local-storage";
 import { AudioAnalysisPanel } from "@/components/player";
+import { QuickModeHeader } from "@/components/ui/QuickModeHeader";
 import styles from "./ReferenceLibrary.module.css";
 
 // ============================================
@@ -105,8 +107,22 @@ export function ReferenceLibrary() {
   const [processingCount, setProcessingCount] = useState(0);
   const [isRestoringUrls, setIsRestoringUrls] = useState(false);
   const [showImportOptions, setShowImportOptions] = useState(false);
+  const [isQuickMode, setIsQuickMode] = useState(false);
 
   const playerStore = usePlayerStore();
+
+  // Detect quick mode from URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const quick = params.get("quick") === "1";
+      setIsQuickMode(quick);
+      // In quick mode, show import options
+      if (quick) {
+        setShowImportOptions(true);
+      }
+    }
+  }, []);
 
   // Load libraries on mount and restore audio URLs from IndexedDB
   useEffect(() => {
@@ -437,9 +453,13 @@ export function ReferenceLibrary() {
     : { total: 0, analyzed: 0 };
 
   return (
-    <div className={styles.container}>
-      {/* Sidebar: Libraries */}
-      <aside className={styles.sidebar}>
+    <>
+      {/* Quick Mode Header */}
+      {isQuickMode && <QuickModeHeader title="Quick Start - Reference Library" />}
+
+      <div className={styles.container}>
+        {/* Sidebar: Libraries */}
+        <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <h2 className={styles.sidebarTitle}>Libraries</h2>
           <button
@@ -681,6 +701,7 @@ export function ReferenceLibrary() {
         </aside>
       )}
     </div>
+    </>
   );
 }
 

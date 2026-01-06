@@ -179,13 +179,35 @@
   transition: all var(--transition-fast);
 }
 
-.playButton:hover {
+.playButton:hover:not(:disabled) {
   background-color: var(--color-accent-primary-hover);
   transform: scale(1.05);
 }
 
+.playButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .playButton svg {
   margin-left: 4px;
+}
+
+/* Loading spinner animation (FO-01) */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Disabled state for control buttons */
+.controlButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .modeSelector {
@@ -218,9 +240,10 @@
 }
 
 .modeButton.active {
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
+  background-color: var(--color-accent-primary);
+  color: var(--color-text-inverse);
   box-shadow: var(--shadow-sm);
+  font-weight: var(--font-weight-semibold);
 }
 
 .timerStatus {

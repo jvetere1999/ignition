@@ -36,21 +36,35 @@ interface InboxItem {
 // ============================================
 
 const NAVIGATION_COMMANDS: Omit<Command, "action">[] = [
-  { id: "nav-today", title: "Go to Today", category: "Navigation", shortcut: "G T" },
-  { id: "nav-hub", title: "Go to Shortcuts", category: "Navigation", shortcut: "G H" },
-  { id: "nav-focus", title: "Go to Focus", category: "Navigation", shortcut: "G F" },
-  { id: "nav-planner", title: "Go to Planner", category: "Navigation", shortcut: "G P" },
-  { id: "nav-quests", title: "Go to Quests", category: "Navigation", shortcut: "G Q" },
-  { id: "nav-progress", title: "Go to Progress", category: "Navigation" },
-  { id: "nav-goals", title: "Go to Goals", category: "Navigation" },
-  { id: "nav-market", title: "Go to Market", category: "Navigation" },
-  { id: "nav-arrange", title: "Go to Arrange", category: "Navigation", shortcut: "G A" },
-  { id: "nav-templates", title: "Go to Templates", category: "Navigation" },
-  { id: "nav-reference", title: "Go to Reference", category: "Navigation" },
-  { id: "nav-infobase", title: "Go to Infobase", category: "Navigation", shortcut: "G I" },
-  { id: "nav-exercise", title: "Go to Exercise", category: "Navigation" },
-  { id: "nav-learn", title: "Go to Learn", category: "Navigation" },
-  { id: "nav-settings", title: "Go to Settings", category: "Navigation", shortcut: "G S" },
+  // Start section
+  { id: "nav-today", title: "Go to Today", category: "Start", shortcut: "G T" },
+  { id: "nav-focus", title: "Go to Focus", category: "Start", shortcut: "G F" },
+  { id: "nav-quests", title: "Go to Quests", category: "Start", shortcut: "G Q" },
+  { id: "nav-ignitions", title: "Go to Ignitions", category: "Start", shortcut: "G I" },
+  { id: "nav-progress", title: "Go to Progress", category: "Start" },
+  // Shape section
+  { id: "nav-planner", title: "Go to Planner", category: "Shape", shortcut: "G P" },
+  { id: "nav-goals", title: "Go to Goals", category: "Shape" },
+  { id: "nav-habits", title: "Go to Habits", category: "Shape" },
+  { id: "nav-exercise", title: "Go to Exercise", category: "Shape" },
+  { id: "nav-books", title: "Go to Books", category: "Shape" },
+  // Reflect section
+  { id: "nav-wins", title: "Go to Wins", category: "Reflect" },
+  { id: "nav-stats", title: "Go to Stats", category: "Reflect" },
+  { id: "nav-market", title: "Go to Market", category: "Reflect" },
+  // Create section
+  { id: "nav-hub", title: "Go to Shortcuts", category: "Create", shortcut: "G H" },
+  { id: "nav-arrange", title: "Go to Arrange", category: "Create", shortcut: "G A" },
+  { id: "nav-templates", title: "Go to Templates", category: "Create" },
+  { id: "nav-reference", title: "Go to Reference", category: "Create" },
+  { id: "nav-wheel", title: "Go to Harmonics", category: "Create" },
+  { id: "nav-infobase", title: "Go to Infobase", category: "Create" },
+  { id: "nav-ideas", title: "Go to Ideas", category: "Create" },
+  // Learn section
+  { id: "nav-learn", title: "Go to Learn", category: "Learn" },
+  // System section
+  { id: "nav-settings", title: "Go to Settings", category: "System", shortcut: "G S" },
+  { id: "nav-admin", title: "Go to Admin", category: "System", description: "Admin only" },
 ];
 
 const ACTION_COMMANDS: Omit<Command, "action">[] = [
@@ -58,6 +72,9 @@ const ACTION_COMMANDS: Omit<Command, "action">[] = [
   { id: "action-new-event", title: "Create New Event", category: "Actions", shortcut: "N E" },
   { id: "action-start-focus", title: "Start Focus Session", category: "Actions", shortcut: "N F" },
   { id: "action-new-arrangement", title: "Create New Arrangement", category: "Actions" },
+  { id: "action-new-idea", title: "Capture New Idea", category: "Actions", shortcut: "N I" },
+  { id: "action-new-goal", title: "Create New Goal", category: "Actions" },
+  { id: "action-new-habit", title: "Create New Habit", category: "Actions" },
 ];
 
 const THEME_COMMANDS: Omit<Command, "action">[] = [
@@ -116,20 +133,28 @@ export function Omnibar({ isOpen, onClose }: OmnibarProps) {
   const commands: Command[] = useMemo(() => {
     const navActions: Record<string, () => void> = {
       "nav-today": () => router.push("/today"),
-      "nav-hub": () => router.push("/hub"),
       "nav-focus": () => router.push("/focus"),
-      "nav-planner": () => router.push("/planner"),
       "nav-quests": () => router.push("/quests"),
+      "nav-ignitions": () => router.push("/ignitions"),
       "nav-progress": () => router.push("/progress"),
+      "nav-planner": () => router.push("/planner"),
       "nav-goals": () => router.push("/goals"),
+      "nav-habits": () => router.push("/habits"),
+      "nav-exercise": () => router.push("/exercise"),
+      "nav-books": () => router.push("/books"),
+      "nav-wins": () => router.push("/wins"),
+      "nav-stats": () => router.push("/stats"),
       "nav-market": () => router.push("/market"),
+      "nav-hub": () => router.push("/hub"),
       "nav-arrange": () => router.push("/arrange"),
       "nav-templates": () => router.push("/templates"),
       "nav-reference": () => router.push("/reference"),
+      "nav-wheel": () => router.push("/wheel"),
       "nav-infobase": () => router.push("/infobase"),
-      "nav-exercise": () => router.push("/exercise"),
+      "nav-ideas": () => router.push("/ideas"),
       "nav-learn": () => router.push("/learn"),
       "nav-settings": () => router.push("/settings"),
+      "nav-admin": () => router.push("/admin"),
     };
 
     const actionActions: Record<string, () => void> = {
@@ -137,6 +162,9 @@ export function Omnibar({ isOpen, onClose }: OmnibarProps) {
       "action-new-event": () => router.push("/planner?new=true"),
       "action-start-focus": () => router.push("/focus?start=true"),
       "action-new-arrangement": () => router.push("/arrange"),
+      "action-new-idea": () => router.push("/ideas?new=true"),
+      "action-new-goal": () => router.push("/goals?new=true"),
+      "action-new-habit": () => router.push("/habits?new=true"),
     };
 
     const themeActions: Record<string, () => void> = {

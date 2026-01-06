@@ -1,8 +1,8 @@
-# Passion OS Next - Cloudflare Workers Configuration
+# Ignition - Cloudflare Workers Configuration
 # See: https://developers.cloudflare.com/workers/
 # OpenNext: https://opennext.js.org/cloudflare
 
-name = "passion-os-next"
+name = "ignition"
 compatibility_date = "2025-01-02"
 compatibility_flags = ["nodejs_compat"]
 
@@ -16,13 +16,13 @@ binding = "ASSETS"
 # D1 Database binding
 [[d1_databases]]
 binding = "DB"
-database_name = "passion_os"
+database_name = "ignition"
 database_id = "40c2b3a5-7fa1-492f-bce9-3c30959b56a8"
 
-# R2 Bucket binding (enable R2 in dashboard first, then uncomment)
-# [[r2_buckets]]
-# binding = "BLOBS"
-# bucket_name = "passion-os-blobs"
+# R2 Bucket binding for audio files and blobs
+[[r2_buckets]]
+binding = "BLOBS"
+bucket_name = "ignition-blobs"
 
 # KV Namespace for caching (optional, uncomment if needed)
 # [[kv_namespaces]]
@@ -32,25 +32,24 @@ database_id = "40c2b3a5-7fa1-492f-bce9-3c30959b56a8"
 # Environment variables (non-sensitive)
 [vars]
 NODE_ENV = "production"
-NEXT_PUBLIC_APP_URL = "https://passion-os.ecent.online"
-AUTH_URL = "https://passion-os.ecent.online"
+NEXT_PUBLIC_APP_URL = "https://ignition.ecent.online"
+AUTH_URL = "https://ignition.ecent.online"
 AUTH_TRUST_HOST = "true"
 ADMIN_EMAILS = "jvetere1999@gmail.com"
 NEXT_PUBLIC_ADMIN_EMAILS = "jvetere1999@gmail.com"
-# Set your AdSense publisher ID here (without "ca-" prefix)
-# NEXT_PUBLIC_ADSENSE_PUBLISHER_ID = "pub-xxxxxxxxxxxxxxxx"
 
 # Preview environment
 [env.preview]
-name = "passion-os-next-preview"
+name = "ignition-preview"
 
 [env.preview.vars]
 NODE_ENV = "preview"
-NEXT_PUBLIC_APP_URL = "https://passion-os-next-preview.jvetere1999.workers.dev"
-AUTH_URL = "https://passion-os-next-preview.jvetere1999.workers.dev"
+NEXT_PUBLIC_APP_URL = "https://ignition-preview.jvetere1999.workers.dev"
+AUTH_URL = "https://ignition-preview.jvetere1999.workers.dev"
 AUTH_TRUST_HOST = "true"
 ADMIN_EMAILS = "jvetere1999@gmail.com"
 NEXT_PUBLIC_ADMIN_EMAILS = "jvetere1999@gmail.com"
+
 
 # ============================================
 # SECRETS - Set via: wrangler secret put <NAME>
@@ -67,3 +66,17 @@ NEXT_PUBLIC_ADMIN_EMAILS = "jvetere1999@gmail.com"
 #   wrangler secret put AUTH_SECRET --env preview
 #   ... (repeat for all secrets)
 
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1

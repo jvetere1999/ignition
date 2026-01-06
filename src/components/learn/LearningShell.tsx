@@ -17,6 +17,7 @@ interface LearningShellProps {
 const NAV_ITEMS = [
   { href: "/learn", label: "Dashboard", icon: "home" },
   { href: "/learn/courses", label: "Courses", icon: "book" },
+  { href: "/learn/ear-training", label: "Ear Training", icon: "headphones" },
   { href: "/learn/review", label: "Review", icon: "refresh" },
   { href: "/learn/practice", label: "Practice", icon: "target" },
   { href: "/learn/recipes", label: "Recipes", icon: "beaker" },
@@ -175,6 +176,13 @@ function NavIcon({ name }: { name: string }) {
           <line x1="3" y1="6" x2="3.01" y2="6" />
           <line x1="3" y1="12" x2="3.01" y2="12" />
           <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+      );
+    case "headphones":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
         </svg>
       );
     default:

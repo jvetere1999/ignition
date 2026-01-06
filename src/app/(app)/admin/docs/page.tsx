@@ -13,7 +13,7 @@ import styles from "./page.module.css";
 
 export const metadata: Metadata = {
   title: "Technical Documentation - Admin",
-  description: "Technical documentation for Passion OS administrators.",
+  description: "Technical documentation for Ignition administrators.",
   robots: { index: false, follow: false },
 };
 

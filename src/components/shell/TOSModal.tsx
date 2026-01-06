@@ -47,20 +47,20 @@ export function TOSModal({ onAccept }: TOSModalProps) {
       <div className={styles.modal}>
         <h2 className={styles.title}>Terms of Service</h2>
         <p className={styles.subtitle}>
-          Before you can use Passion OS, please review and accept our Terms of Service.
+          Before you can use Ignition, please review and accept our Terms of Service.
         </p>
 
         <div className={styles.content}>
           <div className={styles.scrollArea}>
             <h3>1. Acceptance of Terms</h3>
             <p>
-              By accessing or using Passion OS, you agree to be bound by these Terms of Service.
+              By accessing or using Ignition, you agree to be bound by these Terms of Service.
               If you do not agree to these terms, please do not use the service.
             </p>
 
             <h3>2. Age Requirement</h3>
             <p>
-              You must be at least 16 years old to use Passion OS. By using the service,
+              You must be at least 16 years old to use Ignition. By using the service,
               you confirm that you meet this age requirement.
             </p>
 
@@ -72,14 +72,14 @@ export function TOSModal({ onAccept }: TOSModalProps) {
 
             <h3>4. Acceptable Use</h3>
             <p>
-              You agree to use Passion OS only for lawful purposes and in accordance
+              You agree to use Ignition only for lawful purposes and in accordance
               with these Terms. You agree not to use the service in any way that could
               damage, disable, or impair the service.
             </p>
 
             <h3>5. Data and Privacy</h3>
             <p>
-              Your use of Passion OS is also governed by our Privacy Policy. Please review
+              Your use of Ignition is also governed by our Privacy Policy. Please review
               our <Link href="/privacy">Privacy Policy</Link> to understand how we collect,
               use, and protect your information.
             </p>
@@ -105,7 +105,7 @@ export function TOSModal({ onAccept }: TOSModalProps) {
 
             <h3>9. Limitation of Liability</h3>
             <p>
-              In no event shall Passion OS be liable for any indirect, incidental,
+              In no event shall Ignition be liable for any indirect, incidental,
               special, or consequential damages arising from your use of the service.
             </p>
 

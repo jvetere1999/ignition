@@ -58,5 +58,50 @@ test.describe("Authentication Flow", () => {
     await page.goto("/focus");
     await expect(page).toHaveURL(/auth\/signin/);
   });
+
+  test("should redirect unauthenticated users from today", async ({ page }) => {
+    await page.goto("/today");
+    await expect(page).toHaveURL(/auth\/signin/);
+  });
+
+  test("should redirect unauthenticated users from market", async ({ page }) => {
+    await page.goto("/market");
+    await expect(page).toHaveURL(/auth\/signin/);
+  });
+
+  test("should redirect unauthenticated users from quests", async ({ page }) => {
+    await page.goto("/quests");
+    await expect(page).toHaveURL(/auth\/signin/);
+  });
+});
+
+test.describe("Auth API Endpoints", () => {
+  test("GET /api/auth/providers returns providers", async ({ request }) => {
+    const response = await request.get("/api/auth/providers");
+    expect(response.ok()).toBeTruthy();
+
+    const data = await response.json();
+    expect(data.google).toBeDefined();
+    expect(data["azure-ad"]).toBeDefined();
+  });
+
+  test("GET /api/auth/session returns session info", async ({ request }) => {
+    const response = await request.get("/api/auth/session");
+    expect(response.ok()).toBeTruthy();
+  });
+
+  test("protected API routes require auth", async ({ request }) => {
+    const protectedRoutes = [
+      "/api/focus/active",
+      "/api/market",
+      "/api/onboarding",
+    ];
+
+    for (const route of protectedRoutes) {
+      const response = await request.get(route);
+      // Should return 401 Unauthorized
+      expect(response.status()).toBe(401);
+    }
+  });
 });
 

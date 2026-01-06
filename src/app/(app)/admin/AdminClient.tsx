@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback } from "react";
 import styles from "./page.module.css";
 
-type AdminTab = "users" | "quests" | "feedback" | "skills" | "stats" | "database";
+type AdminTab = "users" | "quests" | "feedback" | "skills" | "content" | "stats" | "database";
 
 interface User {
   id: string;
@@ -362,7 +362,7 @@ export function AdminClient({ userEmail }: AdminClientProps) {
 
       {/* Tabs */}
       <div className={styles.tabs}>
-        {(["users", "quests", "feedback", "skills", "stats", "database"] as AdminTab[]).map((tab) => (
+        {(["users", "quests", "feedback", "skills", "content", "stats", "database"] as AdminTab[]).map((tab) => (
           <button
             key={tab}
             className={`${styles.tab} ${activeTab === tab ? styles.active : ""}`}
@@ -781,29 +781,14 @@ export function AdminClient({ userEmail }: AdminClientProps) {
               </div>
             )}
 
+            {/* Content Tab */}
+            {activeTab === "content" && (
+              <ContentTab />
+            )}
+
             {/* Stats Tab */}
             {activeTab === "stats" && (
-              <div className={styles.section}>
-                <h2 className={styles.sectionTitle}>Platform Statistics</h2>
-                <div className={styles.statsGrid}>
-                  <div className={styles.statCard}>
-                    <span className={styles.statValue}>{users.length}</span>
-                    <span className={styles.statLabel}>Total Users</span>
-                  </div>
-                  <div className={styles.statCard}>
-                    <span className={styles.statValue}>{quests.filter((q) => q.isActive).length}</span>
-                    <span className={styles.statLabel}>Active Quests</span>
-                  </div>
-                  <div className={styles.statCard}>
-                    <span className={styles.statValue}>{feedback.filter((f) => f.status === "open").length}</span>
-                    <span className={styles.statLabel}>Open Feedback</span>
-                  </div>
-                  <div className={styles.statCard}>
-                    <span className={styles.statValue}>{skills.filter((s) => s.isActive).length}</span>
-                    <span className={styles.statLabel}>Active Skills</span>
-                  </div>
-                </div>
-              </div>
+              <StatsTab users={users} quests={quests} feedback={feedback} skills={skills} />
             )}
 
             {/* Database Tab */}
@@ -1050,6 +1035,285 @@ function DatabaseTab() {
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Content Tab Component
+ * Manage seeded content: lessons, templates, glossary, etc.
+ */
+interface ContentItem {
+  id: string;
+  [key: string]: unknown;
+}
+
+function ContentTab() {
+  const [contentType, setContentType] = useState("lessons");
+  const [content, setContent] = useState<ContentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const contentTypes = [
+    { key: "lessons", label: "Learn Lessons" },
+    { key: "drills", label: "Ear Training Drills" },
+    { key: "topics", label: "Learn Topics" },
+    { key: "templates", label: "Plan Templates" },
+    { key: "recipes", label: "Production Recipes" },
+    { key: "glossary", label: "Glossary Terms" },
+    { key: "shortcuts", label: "DAW Shortcuts" },
+    { key: "ignitions", label: "Ignition Packs" },
+    { key: "market", label: "Market Items" },
+    { key: "achievements", label: "Achievements" },
+    { key: "infobase", label: "Infobase (Public)" },
+  ];
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/admin/content?type=${contentType}`);
+        const json: Record<string, ContentItem[]> = await res.json();
+        setContent(json[contentType] || []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchContent();
+  }, [contentType]);
+
+  return (
+    <div className={styles.section}>
+      <h2 className={styles.sectionTitle}>Content Management</h2>
+
+      {/* Content Type Selector */}
+      <div className={styles.contentTypeSelector}>
+        {contentTypes.map((ct) => (
+          <button
+            key={ct.key}
+            className={`${styles.contentTypeButton} ${contentType === ct.key ? styles.active : ""}`}
+            onClick={() => setContentType(ct.key)}
+          >
+            {ct.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content List */}
+      {isLoading ? (
+        <div className={styles.loading}>Loading...</div>
+      ) : (
+        <div className={styles.contentList}>
+          <div className={styles.contentHeader}>
+            <span className={styles.contentCount}>{content.length} items</span>
+          </div>
+          {content.length === 0 ? (
+            <p className={styles.emptyState}>No {contentType} found.</p>
+          ) : (
+            <div className={styles.contentGrid}>
+              {content.map((item) => (
+                <div key={item.id} className={styles.contentCard}>
+                  <div className={styles.contentCardHeader}>
+                    <span className={styles.contentId}>{item.id}</span>
+                  </div>
+                  <div className={styles.contentCardBody}>
+                    {Object.entries(item)
+                      .filter(([key]) => !["id", "created_at", "updated_at"].includes(key))
+                      .slice(0, 4)
+                      .map(([key, value]) => (
+                        <div key={key} className={styles.contentField}>
+                          <span className={styles.contentFieldLabel}>{key}:</span>
+                          <span className={styles.contentFieldValue}>
+                            {typeof value === "string" && value.length > 50
+                              ? value.substring(0, 50) + "..."
+                              : String(value ?? "-")}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Stats Tab Component
+ * Enhanced platform statistics
+ */
+interface StatsData {
+  users?: { total_users: number; tos_accepted: number; admins: number; active_7d: number; active_30d: number };
+  content?: { exercises: number; learn_topics: number; learn_lessons: number; learn_drills: number; universal_quests: number; user_quests: number; ignition_packs: number; market_items: number; plan_templates: number; infobase_public: number; glossary_terms: number; daw_shortcuts: number; recipe_templates: number };
+  activity?: { total_focus_sessions: number; completed_focus: number; total_focus_minutes: number; total_events: number; events_24h: number; habit_completions: number; total_goals: number; total_ideas: number; total_books: number; reference_tracks: number };
+  gamification?: { total_coins_distributed: number; total_xp_distributed: number; achievements_earned: number; total_purchases: number; ledger_entries: number };
+  onboarding?: { status: string; count: number }[];
+}
+
+interface StatsTabProps {
+  users: User[];
+  quests: Quest[];
+  feedback: Feedback[];
+  skills: SkillDefinition[];
+}
+
+function StatsTab({ users, quests, feedback, skills }: StatsTabProps) {
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("/api/admin/stats");
+        const data = await res.json() as StatsData;
+        setStats(data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (isLoading) {
+    return <div className={styles.loading}>Loading statistics...</div>;
+  }
+
+  return (
+    <div className={styles.section}>
+      <h2 className={styles.sectionTitle}>Platform Statistics</h2>
+
+      {/* Quick Stats */}
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.users?.total_users || users.length}</span>
+          <span className={styles.statLabel}>Total Users</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.users?.active_7d || 0}</span>
+          <span className={styles.statLabel}>Active (7d)</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{quests.filter((q) => q.isActive).length}</span>
+          <span className={styles.statLabel}>Active Quests</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{skills.filter((s) => s.isActive).length}</span>
+          <span className={styles.statLabel}>Active Skills</span>
+        </div>
+      </div>
+
+      {/* Content Stats */}
+      <h3 className={styles.statsSubtitle}>Content</h3>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.content?.exercises || 0}</span>
+          <span className={styles.statLabel}>Exercises</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.content?.learn_lessons || 0}</span>
+          <span className={styles.statLabel}>Lessons</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.content?.learn_drills || 0}</span>
+          <span className={styles.statLabel}>Drills</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.content?.universal_quests || 0}</span>
+          <span className={styles.statLabel}>Universal Quests</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.content?.ignition_packs || 0}</span>
+          <span className={styles.statLabel}>Ignition Packs</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.content?.market_items || 0}</span>
+          <span className={styles.statLabel}>Market Items</span>
+        </div>
+      </div>
+
+      {/* Activity Stats */}
+      <h3 className={styles.statsSubtitle}>Activity</h3>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.activity?.completed_focus || 0}</span>
+          <span className={styles.statLabel}>Focus Sessions</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{Math.round(stats?.activity?.total_focus_minutes || 0)}</span>
+          <span className={styles.statLabel}>Focus Minutes</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.activity?.events_24h || 0}</span>
+          <span className={styles.statLabel}>Events (24h)</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.activity?.total_ideas || 0}</span>
+          <span className={styles.statLabel}>Ideas</span>
+        </div>
+      </div>
+
+      {/* Gamification Stats */}
+      <h3 className={styles.statsSubtitle}>Gamification</h3>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.gamification?.total_coins_distributed || 0}</span>
+          <span className={styles.statLabel}>Coins Distributed</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.gamification?.total_xp_distributed || 0}</span>
+          <span className={styles.statLabel}>XP Distributed</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.gamification?.achievements_earned || 0}</span>
+          <span className={styles.statLabel}>Achievements Earned</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{stats?.gamification?.total_purchases || 0}</span>
+          <span className={styles.statLabel}>Market Purchases</span>
+        </div>
+      </div>
+
+      {/* Onboarding Stats */}
+      {stats?.onboarding && stats.onboarding.length > 0 && (
+        <>
+          <h3 className={styles.statsSubtitle}>Onboarding</h3>
+          <div className={styles.statsGrid}>
+            {stats.onboarding.map((ob) => (
+              <div key={ob.status} className={styles.statCard}>
+                <span className={styles.statValue}>{ob.count}</span>
+                <span className={styles.statLabel}>{ob.status}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Feedback Stats */}
+      <h3 className={styles.statsSubtitle}>Feedback</h3>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{feedback.filter((f) => f.status === "open").length}</span>
+          <span className={styles.statLabel}>Open</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{feedback.filter((f) => f.status === "in_progress").length}</span>
+          <span className={styles.statLabel}>In Progress</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{feedback.filter((f) => f.status === "resolved").length}</span>
+          <span className={styles.statLabel}>Resolved</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{feedback.length}</span>
+          <span className={styles.statLabel}>Total</span>
         </div>
       </div>
     </div>

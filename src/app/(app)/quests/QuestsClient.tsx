@@ -6,10 +6,15 @@
  * Fetches universal quests from database
  *
  * Auto-refresh: Refetches on focus after 1 minute staleness (per SYNC.md)
+ *
+ * STORAGE RULE: Quest progress is stored in D1 via /api/quests API.
+ * localStorage cache is DEPRECATED when DISABLE_MASS_LOCAL_PERSISTENCE is enabled.
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useAutoRefresh } from "@/lib/hooks";
+import { LoadingState, EmptyState } from "@/components/ui";
+import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
 
 interface Quest {
@@ -26,8 +31,7 @@ interface Quest {
   skillId?: string;
 }
 
-// Storage keys
-const WALLET_KEY = "passion_wallet_v1";
+// Storage key for local progress cache (D1 is primary)
 const QUEST_PROGRESS_KEY = "passion_quest_progress_v1";
 
 export function QuestsClient() {
@@ -44,6 +48,24 @@ export function QuestsClient() {
     coinReward: 10,
     target: 1,
   });
+
+  // Fetch wallet from D1
+  const fetchWallet = useCallback(async () => {
+    try {
+      const response = await fetch("/api/market");
+      if (response.ok) {
+        const data = await response.json() as { wallet?: { coins?: number; xp?: number } };
+        if (data.wallet) {
+          setWallet({
+            coins: data.wallet.coins || 0,
+            totalXp: data.wallet.xp || 0,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load wallet:", e);
+    }
+  }, []);
 
   // Fetch quests function for reuse
   const fetchQuests = useCallback(async () => {
@@ -72,13 +94,14 @@ export function QuestsClient() {
         d1Progress = data.userProgress || {};
       }
 
-      // Load local progress as fallback
-      const storedProgress = localStorage.getItem(QUEST_PROGRESS_KEY);
-      const localProgress: Record<string, { progress: number; completed: boolean }> = storedProgress
-        ? JSON.parse(storedProgress)
-        : {};
+      // Only use localStorage fallback if deprecation is disabled
+      let localProgress: Record<string, { progress: number; completed: boolean }> = {};
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+        const storedProgress = localStorage.getItem(QUEST_PROGRESS_KEY);
+        localProgress = storedProgress ? JSON.parse(storedProgress) : {};
+      }
 
-      // Merge progress - D1 takes priority, then local
+      // Merge progress - D1 takes priority, then local cache (if not deprecated)
       const questsWithProgress = apiQuests.map((q) => ({
         ...q,
         progress: d1Progress[q.id]?.progress ?? localProgress[q.id]?.progress ?? 0,
@@ -86,12 +109,6 @@ export function QuestsClient() {
       }));
 
       setQuests(questsWithProgress);
-
-      // Load wallet
-      const storedWallet = localStorage.getItem(WALLET_KEY);
-      if (storedWallet) {
-        setWallet(JSON.parse(storedWallet));
-      }
     } catch (e) {
       console.error("Failed to load quests:", e);
     }
@@ -111,21 +128,15 @@ export function QuestsClient() {
     enabled: !showAddForm && !isLoading, // Disable when form is open or loading
   });
 
-  // Load quests on mount
+  // Load quests and wallet on mount
   useEffect(() => {
     fetchQuests();
-  }, [fetchQuests]);
+    fetchWallet();
+  }, [fetchQuests, fetchWallet]);
 
-  // Save wallet when it changes
+  // Save quest progress when it changes - only to localStorage if not deprecated
   useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem(WALLET_KEY, JSON.stringify(wallet));
-    }
-  }, [wallet, isLoading]);
-
-  // Save quest progress when it changes - sync to D1
-  useEffect(() => {
-    if (!isLoading && quests.length > 0) {
+    if (!isLoading && quests.length > 0 && !DISABLE_MASS_LOCAL_PERSISTENCE) {
       const progress: Record<string, { progress: number; completed: boolean }> = {};
       quests.forEach((q) => {
         progress[q.id] = { progress: q.progress, completed: q.completed };
@@ -269,7 +280,11 @@ export function QuestsClient() {
   const filteredQuests = quests.filter((q) => q.type === activeTab);
 
   if (isLoading) {
-    return <div className={styles.page}><div className={styles.loading}>Loading quests...</div></div>;
+    return (
+      <div className={styles.page}>
+        <LoadingState message="Loading quests..." />
+      </div>
+    );
   }
 
   return (
@@ -393,14 +408,14 @@ export function QuestsClient() {
       {/* Quest List */}
       <div className={styles.questList}>
         {filteredQuests.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p>No {activeTab} quests available.</p>
-            {activeTab === "daily" && (
-              <button className={styles.refreshButton} onClick={handleRefreshDaily}>
-                Generate New Daily Quests
-              </button>
-            )}
-          </div>
+          <EmptyState
+            title={`No ${activeTab} quests available`}
+            description={activeTab === "daily" ? "Generate new quests to get started" : undefined}
+            action={activeTab === "daily" ? {
+              label: "Generate New Daily Quests",
+              onClick: handleRefreshDaily,
+            } : undefined}
+          />
         ) : (
           filteredQuests.map((quest) => (
             <div

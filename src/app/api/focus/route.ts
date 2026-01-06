@@ -6,10 +6,8 @@
  * Optimized with createAPIHandler for timing instrumentation
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import type { D1Database } from "@cloudflare/workers-types";
+import { NextResponse } from "next/server";
 import { createAPIHandler, type APIContext } from "@/lib/perf";
-import { auth } from "@/lib/auth";
 import {
   createFocusSession,
   listFocusSessions,
@@ -18,8 +16,7 @@ import {
   type FocusMode,
   type FocusSessionStatus,
 } from "@/lib/db";
-import { ensureUserExists } from "@/lib/db/repositories/users";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { logActivityEvent, hasActivityEvent } from "@/lib/db/repositories/activity-events";
 
 export const dynamic = "force-dynamic";
 
@@ -93,6 +90,29 @@ export const POST = createAPIHandler(async (ctx: APIContext) => {
   };
 
   const focusSession = await createFocusSession(ctx.db, input);
+
+  // Log focus_start event with idempotency check
+  // Only award XP for focus mode, not breaks
+  if (focusSession.mode === "focus") {
+    const alreadyAwarded = await hasActivityEvent(
+      ctx.db,
+      ctx.dbUser.id,
+      "focus_start",
+      "focus_session",
+      focusSession.id
+    );
+
+    if (!alreadyAwarded) {
+      await logActivityEvent(ctx.db, ctx.dbUser.id, "focus_start", {
+        entityType: "focus_session",
+        entityId: focusSession.id,
+        metadata: {
+          planned_duration: plannedDuration,
+          mode: focusSession.mode,
+        },
+      });
+    }
+  }
 
   return NextResponse.json({ success: true, session: focusSession }, { status: 201 });
 });

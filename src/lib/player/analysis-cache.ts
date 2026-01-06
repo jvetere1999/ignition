@@ -3,8 +3,13 @@
 /**
  * Analysis Cache Client
  * Client-side utilities for caching and retrieving track analysis
- * Uses D1 via API for persistent storage, localStorage for offline fallback
+ * Uses D1 via API for persistent storage
+ *
+ * STORAGE RULE: Analysis cache should be stored in D1 via track_analysis_cache table.
+ * localStorage is DEPRECATED when DISABLE_MASS_LOCAL_PERSISTENCE is enabled.
  */
+
+import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 
 export interface CachedAnalysis {
   id: string;
@@ -39,7 +44,7 @@ export async function generateContentHash(data: ArrayBuffer): Promise<string> {
 
 /**
  * Get cached analysis by content hash
- * Checks memory -> localStorage -> D1 API
+ * Checks memory -> D1 API -> localStorage (if not deprecated)
  */
 export async function getCachedAnalysis(
   contentHash: string
@@ -49,24 +54,28 @@ export async function getCachedAnalysis(
     return memoryCache.get(contentHash)!;
   }
 
-  // Check localStorage
-  const localCache = getLocalCache();
-  if (localCache[contentHash]) {
-    memoryCache.set(contentHash, localCache[contentHash]);
-    return localCache[contentHash];
-  }
-
-  // Try API
+  // Try API first (D1 is source of truth)
   try {
     const response = await fetch(`/api/analysis?hash=${encodeURIComponent(contentHash)}`);
     if (response.ok) {
       const analysis = await response.json() as CachedAnalysis;
       memoryCache.set(contentHash, analysis);
-      saveToLocalCache(contentHash, analysis);
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+        saveToLocalCache(contentHash, analysis);
+      }
       return analysis;
     }
   } catch (e) {
     console.error("Failed to fetch analysis from API:", e);
+  }
+
+  // Fall back to localStorage only if deprecation is disabled
+  if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+    const localCache = getLocalCache();
+    if (localCache[contentHash]) {
+      memoryCache.set(contentHash, localCache[contentHash]);
+      return localCache[contentHash];
+    }
   }
 
   return null;
@@ -74,7 +83,7 @@ export async function getCachedAnalysis(
 
 /**
  * Save analysis to cache
- * Saves to memory -> localStorage -> D1 API
+ * Saves to memory -> D1 API -> localStorage (if not deprecated)
  */
 export async function saveAnalysisToCache(
   analysis: CachedAnalysis
@@ -82,8 +91,10 @@ export async function saveAnalysisToCache(
   // Save to memory
   memoryCache.set(analysis.contentHash, analysis);
 
-  // Save to localStorage
-  saveToLocalCache(analysis.contentHash, analysis);
+  // Save to localStorage only if deprecation is disabled
+  if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+    saveToLocalCache(analysis.contentHash, analysis);
+  }
 
   // Save to API (non-blocking)
   try {

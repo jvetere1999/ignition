@@ -3,8 +3,8 @@ import Link from "next/link";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "About - Passion OS",
-  description: "Learn more about Passion OS - your productivity and skill-building companion.",
+  title: "About - Ignition",
+  description: "Learn more about Ignition - a starter engine for focus, movement, and learning.",
 };
 
 const features = [
@@ -56,14 +56,14 @@ export default function AboutPage() {
         Back to Home
       </Link>
 
-      <h1 className={styles.title}>About Passion OS</h1>
+      <h1 className={styles.title}>About Ignition</h1>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>What is Passion OS?</h2>
+        <h2 className={styles.sectionTitle}>What is Ignition?</h2>
         <p className={styles.text}>
-          Passion OS is a comprehensive productivity and skill-building platform designed to help you
-          grow in music production, fitness, learning, and personal development. It combines task planning,
-          focus timers, workout tracking, reading logs, and production tools into a unified gamified experience.
+          Ignition is a starter engine that helps you begin with minimal friction. It combines focus timers,
+          workout tracking, reading logs, and production tools into a unified experience. Start with one thing.
+          Build momentum naturally.
         </p>
       </section>
 
@@ -112,7 +112,7 @@ export default function AboutPage() {
         <h2 className={styles.sectionTitle}>Get Started</h2>
         <p className={styles.text}>
           <Link href="/auth/signin" className={styles.ctaLink}>Sign in</Link> with your Google or Microsoft
-          account to start using Passion OS. New users need admin approval before accessing the app.
+          account to start using Ignition. New users need admin approval before accessing the app.
         </p>
         <div className={styles.ctaButtons}>
           <Link href="/auth/signin" className={styles.primaryButton}>

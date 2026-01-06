@@ -1,6 +1,9 @@
 /**
  * Sidebar Component
  * Main navigation sidebar with expandable sections
+ *
+ * Navigation reflects identity and interest, not urgency.
+ * Urgency is handled only by Today.
  */
 
 "use client";
@@ -40,11 +43,12 @@ interface NavSection {
   defaultOpen?: boolean;
 }
 
-// Define navigation sections
+// Define navigation sections - cognitive-based architecture
 const navSections: NavSection[] = [
+  // START - "What helps me begin now"
   {
-    id: "daily",
-    label: "Daily",
+    id: "start",
+    label: "Start",
     defaultOpen: true,
     items: [
       {
@@ -58,13 +62,22 @@ const navSections: NavSection[] = [
         ),
       },
       {
-        href: "/progress",
-        label: "Progress",
+        href: "/ignitions",
+        label: "Ignitions",
         icon: (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="20" x2="12" y2="10" />
-            <line x1="18" y1="20" x2="18" y2="4" />
-            <line x1="6" y1="20" x2="6" y2="16" />
+            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+          </svg>
+        ),
+      },
+      {
+        href: "/focus",
+        label: "Focus",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="6" />
+            <circle cx="12" cy="12" r="2" />
           </svg>
         ),
       },
@@ -80,22 +93,23 @@ const navSections: NavSection[] = [
         ),
       },
       {
-        href: "/focus",
-        label: "Focus",
+        href: "/progress",
+        label: "Progress",
         icon: (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <circle cx="12" cy="12" r="6" />
-            <circle cx="12" cy="12" r="2" />
+            <line x1="12" y1="20" x2="12" y2="10" />
+            <line x1="18" y1="20" x2="18" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="16" />
           </svg>
         ),
       },
     ],
   },
+  // SHAPE - "Shape the future without obligation"
   {
-    id: "planning",
-    label: "Planning",
-    defaultOpen: true,
+    id: "shape",
+    label: "Shape",
+    defaultOpen: false,
     items: [
       {
         href: "/planner",
@@ -121,19 +135,6 @@ const navSections: NavSection[] = [
         ),
       },
       {
-        href: "/exercise",
-        label: "Exercise",
-        icon: (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6.5 6.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-            <path d="M4 21v-7l-2-4 4-2 4 4-2 4" />
-            <path d="M10 5l4 4" />
-            <path d="M21 3l-6 6" />
-            <path d="M18 22V12l2-4-3-1" />
-          </svg>
-        ),
-      },
-      {
         href: "/habits",
         label: "Habits",
         icon: (
@@ -151,6 +152,19 @@ const navSections: NavSection[] = [
         ),
       },
       {
+        href: "/exercise",
+        label: "Exercise",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6.5 6.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+            <path d="M4 21v-7l-2-4 4-2 4 4-2 4" />
+            <path d="M10 5l4 4" />
+            <path d="M21 3l-6 6" />
+            <path d="M18 22V12l2-4-3-1" />
+          </svg>
+        ),
+      },
+      {
         href: "/books",
         label: "Books",
         icon: (
@@ -164,11 +178,33 @@ const navSections: NavSection[] = [
       },
     ],
   },
+  // REFLECT - "Close the loop gently"
   {
-    id: "rewards",
-    label: "Rewards",
+    id: "reflect",
+    label: "Reflect",
     defaultOpen: false,
     items: [
+      {
+        href: "/wins",
+        label: "Wins",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+          </svg>
+        ),
+      },
+      {
+        href: "/stats",
+        label: "Stats",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 3v18h18" />
+            <path d="M18 17V9" />
+            <path d="M13 17V5" />
+            <path d="M8 17v-3" />
+          </svg>
+        ),
+      },
       {
         href: "/market",
         label: "Market",
@@ -182,11 +218,21 @@ const navSections: NavSection[] = [
       },
     ],
   },
+  // CREATE - "Special interests live here"
   {
-    id: "production",
-    label: "Production",
+    id: "create",
+    label: "Create",
     defaultOpen: false,
     items: [
+      {
+        href: "/ideas",
+        label: "Ideas",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+        ),
+      },
       {
         href: "/hub",
         label: "Shortcuts",
@@ -240,6 +286,17 @@ const navSections: NavSection[] = [
         ),
       },
       {
+        href: "/wheel",
+        label: "Harmonics",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="6" />
+            <circle cx="12" cy="12" r="2" />
+          </svg>
+        ),
+      },
+      {
         href: "/infobase",
         label: "Infobase",
         icon: (
@@ -251,63 +308,19 @@ const navSections: NavSection[] = [
       },
     ],
   },
+  // LEARN
   {
-    id: "learning",
-    label: "Learning",
+    id: "learn",
+    label: "Learn",
     defaultOpen: false,
     items: [
       {
         href: "/learn",
-        label: "Dashboard",
+        label: "Learn",
         icon: (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
             <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-          </svg>
-        ),
-      },
-      {
-        href: "/learn/courses",
-        label: "Courses",
-        icon: (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-          </svg>
-        ),
-      },
-      {
-        href: "/learn/review",
-        label: "Review",
-        icon: (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
-        ),
-      },
-      {
-        href: "/learn/recipes",
-        label: "Recipes",
-        icon: (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 3h6v5l4 9H5l4-9V3z" />
-            <line x1="9" y1="3" x2="15" y2="3" />
-          </svg>
-        ),
-      },
-      {
-        href: "/learn/glossary",
-        label: "Glossary",
-        icon: (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="8" y1="6" x2="21" y2="6" />
-            <line x1="8" y1="12" x2="21" y2="12" />
-            <line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" />
-            <line x1="3" y1="12" x2="3.01" y2="12" />
-            <line x1="3" y1="18" x2="3.01" y2="18" />
           </svg>
         ),
       },
@@ -426,4 +439,3 @@ export function Sidebar({ isOpen, onClose, userEmail }: SidebarProps) {
     </>
   );
 }
-

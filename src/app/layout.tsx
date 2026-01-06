@@ -12,13 +12,14 @@ const ADSENSE_PUBLISHER_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "";
 
 export const metadata: Metadata = {
   title: {
-    default: "Passion OS - Productivity & Music Production App",
-    template: "%s | Passion OS",
+    default: "Ignition - Start Without Friction",
+    template: "%s | Ignition",
   },
   description:
-    "Free productivity app for music producers. Pomodoro focus timer, workout tracker, habit streaks, DAW shortcuts for Ableton, Logic Pro, FL Studio. Level up with XP.",
+    "A starter engine for focus, movement, and learning. Pomodoro focus timer, workout tracker, DAW shortcuts for Ableton, Logic Pro, FL Studio. Begin with one thing.",
   keywords: [
-    "productivity app",
+    "starter engine",
+    "focus timer",
     "music production app",
     "DAW shortcuts",
     "Ableton Live shortcuts",
@@ -27,25 +28,23 @@ export const metadata: Metadata = {
     "Pro Tools shortcuts",
     "pomodoro timer",
     "focus timer app",
-    "habit tracker",
     "workout tracker",
     "fitness app",
     "book tracker",
     "reading log",
     "quest tracker",
-    "gamified productivity",
+    "gamified app",
     "skill development",
     "music producer tools",
     "daily planner app",
     "goal tracking app",
     "XP leveling system",
-    "streak tracker",
     "personal development",
-    "free productivity tool",
+    "free focus tool",
   ],
-  authors: [{ name: "Passion OS Team" }],
-  creator: "Passion OS",
-  publisher: "Passion OS",
+  authors: [{ name: "Ignition Team" }],
+  creator: "Ignition",
+  publisher: "Ignition",
   robots: {
     index: true,
     follow: true,
@@ -63,7 +62,7 @@ export const metadata: Metadata = {
     apple: "/icon.svg",
   },
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://passion-os.ecent.online"
+    process.env.NEXT_PUBLIC_APP_URL || "https://ignition.ecent.online"
   ),
   alternates: {
     canonical: "/",
@@ -71,25 +70,25 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "Passion OS",
-    title: "Passion OS - Productivity & Music Production App",
+    siteName: "Ignition",
+    title: "Ignition - Start Without Friction",
     description:
-      "Free app for music producers. Focus timer, habit tracker, DAW shortcuts, workout log. Earn XP and level up your skills.",
+      "A starter engine for focus, movement, and learning. Begin with one thing. Build momentum naturally.",
     url: "/",
     images: [
       {
         url: "/og-image.svg",
         width: 1200,
         height: 630,
-        alt: "Passion OS - Gamified Productivity for Creators",
+        alt: "Ignition - A starter engine for creators",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Passion OS - Productivity & Music Production App",
+    title: "Ignition - Start Without Friction",
     description:
-      "Free app for music producers. Focus timer, habit tracker, DAW shortcuts, workout log. Earn XP and level up.",
+      "A starter engine for focus, movement, and learning. Pick one thing. Build momentum.",
     images: ["/og-image.svg"],
   },
   verification: {

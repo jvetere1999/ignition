@@ -85,7 +85,7 @@ export function MobileMore({ user }: MobileMoreProps) {
       </button>
 
       {/* App Version */}
-      <p className={styles.version}>Passion OS v0.1.0</p>
+      <p className={styles.version}>Ignition v1.0.0</p>
     </div>
   );
 }

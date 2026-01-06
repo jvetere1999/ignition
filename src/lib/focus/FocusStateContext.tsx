@@ -6,17 +6,19 @@
  * - Single polling source for active focus session
  * - Shared state across BottomBar and FocusIndicator
  * - Visibility-aware polling (pauses when tab hidden, respects timer needs)
- * - Cross-tab sync via localStorage events
  *
  * SYNC CONTRACT (from SYNC.md):
  * - Polling interval: 30s (cannot increase for timer accuracy)
  * - Visibility: Continue polling when hidden (timer must stay accurate)
- * - Cross-tab: localStorage paused state sync
+ *
+ * STORAGE RULE: Focus pause state is fetched from D1 via /api/focus/pause API.
+ * localStorage is DEPRECATED for focus_paused_state (behavior-affecting data).
  */
 
 "use client";
 
 import { createContext, useContext, useEffect, useCallback, useRef, useState, type ReactNode } from "react";
+import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 
 // Types
 interface FocusSession {
@@ -71,9 +73,18 @@ export function FocusStateProvider({ children }: { children: ReactNode }) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
-   * Check for paused state in localStorage
+   * Check for paused state from D1 API
+   * localStorage is deprecated for focus_paused_state
    */
-  const checkPausedState = useCallback(() => {
+  const checkPausedState = useCallback(async () => {
+    // If deprecation is enabled, skip localStorage entirely
+    if (DISABLE_MASS_LOCAL_PERSISTENCE) {
+      // Paused state will be fetched from API in fetchActiveSession
+      console.debug("[FocusState] localStorage deprecated, using D1 API only");
+      return false;
+    }
+
+    // Legacy localStorage check (deprecated path)
     try {
       const stored = localStorage.getItem(PAUSED_STATE_KEY);
       if (stored) {
@@ -113,7 +124,29 @@ export function FocusStateProvider({ children }: { children: ReactNode }) {
           setTimeRemaining(remaining);
         } else {
           setSession(null);
-          checkPausedState();
+
+          // Check for paused state from D1 API (if deprecation enabled)
+          if (DISABLE_MASS_LOCAL_PERSISTENCE) {
+            try {
+              const pauseResponse = await fetch("/api/focus/pause");
+              if (pauseResponse.ok) {
+                const pauseData = await pauseResponse.json() as { pauseState?: PausedState | null };
+                if (pauseData.pauseState) {
+                  setPausedState(pauseData.pauseState);
+                  setTimeRemaining(pauseData.pauseState.timeRemaining);
+                } else {
+                  setPausedState(null);
+                  setTimeRemaining(0);
+                }
+              }
+            } catch (pauseError) {
+              console.error("Failed to fetch pause state from D1:", pauseError);
+              setPausedState(null);
+            }
+          } else {
+            // Legacy: check localStorage (deprecated)
+            checkPausedState();
+          }
         }
       }
     } catch (error) {
@@ -131,25 +164,28 @@ export function FocusStateProvider({ children }: { children: ReactNode }) {
   }, [fetchActiveSession]);
 
   /**
-   * Clear paused state
+   * Clear paused state (from D1 via API)
    */
   const clearPausedState = useCallback(() => {
-    localStorage.removeItem(PAUSED_STATE_KEY);
+    // Always clean up localStorage (even if deprecated, for cleanup)
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(PAUSED_STATE_KEY);
+    }
     setPausedState(null);
     setTimeRemaining(0);
   }, []);
 
   // Initial load and polling setup
   useEffect(() => {
-    checkPausedState();
+    // Initial load
     fetchActiveSession();
 
     // Set up polling
     pollIntervalRef.current = setInterval(fetchActiveSession, POLL_INTERVAL);
 
-    // Listen for storage changes (cross-tab sync)
+    // Listen for storage changes (cross-tab sync) - only if not deprecated
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === PAUSED_STATE_KEY) {
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE && e.key === PAUSED_STATE_KEY) {
         checkPausedState();
       }
     };

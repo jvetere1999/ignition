@@ -7,7 +7,6 @@ import {
   getRequestContext,
   recordTiming,
   memoize,
-  type RequestContext,
 } from "../request-context";
 
 describe("request-context", () => {

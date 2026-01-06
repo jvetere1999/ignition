@@ -3,7 +3,7 @@
  * Type definitions for the synth learning platform
  */
 
-import type { ISOTimestamp, JSONString } from "./types";
+import type { ISOTimestamp } from "./types";
 
 // ============================================
 // Enums / Literal Types

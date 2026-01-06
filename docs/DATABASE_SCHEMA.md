@@ -1,7 +1,7 @@
 # Database Schema Documentation
 
-**Current Version:** 12 (0012_tos_db_version)  
-**Last Updated:** January 4, 2026
+**Current Version:** 14 (0014_add_performance_indexes)  
+**Last Updated:** January 5, 2026
 
 ---
 
@@ -21,6 +21,8 @@
 | 10 | 0010_habits_activities_infobase | 2026-01-04 | Habits, activity events, infobase sync |
 | 11 | 0011_book_tracker | 2026-01-04 | Books, reading sessions |
 | 12 | 0012_tos_db_version | 2026-01-04 | TOS acceptance, db_metadata table |
+| 13 | 0013_add_users_last_activity | 2026-01-04 | users.last_activity_at column + index |
+| 14 | 0014_add_performance_indexes | 2026-01-05 | Performance indexes for Today page queries |
 
 ---
 
@@ -44,6 +46,7 @@ Primary user table (extended from Auth.js).
 | tos_accepted | INTEGER | TOS acceptance status |
 | tos_accepted_at | TEXT | TOS acceptance timestamp |
 | tos_version | TEXT | TOS version accepted |
+| last_activity_at | TEXT | Last activity timestamp (ISO format, for gap detection) |
 | created_at | TEXT | Creation timestamp |
 | updated_at | TEXT | Last update timestamp |
 
@@ -656,9 +659,19 @@ CREATE INDEX idx_habit_logs_date ON habit_logs(date);
 -- Books
 CREATE INDEX idx_books_user ON books(user_id);
 CREATE INDEX idx_reading_sessions_book ON reading_sessions(book_id);
+
+-- Users (migration 0013)
+CREATE INDEX idx_users_last_activity ON users(last_activity_at);
+
+-- Performance Indexes (migration 0014)
+CREATE INDEX idx_daily_plans_user_date ON daily_plans(user_id, plan_date);
+CREATE INDEX idx_activity_events_user_created ON activity_events(user_id, created_at);
+CREATE INDEX idx_activity_events_user_type ON activity_events(user_id, event_type);
+CREATE INDEX idx_focus_sessions_user_status ON focus_sessions(user_id, status);
+CREATE INDEX idx_user_streaks_user ON user_streaks(user_id);
 ```
 
 ---
 
-*Last updated: January 4, 2026 - Version 12*
+*Last updated: January 5, 2026 - Version 14*
 

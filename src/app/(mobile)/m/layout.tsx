@@ -12,14 +12,14 @@ import "@/styles/mobile.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Passion OS",
-    template: "%s | Passion OS",
+    default: "Ignition",
+    template: "%s | Ignition",
   },
-  description: "Your personal productivity and music production companion",
+  description: "A starter engine for focus, movement, and learning",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Passion OS",
+    title: "Ignition",
   },
   formatDetection: {
     telephone: false,
@@ -47,7 +47,7 @@ export default async function MobileLayout({ children }: MobileLayoutProps) {
         {/* Apple-specific PWA meta tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Passion OS" />
+        <meta name="apple-mobile-web-app-title" content="Ignition" />
         <link rel="apple-touch-icon" href="/icons/icon-180.png" />
 
         {/* Splash screens for iOS */}

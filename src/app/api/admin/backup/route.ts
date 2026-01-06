@@ -12,8 +12,8 @@ import type { CloudflareEnv } from "@/env";
 
 
 // Current database version
-const CURRENT_DB_VERSION = 12;
-const CURRENT_DB_VERSION_NAME = "0012_tos_db_version";
+const CURRENT_DB_VERSION = 14;
+const CURRENT_DB_VERSION_NAME = "0014_add_performance_indexes";
 
 // Tables to backup
 const BACKUP_TABLES = [

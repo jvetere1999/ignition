@@ -4,10 +4,14 @@
  */
 
 import type { D1Database } from "@cloudflare/workers-types";
+import { touchUserActivity } from "./users";
 
 export type ActivityEventType =
+  | "focus_start"
   | "focus_complete"
+  | "workout_start"
   | "workout_complete"
+  | "lesson_start"
   | "lesson_complete"
   | "review_complete"
   | "habit_complete"
@@ -28,8 +32,11 @@ interface ActivityEvent {
 }
 
 const EVENT_REWARDS: Record<ActivityEventType, { xp: number; coins: number; skill?: string }> = {
+  focus_start: { xp: 5, coins: 2, skill: "knowledge" },
   focus_complete: { xp: 25, coins: 10, skill: "knowledge" },
+  workout_start: { xp: 10, coins: 5, skill: "guts" },
   workout_complete: { xp: 50, coins: 25, skill: "guts" },
+  lesson_start: { xp: 5, coins: 2, skill: "knowledge" },
   lesson_complete: { xp: 30, coins: 15, skill: "knowledge" },
   review_complete: { xp: 15, coins: 5, skill: "knowledge" },
   habit_complete: { xp: 10, coins: 5, skill: "proficiency" },
@@ -37,6 +44,24 @@ const EVENT_REWARDS: Record<ActivityEventType, { xp: number; coins: number; skil
   goal_milestone: { xp: 40, coins: 20, skill: "proficiency" },
   planner_task_complete: { xp: 15, coins: 5, skill: "proficiency" },
 };
+
+/**
+ * Check if an activity event already exists for a given entity
+ * Used for idempotency to prevent duplicate rewards
+ */
+export async function hasActivityEvent(
+  db: D1Database,
+  userId: string,
+  eventType: ActivityEventType,
+  entityType: string,
+  entityId: string
+): Promise<boolean> {
+  const existing = await db
+    .prepare(`SELECT id FROM activity_events WHERE user_id = ? AND event_type = ? AND entity_type = ? AND entity_id = ? LIMIT 1`)
+    .bind(userId, eventType, entityType, entityId)
+    .first<{ id: string }>();
+  return existing !== null;
+}
 
 /**
  * Log an activity event and process rewards
@@ -68,6 +93,9 @@ export async function logActivityEvent(
     .bind(eventId, userId, eventType, options?.entityType || null, options?.entityId || null, xpEarned, coinsEarned, options?.metadata ? JSON.stringify(options.metadata) : null, now)
     .run();
 
+  // Update user's last activity timestamp (best-effort, does not throw)
+  await touchUserActivity(db, userId, now);
+
   // Update user progress
   if (xpEarned > 0 || coinsEarned > 0) {
     await updateUserProgress(db, userId, xpEarned, coinsEarned, skillId);
@@ -78,6 +106,13 @@ export async function logActivityEvent(
 
   // Update streaks
   await updateStreaks(db, userId, eventType);
+
+  // Check and unlock achievements (best-effort, does not throw)
+  try {
+    await checkAndUnlockAchievements(db, userId, eventType);
+  } catch (e) {
+    console.error("Failed to check achievements:", e);
+  }
 
   return {
     id: eventId,
@@ -237,4 +272,143 @@ export async function getUserStreaks(db: D1Database, userId: string): Promise<Re
     streaks[row.streak_type] = { current: row.current_streak, longest: row.longest_streak, lastDate: row.last_activity_date };
   }
   return streaks;
+}
+
+/**
+ * Get the most recent activity date across all activity types for a user
+ * Used to detect if user has been inactive for reduced mode
+ */
+export async function getLastActivityDate(db: D1Database, userId: string): Promise<string | null> {
+  // Check user_streaks for most recent last_activity_date
+  const streakResult = await db
+    .prepare(`SELECT MAX(last_activity_date) as last_date FROM user_streaks WHERE user_id = ?`)
+    .bind(userId)
+    .first<{ last_date: string | null }>();
+
+  if (streakResult?.last_date) {
+    return streakResult.last_date;
+  }
+
+  // Fallback: check activity_events for most recent created_at
+  const eventResult = await db
+    .prepare(`SELECT MAX(created_at) as last_date FROM activity_events WHERE user_id = ?`)
+    .bind(userId)
+    .first<{ last_date: string | null }>();
+
+  return eventResult?.last_date || null;
+}
+
+/**
+ * Check if user should see reduced mode (inactive for > 48 hours)
+ */
+export async function shouldShowReducedMode(db: D1Database, userId: string): Promise<boolean> {
+  const lastActivityDate = await getLastActivityDate(db, userId);
+
+  if (!lastActivityDate) {
+    // No activity recorded - could be new user, show normal mode
+    return false;
+  }
+
+  const lastActivity = new Date(lastActivityDate);
+  const now = new Date();
+  const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
+
+  return hoursSinceActivity > 48;
+}
+
+/**
+ * Check and unlock achievements based on activity event
+ */
+async function checkAndUnlockAchievements(
+  db: D1Database,
+  userId: string,
+  eventType: ActivityEventType
+): Promise<void> {
+  // Get all non-hidden achievements
+  const achievements = await db
+    .prepare(`SELECT * FROM achievement_definitions WHERE is_hidden = 0`)
+    .all<{
+      id: string;
+      condition_type: string;
+      condition_json: string;
+    }>();
+
+  for (const achievement of achievements.results || []) {
+    // Check if already unlocked
+    const existing = await db
+      .prepare(`SELECT id FROM user_achievements WHERE user_id = ? AND achievement_id = ?`)
+      .bind(userId, achievement.id)
+      .first<{ id: string }>();
+
+    if (existing) continue;
+
+    // Parse condition
+    let condition: { event_type?: string; count?: number; streak_type?: string; days?: number } = {};
+    try {
+      condition = JSON.parse(achievement.condition_json || "{}");
+    } catch {
+      continue;
+    }
+
+    let shouldUnlock = false;
+
+    switch (achievement.condition_type) {
+      case "first":
+        // First time event
+        if (condition.event_type === eventType) {
+          shouldUnlock = true;
+        }
+        break;
+
+      case "count":
+        // Reach a count of events
+        if (condition.event_type === eventType) {
+          const count = await db
+            .prepare(`SELECT COUNT(*) as count FROM activity_events WHERE user_id = ? AND event_type = ?`)
+            .bind(userId, condition.event_type)
+            .first<{ count: number }>();
+          if (count && count.count >= (condition.count || 1)) {
+            shouldUnlock = true;
+          }
+        }
+        break;
+
+      case "streak":
+        // Reach a streak
+        if (condition.streak_type) {
+          const streak = await db
+            .prepare(`SELECT current_streak FROM user_streaks WHERE user_id = ? AND streak_type = ?`)
+            .bind(userId, condition.streak_type)
+            .first<{ current_streak: number }>();
+          if (streak && streak.current_streak >= (condition.days || 1)) {
+            shouldUnlock = true;
+          }
+        }
+        break;
+    }
+
+    if (shouldUnlock) {
+      // Get achievement details for rewards
+      const achievementDef = await db
+        .prepare(`SELECT reward_coins, reward_xp, reward_skill_stars, reward_skill_id, name FROM achievement_definitions WHERE id = ?`)
+        .bind(achievement.id)
+        .first<{ reward_coins: number; reward_xp: number; reward_skill_stars: number; reward_skill_id: string | null; name: string }>();
+
+      if (!achievementDef) continue;
+
+      const now = new Date().toISOString();
+      const achId = `ach_${userId}_${achievement.id}`;
+
+      // Insert user achievement
+      await db
+        .prepare(`INSERT INTO user_achievements (id, user_id, achievement_id, unlocked_at, notified) VALUES (?, ?, ?, ?, 0)`)
+        .bind(achId, userId, achievement.id, now)
+        .run();
+
+      // Award rewards using updateUserProgress
+      if (achievementDef.reward_xp > 0 || achievementDef.reward_coins > 0) {
+        await updateUserProgress(db, userId, achievementDef.reward_xp, achievementDef.reward_coins);
+      }
+    }
+  }
 }

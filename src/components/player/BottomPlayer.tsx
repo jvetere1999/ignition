@@ -30,7 +30,7 @@ import {
   formatTime,
 } from "@/lib/player";
 import { Waveform } from "./Waveform";
-import { AudioVisualizer } from "./AudioVisualizer";
+import { AudioVisualizer } from "./AudioVisualizerRave";
 import styles from "./BottomPlayer.module.css";
 
 // Lazy import to avoid circular dependency

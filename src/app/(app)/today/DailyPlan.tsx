@@ -5,12 +5,15 @@
  * Generates and displays a personalized daily plan
  *
  * Auto-refresh: Refetches on focus after 5 minutes staleness (per SYNC.md)
+ * Collapse state: Persisted in localStorage
  */
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAutoRefresh } from "@/lib/hooks";
 import styles from "./DailyPlan.module.css";
+
+const COLLAPSE_STATE_KEY = "today_dailyplan_collapsed";
 
 interface PlanItem {
   id: string;
@@ -31,10 +34,63 @@ interface DailyPlan {
   totalCount: number;
 }
 
-export function DailyPlanWidget() {
+/**
+ * Get first incomplete item sorted by priority
+ */
+function getFirstIncomplete(items: PlanItem[]): PlanItem | null {
+  const incomplete = items
+    .filter((item) => !item.completed)
+    .sort((a, b) => a.priority - b.priority);
+  return incomplete.length > 0 ? incomplete[0] : null;
+}
+
+interface DailyPlanWidgetProps {
+  forceCollapsed?: boolean;
+  /** Callback when user expands the widget */
+  onExpand?: () => void;
+}
+
+export function DailyPlanWidget({ forceCollapsed = false, onExpand }: DailyPlanWidgetProps) {
   const [plan, setPlan] = useState<DailyPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Load collapse state from localStorage on mount
+  // If forceCollapsed is true, start collapsed regardless of localStorage
+  useEffect(() => {
+    if (forceCollapsed) {
+      setIsExpanded(false);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(COLLAPSE_STATE_KEY);
+      // Default is collapsed (true), so expanded when stored is "false"
+      if (stored === "false") {
+        setIsExpanded(true);
+      }
+    } catch {
+      // localStorage not available, default to collapsed
+    }
+  }, [forceCollapsed]);
+
+  // Persist collapse state to localStorage
+  const toggleExpanded = useCallback(() => {
+    setIsExpanded((prev) => {
+      const newValue = !prev;
+      try {
+        // Store collapsed state (inverse of expanded)
+        localStorage.setItem(COLLAPSE_STATE_KEY, newValue ? "false" : "true");
+      } catch {
+        // localStorage not available
+      }
+      // Call onExpand when expanding
+      if (newValue && onExpand) {
+        onExpand();
+      }
+      return newValue;
+    });
+  }, [onExpand]);
 
   const fetchPlan = useCallback(async () => {
     try {
@@ -187,7 +243,47 @@ export function DailyPlanWidget() {
   }
 
   const progress = plan.totalCount > 0 ? (plan.completedCount / plan.totalCount) * 100 : 0;
+  const firstIncomplete = getFirstIncomplete(plan.items);
+  const allDone = plan.completedCount === plan.totalCount;
 
+  // Collapsed view
+  if (!isExpanded) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h3 className={styles.title}>Today&apos;s Plan</h3>
+          <span className={styles.progress}>
+            {plan.completedCount}/{plan.totalCount}
+          </span>
+        </div>
+
+        <div className={styles.progressBar}>
+          <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+        </div>
+
+        <p className={styles.summaryText}>
+          {allDone ? "All done" : `Next: ${firstIncomplete?.title}`}
+        </p>
+
+        <div className={styles.collapsedActions}>
+          {!allDone && firstIncomplete && (
+            <Link href={firstIncomplete.actionUrl} className={styles.continueButton}>
+              Continue
+            </Link>
+          )}
+          <button
+            type="button"
+            className={styles.viewPlanButton}
+            onClick={toggleExpanded}
+          >
+            View Plan
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Expanded view
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -234,13 +330,22 @@ export function DailyPlanWidget() {
         ))}
       </div>
 
-      <button
-        className={styles.regenerateButton}
-        onClick={handleGeneratePlan}
-        disabled={isGenerating}
-      >
-        {isGenerating ? "Regenerating..." : "Regenerate Plan"}
-      </button>
+      <div className={styles.expandedActions}>
+        <button
+          className={styles.regenerateButton}
+          onClick={handleGeneratePlan}
+          disabled={isGenerating}
+        >
+          {isGenerating ? "Regenerating..." : "Regenerate Plan"}
+        </button>
+        <button
+          type="button"
+          className={styles.hidePlanButton}
+          onClick={toggleExpanded}
+        >
+          Hide Plan
+        </button>
+      </div>
     </div>
   );
 }

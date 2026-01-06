@@ -3,9 +3,14 @@
 /**
  * Goals Client Component
  * Long-term goals with milestones
+ *
+ * STORAGE RULE: Goals data should be stored in D1 via /api/goals API.
+ * localStorage is DEPRECATED when DISABLE_MASS_LOCAL_PERSISTENCE is enabled.
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { LoadingState } from "@/components/ui";
+import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
 
 interface Milestone {
@@ -55,22 +60,44 @@ export function GoalsClient() {
     deadline: "",
   });
 
-  // Load goals
+  // Load goals - D1 is source of truth
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(GOALS_KEY);
-      if (stored) {
-        setGoals(JSON.parse(stored));
+    async function loadGoals() {
+      // Try to fetch from D1 first
+      try {
+        const response = await fetch("/api/goals");
+        if (response.ok) {
+          const data = await response.json() as { goals?: Goal[] };
+          if (data.goals && data.goals.length > 0) {
+            setGoals(data.goals);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch goals from D1:", e);
       }
-    } catch (e) {
-      console.error("Failed to load goals:", e);
+
+      // Only fall back to localStorage if deprecation is disabled
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+        try {
+          const stored = localStorage.getItem(GOALS_KEY);
+          if (stored) {
+            setGoals(JSON.parse(stored));
+          }
+        } catch (e) {
+          console.error("Failed to load goals from localStorage:", e);
+        }
+      }
+      setIsLoading(false);
     }
-    setIsLoading(false);
+
+    loadGoals();
   }, []);
 
-  // Save goals
+  // Save goals - only to localStorage if deprecation is disabled
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !DISABLE_MASS_LOCAL_PERSISTENCE) {
       localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
     }
   }, [goals, isLoading]);
@@ -169,7 +196,11 @@ export function GoalsClient() {
   const completedGoals = goals.filter((g) => g.completed);
 
   if (isLoading) {
-    return <div className={styles.page}><div className={styles.loading}>Loading goals...</div></div>;
+    return (
+      <div className={styles.page}>
+        <LoadingState message="Loading goals..." />
+      </div>
+    );
   }
 
   return (

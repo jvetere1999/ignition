@@ -35,3 +35,10 @@
   }
 }
 
+/* Add bottom padding for mobile nav */
+@media (max-width: 767px) {
+  .main {
+    padding-bottom: calc(var(--mobile-nav-height, 64px) + env(safe-area-inset-bottom, 0px));
+  }
+}
+

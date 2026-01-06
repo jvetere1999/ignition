@@ -10,7 +10,7 @@ import { flstudioShortcuts } from "./flstudio";
 import { logicproShortcuts } from "./logicpro";
 import { reasonShortcuts } from "./reasonrack";
 import { serumFeatures } from "./serum";
-import type { Shortcut, Product, ShortcutWithProduct, FeatureEntry, Entry } from "./types";
+import type { Shortcut, Product, ShortcutWithProduct, FeatureEntry } from "./types";
 
 /**
  * Product definitions

@@ -3,10 +3,12 @@
 /**
  * Shortcuts Client Component
  * Interactive shortcuts browser with filtering, search, and OS toggle
+ * Supports quick mode via ?quick=1 query param
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
+import { QuickModeHeader } from "@/components/ui/QuickModeHeader";
 import styles from "./ShortcutsClient.module.css";
 
 interface Shortcut {
@@ -172,6 +174,21 @@ export function ShortcutsClient({ daw }: ShortcutsClientProps) {
   });
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [initialized, setInitialized] = useState(false);
+  const [isQuickMode, setIsQuickMode] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect quick mode from URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const quick = params.get("quick") === "1";
+      setIsQuickMode(quick);
+      // Auto-focus search in quick mode
+      if (quick && searchInputRef.current) {
+        setTimeout(() => searchInputRef.current?.focus(), 100);
+      }
+    }
+  }, []);
 
   // Initialize from cookies and detect OS
   useEffect(() => {
@@ -323,6 +340,9 @@ export function ShortcutsClient({ daw }: ShortcutsClientProps) {
 
   return (
     <div className={styles.page}>
+      {/* Quick Mode Header */}
+      {isQuickMode && <QuickModeHeader title="Quick Start - Shortcuts" />}
+
       {/* Header */}
       <header className={styles.header}>
         <Link href="/hub" className={styles.backLink}>
@@ -413,6 +433,7 @@ export function ShortcutsClient({ daw }: ShortcutsClientProps) {
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
+            ref={searchInputRef}
             type="search"
             placeholder={`Search ${daw.name} shortcuts...`}
             value={filters.search}

@@ -1,5 +1,5 @@
-# Local development secrets
-# Copy to .dev.vars and fill in values
+# Local Development Environment Variables
+# Copy this file to .dev.vars and fill in values
 # DO NOT commit .dev.vars to git
 
 # ===========================================
@@ -9,45 +9,45 @@
 # Session encryption secret (REQUIRED)
 # Must be at least 32 characters, cryptographically random
 # Generate with: openssl rand -base64 32
-AUTH_SECRET=replace-with-cryptographically-random-32-chars
+AUTH_SECRET=your-secret-here
 
 # Auth.js URL (set automatically in Cloudflare, needed for local dev)
-AUTH_URL=http://localhost:3000
+AUTH_URL=http://localhost:8787
 
 # ===========================================
 # Google OAuth
 # ===========================================
 # Create at: https://console.cloud.google.com/apis/credentials
-# 1. Create OAuth 2.0 Client ID
-# 2. Add authorized redirect URI: http://localhost:3000/api/auth/callback/google
-# 3. Add production redirect URI: https://your-domain.com/api/auth/callback/google
+# Add authorized redirect URIs:
+#   - http://localhost:3000/api/auth/callback/google
+#   - https://your-domain.com/api/auth/callback/google
 
-GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=xxx
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 
 # ===========================================
 # Microsoft Entra ID (Azure AD) OAuth
 # ===========================================
 # Create at: https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps
-# 1. Register new application
-# 2. Add redirect URI: http://localhost:3000/api/auth/callback/microsoft-entra-id
-# 3. Add production redirect URI: https://your-domain.com/api/auth/callback/microsoft-entra-id
-# 4. Create client secret under Certificates & secrets
 
-AZURE_AD_CLIENT_ID=xxx
-AZURE_AD_CLIENT_SECRET=xxx
-AZURE_AD_TENANT_ID=xxx
+AZURE_AD_CLIENT_ID=your-azure-client-id
+AZURE_AD_CLIENT_SECRET=your-azure-client-secret
+AZURE_AD_TENANT_ID=your-azure-tenant-id
 
 # ===========================================
-# Admin Configuration
+# Feature Flags
 # ===========================================
-# Comma-separated list of admin email addresses
-ADMIN_EMAILS=your-email@example.com
-NEXT_PUBLIC_ADMIN_EMAILS=your-email@example.com
+# Accepts: "1", "true", "on" (case-insensitive) as truthy
+# All other values (including "false", "0", "off") are falsy
+# Default: OFF (when not set)
 
-# ===========================================
-# Google AdSense (Optional)
-# ===========================================
-# Publisher ID without "ca-" prefix
-# Leave empty to disable ads
-# NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=pub-xxxxxxxxxxxxxxxx
+# Master kill switch - when OFF, all Today features are disabled
+FLAG_TODAY_FEATURES_MASTER=true
+
+# Individual feature flags (only active when master is ON)
+FLAG_TODAY_DECISION_SUPPRESSION_V1=true
+FLAG_TODAY_NEXT_ACTION_RESOLVER_V1=true
+FLAG_TODAY_MOMENTUM_FEEDBACK_V1=true
+FLAG_TODAY_SOFT_LANDING_V1=true
+FLAG_TODAY_REDUCED_MODE_V1=true
+

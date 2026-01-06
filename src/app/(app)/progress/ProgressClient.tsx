@@ -5,11 +5,15 @@
  * Displays user stats with Persona 5 style skill wheel
  *
  * Auto-refresh: Refetches on focus after 1 minute staleness (per SYNC.md)
+ *
+ * STORAGE RULE: Skills data should be stored in D1 via user_skills table.
+ * localStorage is DEPRECATED when DISABLE_MASS_LOCAL_PERSISTENCE is enabled.
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { SkillWheel, DEFAULT_SKILLS, type Skill } from "@/components/progress";
 import { useAutoRefresh } from "@/lib/hooks";
+import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
 
 interface ProgressStats {
@@ -34,25 +38,47 @@ export function ProgressClient() {
     level: 1,
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [recentActivities, setRecentActivities] = useState<{ label: string; xp: number; skill: string }[]>([]);
+  const [recentActivities, _setRecentActivities] = useState<{ label: string; xp: number; skill: string }[]>([]);
 
-  // Load skills from storage
+  // Load skills from D1 or localStorage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(SKILLS_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Skill[];
-        setSkills(parsed);
+    async function loadSkills() {
+      // Try to fetch from D1 first
+      try {
+        const response = await fetch("/api/user/skills");
+        if (response.ok) {
+          const data = await response.json() as { skills?: Skill[] };
+          if (data.skills && data.skills.length > 0) {
+            setSkills(data.skills);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch skills from D1:", e);
       }
-    } catch (e) {
-      console.error("Failed to load skills:", e);
+
+      // Only fall back to localStorage if deprecation is disabled
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+        try {
+          const stored = localStorage.getItem(SKILLS_STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored) as Skill[];
+            setSkills(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to load skills from localStorage:", e);
+        }
+      }
+      setIsLoading(false);
     }
-    setIsLoading(false);
+
+    loadSkills();
   }, []);
 
-  // Save skills to storage when they change
+  // Save skills to localStorage only if deprecation is disabled
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !DISABLE_MASS_LOCAL_PERSISTENCE) {
       try {
         localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(skills));
       } catch (e) {
@@ -144,7 +170,7 @@ export function ProgressClient() {
             </svg>
           </div>
           <span className={styles.statValue}>{stats.totalXp.toLocaleString()}</span>
-          <span className={styles.statChange}>Level {stats.level}</span>
+          <span className={styles.statChange}>{stats.totalXp === 0 ? "Start earning" : `Level ${stats.level}`}</span>
         </div>
 
         <div className={styles.statCard}>
@@ -166,7 +192,7 @@ export function ProgressClient() {
             </svg>
           </div>
           <span className={styles.statValue}>{stats.questsCompleted}</span>
-          <span className={styles.statChange}>This week</span>
+          <span className={styles.statChange}>{stats.questsCompleted === 0 ? "Complete quests" : "This week"}</span>
         </div>
 
         <div className={styles.statCard}>
@@ -188,7 +214,7 @@ export function ProgressClient() {
             </svg>
           </div>
           <span className={styles.statValue}>{stats.focusHours}h</span>
-          <span className={styles.statChange}>This week</span>
+          <span className={styles.statChange}>{stats.focusHours === 0 ? "Start focusing" : "This week"}</span>
         </div>
 
         <div className={styles.statCard}>
@@ -209,7 +235,7 @@ export function ProgressClient() {
             </svg>
           </div>
           <span className={styles.statValue}>{stats.currentStreak}</span>
-          <span className={styles.statChange}>days</span>
+          <span className={styles.statChange}>{stats.currentStreak === 0 ? "Start a streak" : "days"}</span>
         </div>
       </div>
 

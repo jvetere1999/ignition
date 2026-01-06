@@ -57,7 +57,6 @@ export default function ArrangeClient() {
 
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const drumBuffersRef = useRef<Map<number, AudioBuffer>>(new Map());
 
   // Initialize selected lane
   useEffect(() => {

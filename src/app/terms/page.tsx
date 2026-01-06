@@ -7,12 +7,12 @@ import Link from "next/link";
 import styles from "../privacy/page.module.css";
 
 export const metadata: Metadata = {
-  title: "Terms of Service - Passion OS",
-  description: "Terms of service for using Passion OS.",
+  title: "Terms of Service - Ignition",
+  description: "Terms of service for using Ignition.",
 };
 
 export default function TermsPage() {
-  const lastUpdated = "January 3, 2026";
+  const lastUpdated = "January 5, 2026";
 
   return (
     <div className={styles.page}>
@@ -29,7 +29,7 @@ export default function TermsPage() {
           <section className={styles.section}>
             <h2>1. Acceptance of Terms</h2>
             <p>
-              By accessing or using Passion OS (&quot;Service&quot;), you agree to be bound by these Terms of
+              By accessing or using Ignition (&quot;Service&quot;), you agree to be bound by these Terms of
               Service (&quot;Terms&quot;). If you do not agree to these Terms, do not use the Service.
             </p>
           </section>
@@ -38,7 +38,7 @@ export default function TermsPage() {
             <h2>2. Eligibility</h2>
             <p>
               <strong>You must be at least 16 years of age to use this Service.</strong> By using
-              Passion OS, you represent and warrant that you are at least 16 years old. If you are
+              Ignition, you represent and warrant that you are at least 16 years old. If you are
               under 16, you are not permitted to use this Service.
             </p>
             <p>
@@ -53,13 +53,12 @@ export default function TermsPage() {
             <ul>
               <li>Create an account using Google or Microsoft authentication</li>
               <li>Verify that you are 16 years of age or older</li>
-              <li>Wait for account approval from our administrators</li>
+              <li>Accept these Terms of Service</li>
               <li>Provide accurate and complete information</li>
               <li>Maintain the security of your account credentials</li>
             </ul>
             <p>
-              Account approval is at our sole discretion. We reserve the right to deny or revoke
-              access for any reason.
+              We reserve the right to deny or revoke access for any reason at our sole discretion.
             </p>
           </section>
 

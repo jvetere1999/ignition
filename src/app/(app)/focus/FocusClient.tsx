@@ -1,7 +1,17 @@
 "use client";
 
+/**
+ * STORAGE RULE: Focus pause state is fetched from D1 via /api/focus/pause API.
+ * localStorage is DEPRECATED for focus_paused_state (behavior-affecting data).
+ * focus_settings (cosmetic only) remains in localStorage.
+ */
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { FocusTracks } from "@/components/focus";
+import { markMomentumShown } from "@/lib/today/momentum";
+import { activateSoftLanding } from "@/lib/today/softLanding";
+import { isTodaySoftLandingEnabled } from "@/lib/flags";
+import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
 
 // Types
@@ -129,6 +139,7 @@ function generateWeeklyData(sessions: FocusSession[]): WeeklyData[] {
 }
 
 export function FocusClient({ initialStats, initialSession }: FocusClientProps) {
+
   // View mode
   const [viewMode, setViewMode] = useState<ViewMode>("timer");
 
@@ -161,6 +172,9 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
   const [sessionHistory, setSessionHistory] = useState<FocusSession[]>([]);
   const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Loading state for timer actions (FO-01: loading feedback)
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   // Refs for timer
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -239,7 +253,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     }
   }, []);
 
-  // Load settings from localStorage
+  // Load settings from localStorage (cosmetic, allowed)
   useEffect(() => {
     const savedSettings = localStorage.getItem("focus_settings");
     if (savedSettings) {
@@ -253,32 +267,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       }
     }
 
-    // Restore paused timer state from localStorage first
-    const pausedState = localStorage.getItem("focus_paused_state");
-    if (pausedState) {
-      try {
-        const parsed = JSON.parse(pausedState) as {
-          mode: FocusMode;
-          timeRemaining: number;
-          pausedAt: string;
-        };
-        // Only restore if paused within the last hour
-        const pausedTime = new Date(parsed.pausedAt).getTime();
-        const hourAgo = Date.now() - 60 * 60 * 1000;
-        if (pausedTime > hourAgo) {
-          setMode(parsed.mode);
-          setTimeRemaining(parsed.timeRemaining);
-          setStatus("paused");
-        } else {
-          // Expired, clear it
-          localStorage.removeItem("focus_paused_state");
-        }
-      } catch {
-        localStorage.removeItem("focus_paused_state");
-      }
-    }
-
-    // Also check D1 for cross-device sync (runs after initial load)
+    // Load paused state from D1 (source of truth)
     fetch("/api/focus/pause")
       .then((res) => res.json())
       .then((data) => {
@@ -287,14 +276,35 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
           setMode(typedData.pauseState.mode);
           setTimeRemaining(typedData.pauseState.timeRemaining);
           setStatus("paused");
-          // Update localStorage too
-          localStorage.setItem("focus_paused_state", JSON.stringify(typedData.pauseState));
+        } else if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+          // Only check localStorage if deprecation is disabled
+          const pausedState = localStorage.getItem("focus_paused_state");
+          if (pausedState) {
+            try {
+              const parsed = JSON.parse(pausedState) as {
+                mode: FocusMode;
+                timeRemaining: number;
+                pausedAt: string;
+              };
+              const pausedTime = new Date(parsed.pausedAt).getTime();
+              const hourAgo = Date.now() - 60 * 60 * 1000;
+              if (pausedTime > hourAgo) {
+                setMode(parsed.mode);
+                setTimeRemaining(parsed.timeRemaining);
+                setStatus("paused");
+              } else {
+                localStorage.removeItem("focus_paused_state");
+              }
+            } catch {
+              localStorage.removeItem("focus_paused_state");
+            }
+          }
         }
       })
       .catch(console.error);
   }, []);
 
-  // Save paused state to localStorage
+  // Save paused state to D1 (source of truth)
   useEffect(() => {
     if (status === "paused") {
       const pausedState = {
@@ -302,10 +312,34 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
         timeRemaining,
         pausedAt: new Date().toISOString(),
       };
-      localStorage.setItem("focus_paused_state", JSON.stringify(pausedState));
+
+      // Only write to localStorage if deprecation is disabled
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+        localStorage.setItem("focus_paused_state", JSON.stringify(pausedState));
+      }
+
+      // Sync to D1 for cross-device and refresh persistence
+      fetch("/api/focus/pause", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save",
+          mode,
+          timeRemaining,
+        }),
+      }).catch((err) => console.error("Failed to sync pause state:", err));
     } else if (status === "running" || status === "idle") {
       // Clear paused state when running or idle
-      localStorage.removeItem("focus_paused_state");
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem("focus_paused_state");
+      }
+
+      // Also clear from D1
+      fetch("/api/focus/pause", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear" }),
+      }).catch((err) => console.error("Failed to clear pause state:", err));
     }
   }, [status, mode, timeRemaining]);
 
@@ -336,6 +370,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     }
 
     // Complete session in database
+    // Note: XP and coins are awarded server-side via activity events
     if (currentSession) {
       try {
         await fetch(`/api/focus/${currentSession.id}/complete`, {
@@ -344,41 +379,14 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
         setCurrentSession(null);
         fetchStats();
 
-        // Award XP and coins for completing focus sessions
+        // Mark momentum as shown for first completion in session
+        // This triggers the momentum banner on the Today page
         if (mode === "focus") {
-          const xpReward = 25;
-          const coinReward = 10;
+          markMomentumShown();
 
-          // Update skills (Knowledge for focus)
-          try {
-            const skillsStored = localStorage.getItem("passion_progress_skills_v1");
-            if (skillsStored) {
-              const skills = JSON.parse(skillsStored);
-              const updated = skills.map((s: { id: string; xp: number; level: number; xpToNext: number; maxLevel: number }) => {
-                if (s.id !== "knowledge") return s;
-                let newXp = s.xp + xpReward;
-                let newLevel = s.level;
-                while (newXp >= s.xpToNext && newLevel < s.maxLevel) {
-                  newXp -= s.xpToNext;
-                  newLevel++;
-                }
-                return { ...s, xp: newXp, level: newLevel };
-              });
-              localStorage.setItem("passion_progress_skills_v1", JSON.stringify(updated));
-            }
-          } catch {
-            // Ignore skill update errors
-          }
-
-          // Update wallet
-          try {
-            const walletStored = localStorage.getItem("passion_wallet_v1");
-            const wallet = walletStored ? JSON.parse(walletStored) : { coins: 0, totalXp: 0 };
-            wallet.coins += coinReward;
-            wallet.totalXp += xpReward;
-            localStorage.setItem("passion_wallet_v1", JSON.stringify(wallet));
-          } catch {
-            // Ignore wallet update errors
+          // Activate soft landing mode for reduced-choice Today
+          if (isTodaySoftLandingEnabled()) {
+            activateSoftLanding("focus");
           }
         }
       } catch (error) {
@@ -454,11 +462,11 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       const statusPrefix = status === "paused" ? "(Paused) " : "";
       document.title = `${statusPrefix}${formatTime(timeRemaining)} - ${MODE_LABELS[mode]} | Focus`;
     } else {
-      document.title = "Focus | Passion OS";
+      document.title = "Focus | Ignition";
     }
 
     return () => {
-      document.title = "Focus | Passion OS";
+      document.title = "Focus | Ignition";
     };
   }, [timeRemaining, status, mode]);
 
@@ -469,6 +477,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       return;
     }
 
+    setIsActionLoading(true);
     setStatus("running");
     startTimeRef.current = Date.now();
 
@@ -491,6 +500,8 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       }
     } catch (error) {
       console.error("Failed to create session:", error);
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -501,6 +512,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
 
   // Reset timer
   const handleReset = async () => {
+    setIsActionLoading(true);
     setStatus("idle");
     setTimeRemaining(durations[mode]);
 
@@ -511,10 +523,16 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
           method: "POST",
         });
         setCurrentSession(null);
+
+        // Activate soft landing mode on abandon (if focus mode)
+        if (mode === "focus" && isTodaySoftLandingEnabled()) {
+          activateSoftLanding("focus");
+        }
       } catch (error) {
         console.error("Failed to abandon session:", error);
       }
     }
+    setIsActionLoading(false);
   };
 
   // Skip to next mode
@@ -526,6 +544,11 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
           method: "POST",
         });
         setCurrentSession(null);
+
+        // Activate soft landing mode on skip/abandon (if focus mode)
+        if (mode === "focus" && isTodaySoftLandingEnabled()) {
+          activateSoftLanding("focus");
+        }
       } catch (error) {
         console.error("Failed to abandon session:", error);
       }
@@ -670,30 +693,42 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
                 className={styles.controlButton}
                 onClick={handleReset}
                 aria-label="Reset"
-                disabled={status === "idle" && timeRemaining === durations[mode]}
+                disabled={isActionLoading || (status === "idle" && timeRemaining === durations[mode])}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
+                {isActionLoading ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" className={styles.spinner}>
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="31.4" strokeDashoffset="10" />
+                  </svg>
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                )}
               </button>
 
               {status === "running" ? (
-                <button className={styles.playButton} onClick={handlePause} aria-label="Pause">
+                <button className={styles.playButton} onClick={handlePause} aria-label="Pause" disabled={isActionLoading}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="6" y="4" width="4" height="16" rx="1" />
                     <rect x="14" y="4" width="4" height="16" rx="1" />
                   </svg>
                 </button>
               ) : (
-                <button className={styles.playButton} onClick={handleStart} aria-label="Start">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
+                <button className={styles.playButton} onClick={handleStart} aria-label="Start" disabled={isActionLoading}>
+                  {isActionLoading ? (
+                    <svg width="32" height="32" viewBox="0 0 24 24" className={styles.spinner}>
+                      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="31.4" strokeDashoffset="10" />
+                    </svg>
+                  ) : (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                  )}
                 </button>
               )}
 
-              <button className={styles.controlButton} onClick={handleSkip} aria-label="Skip">
+              <button className={styles.controlButton} onClick={handleSkip} aria-label="Skip" disabled={isActionLoading}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="5 4 15 12 5 20 5 4" />
                   <line x1="19" y1="5" x2="19" y2="19" />

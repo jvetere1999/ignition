@@ -17,11 +17,19 @@ export function MobileSignIn() {
       <div className={styles.content}>
         {/* Logo */}
         <div className={styles.logo}>
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          <svg width="64" height="64" viewBox="0 0 24 24">
+            <defs>
+              <linearGradient id="mobileFlameGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stopColor="#8B0000"/>
+                <stop offset="100%" stopColor="#DC143C"/>
+              </linearGradient>
+            </defs>
+            <path d="M3 22 Q4.5 16 6 12 Q7.5 6 5 2 Q9 5 7.5 12 Q6.5 17 7.5 22 Z" fill="url(#mobileFlameGrad)"/>
+            <path d="M9 22 Q10.5 14 12 9 Q13.5 3 12 0 Q15 4 13.5 10 Q12 17 13.5 22 Z" fill="url(#mobileFlameGrad)"/>
+            <path d="M16.5 22 Q18 16 19.5 11 Q21 5 19 1 Q22.5 7 21 14 Q19.5 19 21 22 Z" fill="url(#mobileFlameGrad)"/>
           </svg>
-          <h1>Passion OS</h1>
-          <p>Your personal productivity companion</p>
+          <h1>Ignition</h1>
+          <p>Start without friction</p>
         </div>
 
         {/* Sign In Buttons */}

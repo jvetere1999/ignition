@@ -89,6 +89,7 @@
   background-color: var(--color-bg-tertiary);
   transform: translateY(-2px);
   text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .dawIcon {

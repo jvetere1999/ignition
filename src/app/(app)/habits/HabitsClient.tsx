@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAutoRefresh } from "@/lib/hooks";
+import { LoadingState } from "@/components/ui";
 import styles from "./page.module.css";
 
 interface Habit {
@@ -152,7 +153,11 @@ export function HabitsClient() {
   const totalHabits = habits.length;
 
   if (isLoading) {
-    return <div className={styles.page}><div className={styles.loading}>Loading habits...</div></div>;
+    return (
+      <div className={styles.page}>
+        <LoadingState message="Loading habits..." />
+      </div>
+    );
   }
 
   return (

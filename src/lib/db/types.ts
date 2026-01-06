@@ -422,3 +422,306 @@ export type CreateWorkoutSessionInput = Omit<
 // Exercise Set inputs
 export type CreateExerciseSetInput = Omit<ExerciseSet, "id" | "completed_at">;
 
+// ============================================
+// NEW v2 Types - Gamification & Personalization
+// ============================================
+
+// Currency types
+export type Currency = "coins" | "xp" | "skill_stars";
+
+// Nudge intensity
+export type NudgeIntensity = "gentle" | "standard" | "energetic";
+
+// Gamification visibility
+export type GamificationVisibility = "always" | "subtle" | "hidden";
+
+// Onboarding status
+export type OnboardingStatus = "not_started" | "in_progress" | "skipped" | "completed";
+
+// Onboarding step type
+export type OnboardingStepType = "tour" | "choice" | "preference" | "action" | "explain";
+
+// User Settings V2 (for v2 schema - combines with old UserSettings after migration)
+export interface UserSettingsV2 {
+  id: string;
+  user_id: string;
+  nudge_intensity: NudgeIntensity;
+  default_focus_duration: number;
+  gamification_visibility: GamificationVisibility;
+  streak_type: "daily" | "flexible";
+  planner_visible: number; // SQLite boolean
+  planner_expanded: number;
+  soft_landing_until: ISOTimestamp | null;
+  created_at: ISOTimestamp;
+  updated_at: ISOTimestamp;
+}
+
+// User Interests
+export interface UserInterest {
+  id: string;
+  user_id: string;
+  interest_key: string;
+  priority: number;
+  created_at: ISOTimestamp;
+}
+
+// User UI Modules
+export interface UserUIModule {
+  id: string;
+  user_id: string;
+  module_key: string;
+  enabled: number;
+  weight: number;
+  last_shown_at: ISOTimestamp | null;
+  show_count: number;
+  created_at: ISOTimestamp;
+  updated_at: ISOTimestamp;
+}
+
+// Onboarding Flow
+export interface OnboardingFlow {
+  id: string;
+  version: number;
+  name: string;
+  description: string | null;
+  is_active: number;
+  total_steps: number;
+  created_at: ISOTimestamp;
+}
+
+// Onboarding Step
+export interface OnboardingStep {
+  id: string;
+  flow_id: string;
+  step_order: number;
+  step_type: OnboardingStepType;
+  title: string;
+  description: string | null;
+  target_selector: string | null;
+  target_route: string | null;
+  fallback_content: string | null;
+  options_json: JSONString | null;
+  allows_multiple: number;
+  required: number;
+  action_type: string | null;
+  action_config_json: JSONString | null;
+  created_at: ISOTimestamp;
+}
+
+// User Onboarding State
+export interface UserOnboardingState {
+  id: string;
+  user_id: string;
+  flow_id: string;
+  current_step_id: string | null;
+  status: OnboardingStatus;
+  started_at: ISOTimestamp | null;
+  completed_at: ISOTimestamp | null;
+  skipped_at: ISOTimestamp | null;
+  last_step_completed_at: ISOTimestamp | null;
+  responses_json: JSONString | null;
+  can_resume: number;
+  created_at: ISOTimestamp;
+  updated_at: ISOTimestamp;
+}
+
+// Points Ledger
+export interface PointsLedgerEntry {
+  id: string;
+  user_id: string;
+  currency: Currency;
+  amount: number;
+  reason: string;
+  source_type: string | null;
+  source_id: string | null;
+  skill_id: string | null;
+  metadata_json: JSONString | null;
+  created_at: ISOTimestamp;
+}
+
+// User Wallet
+export interface UserWallet {
+  id: string;
+  user_id: string;
+  coins: number;
+  xp: number;
+  level: number;
+  xp_to_next_level: number;
+  total_skill_stars: number;
+  updated_at: ISOTimestamp;
+}
+
+// Skill Definition
+export interface SkillDefinition {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  icon: string | null;
+  max_level: number;
+  stars_per_level: number;
+  created_at: ISOTimestamp;
+}
+
+// User Skill
+export interface UserSkill {
+  id: string;
+  user_id: string;
+  skill_id: string;
+  current_stars: number;
+  current_level: number;
+  updated_at: ISOTimestamp;
+}
+
+// Achievement Definition
+export interface AchievementDefinition {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string | null;
+  condition_type: string;
+  condition_json: JSONString;
+  reward_coins: number;
+  reward_xp: number;
+  reward_skill_stars: number;
+  reward_skill_id: string | null;
+  is_hidden: number;
+  created_at: ISOTimestamp;
+}
+
+// User Achievement
+export interface UserAchievement {
+  id: string;
+  user_id: string;
+  achievement_id: string;
+  unlocked_at: ISOTimestamp;
+  notified: number;
+}
+
+// Market Item
+export interface MarketItem {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  cost_coins: number;
+  icon: string | null;
+  is_global: number;
+  created_by_user_id: string | null;
+  is_active: number;
+  created_at: ISOTimestamp;
+}
+
+// User Purchase
+export interface UserPurchase {
+  id: string;
+  user_id: string;
+  item_id: string;
+  cost_coins: number;
+  purchased_at: ISOTimestamp;
+  redeemed: number;
+  redeemed_at: ISOTimestamp | null;
+}
+
+// ============================================
+// Learn Types
+// ============================================
+
+// Learn Topic
+export interface LearnTopic {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  parent_id: string | null;
+  order_index: number;
+  icon: string | null;
+  estimated_minutes: number | null;
+  difficulty: string;
+  created_at: ISOTimestamp;
+}
+
+// Learn Lesson
+export interface LearnLesson {
+  id: string;
+  topic_id: string;
+  title: string;
+  description: string | null;
+  content_markdown: string;
+  order_index: number;
+  estimated_minutes: number;
+  quiz_json: JSONString | null;
+  xp_reward: number;
+  coin_reward: number;
+  skill_id: string | null;
+  skill_star_reward: number;
+  audio_r2_key: string | null;
+  created_at: ISOTimestamp;
+}
+
+// Learn Drill
+export interface LearnDrill {
+  id: string;
+  topic_id: string;
+  name: string;
+  description: string | null;
+  drill_type: string;
+  difficulty: string;
+  config_json: JSONString;
+  initial_interval_hours: number;
+  audio_r2_key: string | null;
+  created_at: ISOTimestamp;
+}
+
+// User Lesson Progress
+export interface UserLessonProgress {
+  id: string;
+  user_id: string;
+  lesson_id: string;
+  status: string;
+  started_at: ISOTimestamp | null;
+  completed_at: ISOTimestamp | null;
+  quiz_score: number | null;
+  attempts: number;
+}
+
+// User Drill Stats
+export interface UserDrillStats {
+  id: string;
+  user_id: string;
+  drill_id: string;
+  total_attempts: number;
+  correct_attempts: number;
+  current_streak: number;
+  best_streak: number;
+  success_rate: number;
+  last_seen_at: ISOTimestamp | null;
+  next_due_at: ISOTimestamp | null;
+  interval_hours: number;
+  easiness_factor: number;
+}
+
+// Ignition Pack
+export interface IgnitionPack {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  items_json: JSONString;
+  is_active: number;
+  created_at: ISOTimestamp;
+}
+
+// Idea
+export interface Idea {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string | null;
+  category: string;
+  tags_json: JSONString | null;
+  is_pinned: number;
+  created_at: ISOTimestamp;
+  updated_at: ISOTimestamp;
+}

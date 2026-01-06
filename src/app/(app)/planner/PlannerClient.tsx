@@ -391,43 +391,8 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
         const wasCompleted = event.completed;
         const newCompleted = !wasCompleted;
 
-        // Award or remove XP/coins based on completion state
-        if (newCompleted && !wasCompleted) {
-          const xpReward = event.xpReward || 10;
-          const coinReward = event.coinReward || 5;
-
-          // Update skills (Proficiency for completing tasks)
-          try {
-            const skillsStored = localStorage.getItem("passion_progress_skills_v1");
-            if (skillsStored) {
-              const skills = JSON.parse(skillsStored);
-              const updated = skills.map((s: { id: string; xp: number; level: number; xpToNext: number; maxLevel: number }) => {
-                if (s.id !== "proficiency") return s;
-                let newXp = s.xp + xpReward;
-                let newLevel = s.level;
-                while (newXp >= s.xpToNext && newLevel < s.maxLevel) {
-                  newXp -= s.xpToNext;
-                  newLevel++;
-                }
-                return { ...s, xp: newXp, level: newLevel };
-              });
-              localStorage.setItem("passion_progress_skills_v1", JSON.stringify(updated));
-            }
-          } catch {
-            // Ignore skill update errors
-          }
-
-          // Update wallet
-          try {
-            const walletStored = localStorage.getItem("passion_wallet_v1");
-            const wallet = walletStored ? JSON.parse(walletStored) : { coins: 0, totalXp: 0 };
-            wallet.coins += coinReward;
-            wallet.totalXp += xpReward;
-            localStorage.setItem("passion_wallet_v1", JSON.stringify(wallet));
-          } catch {
-            // Ignore wallet update errors
-          }
-        }
+        // Note: XP and coins are awarded server-side via activity events
+        // when planner_task_complete event is logged
 
         return { ...event, completed: newCompleted };
       })

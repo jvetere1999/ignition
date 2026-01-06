@@ -7,8 +7,8 @@ import Link from "next/link";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "Contact Us - Passion OS",
-  description: "Get in touch with the Passion OS team.",
+  title: "Contact Us - Ignition",
+  description: "Get in touch with the Ignition team.",
 };
 
 export default function ContactPage() {
@@ -38,8 +38,8 @@ export default function ContactPage() {
               <p className={styles.cardDescription}>
                 For general inquiries and support requests
               </p>
-              <a href="mailto:support@passion-os.app" className={styles.cardLink}>
-                support@passion-os.app
+              <a href="mailto:support@ignition.app" className={styles.cardLink}>
+                support@ignition.app
               </a>
             </section>
 
@@ -53,8 +53,8 @@ export default function ContactPage() {
               <p className={styles.cardDescription}>
                 For data privacy and GDPR-related requests
               </p>
-              <a href="mailto:privacy@passion-os.app" className={styles.cardLink}>
-                privacy@passion-os.app
+              <a href="mailto:privacy@ignition.app" className={styles.cardLink}>
+                privacy@ignition.app
               </a>
             </section>
 
@@ -70,8 +70,8 @@ export default function ContactPage() {
               <p className={styles.cardDescription}>
                 Found a bug? Let us know so we can fix it
               </p>
-              <a href="mailto:bugs@passion-os.app" className={styles.cardLink}>
-                bugs@passion-os.app
+              <a href="mailto:bugs@ignition.app" className={styles.cardLink}>
+                bugs@ignition.app
               </a>
             </section>
 
@@ -83,10 +83,10 @@ export default function ContactPage() {
               </div>
               <h2 className={styles.cardTitle}>Feature Requests</h2>
               <p className={styles.cardDescription}>
-                Have an idea to make Passion OS better?
+                Have an idea to make Ignition better?
               </p>
-              <a href="mailto:ideas@passion-os.app" className={styles.cardLink}>
-                ideas@passion-os.app
+              <a href="mailto:ideas@ignition.app" className={styles.cardLink}>
+                ideas@ignition.app
               </a>
             </section>
           </div>
@@ -105,7 +105,7 @@ export default function ContactPage() {
             <ul>
               <li><Link href="/privacy">Privacy Policy</Link> - Data collection and your rights</li>
               <li><Link href="/terms">Terms of Service</Link> - Usage guidelines and policies</li>
-              <li><Link href="/about">About</Link> - Learn more about Passion OS</li>
+              <li><Link href="/about">About</Link> - Learn more about Ignition</li>
             </ul>
           </section>
 

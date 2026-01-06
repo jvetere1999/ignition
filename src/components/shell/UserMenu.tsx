@@ -9,6 +9,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useTheme, type Theme } from "@/lib/theme";
+import { isAdminEmail } from "@/lib/admin";
 import styles from "./UserMenu.module.css";
 
 interface UserMenuProps {
@@ -126,6 +127,32 @@ export function UserMenu({ user }: UserMenuProps) {
           </div>
 
           <div className={styles.divider} />
+
+          {isAdminEmail(user.email) && (
+            <Link
+              href="/admin"
+              className={styles.menuItem}
+              onClick={() => setIsOpen(false)}
+              role="menuitem"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ marginRight: "8px" }}
+              >
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+              Admin
+            </Link>
+          )}
 
           <Link
             href="/settings"

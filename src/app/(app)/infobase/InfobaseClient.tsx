@@ -4,9 +4,15 @@
  * Infobase Client Component
  * Interactive knowledge base with CRUD operations
  * Syncs with D1 database for cross-device persistence
+ * Supports quick mode via ?quick=1 query param
+ *
+ * STORAGE RULE: Infobase entries are stored in D1 via /api/infobase API.
+ * localStorage cache is DEPRECATED when DISABLE_MASS_LOCAL_PERSISTENCE is enabled.
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { QuickModeHeader } from "@/components/ui/QuickModeHeader";
+import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
 
 interface InfoEntry {
@@ -38,7 +44,23 @@ export function InfobaseClient() {
   const [selectedEntry, setSelectedEntry] = useState<InfoEntry | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
+  const [isQuickMode, setIsQuickMode] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect quick mode from URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const quick = params.get("quick") === "1";
+      setIsQuickMode(quick);
+      // In quick mode, auto-start creating a new entry
+      if (quick) {
+        setIsCreating(true);
+        setTimeout(() => titleInputRef.current?.focus(), 100);
+      }
+    }
+  }, []);
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -63,28 +85,35 @@ export function InfobaseClient() {
             updatedAt: e.updated_at,
           }));
           setEntries(mapped);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
+          // Only cache to localStorage if deprecation is disabled
+          if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
+          }
           return;
         }
       }
-      // Fall back to localStorage
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const localEntries = JSON.parse(stored);
-        setEntries(localEntries);
-        // Sync local entries to D1
-        syncEntriesToD1(localEntries);
+      // Fall back to localStorage only if deprecation is disabled
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const localEntries = JSON.parse(stored);
+          setEntries(localEntries);
+          // Sync local entries to D1
+          syncEntriesToD1(localEntries);
+        }
       }
     } catch (e) {
       console.error("Failed to fetch infobase:", e);
-      // Fall back to localStorage
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          setEntries(JSON.parse(stored));
+      // Fall back to localStorage only if deprecation is disabled
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            setEntries(JSON.parse(stored));
+          }
+        } catch {
+          // Ignore
         }
-      } catch {
-        // Ignore
       }
     } finally {
       setIsLoading(false);
@@ -256,6 +285,9 @@ export function InfobaseClient() {
 
   return (
     <div className={styles.page}>
+      {/* Quick Mode Header */}
+      {isQuickMode && <QuickModeHeader title="Quick Start - New Entry" />}
+
       <header className={styles.header}>
         <h1 className={styles.title}>Infobase</h1>
         <p className={styles.subtitle}>Your personal knowledge base.</p>
@@ -344,6 +376,7 @@ export function InfobaseClient() {
               </div>
               <div className={styles.editorForm}>
                 <input
+                  ref={titleInputRef}
                   type="text"
                   className={styles.editorTitle}
                   placeholder="Entry title..."

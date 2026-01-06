@@ -281,8 +281,10 @@
 }
 
 .checkButton {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--radius-full);
   border: 2px solid;
   background: transparent;
@@ -292,6 +294,10 @@
   justify-content: center;
   flex-shrink: 0;
   transition: all var(--transition-fast);
+}
+
+.checkButton:hover:not(:disabled) {
+  transform: scale(1.05);
 }
 
 .checkButton:disabled {
