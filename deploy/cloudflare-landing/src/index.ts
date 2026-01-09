@@ -360,81 +360,261 @@ export default {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Signing In - Ignition</title>
   <style>
-    :root { --bg: #0a0a0a; --text: #fafafa; --muted: #888; --accent: #f97316; }
+    :root { --bg: #0a0a0a; --text: #fafafa; --muted: #888; --accent: #f97316; --success: #22c55e; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-    .container { text-align: center; max-width: 400px; padding: 2rem; }
-    h1 { font-size: 2rem; margin-bottom: 0.5rem; color: var(--accent); }
-    p { color: var(--muted); margin-bottom: 1rem; }
-    .status { font-size: 0.875rem; color: var(--muted); }
-    .spinner { width: 48px; height: 48px; border: 3px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 2rem auto; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .progress { width: 100%; height: 4px; background: #333; border-radius: 2px; overflow: hidden; margin: 1rem 0; }
-    .progress-bar { height: 100%; background: var(--accent); width: 0%; animation: progress 8s ease-out forwards; }
-    @keyframes progress { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 95%; } }
+    .container { text-align: center; max-width: 420px; padding: 2rem; }
+    .logo { font-size: 3rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; color: var(--text); }
+    .subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem; }
+    
+    /* Progress container */
+    .progress-container { margin: 2rem 0; }
+    .progress-label { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.875rem; }
+    .progress-label .step { color: var(--muted); }
+    .progress-label .time { color: var(--accent); font-weight: 600; }
+    .progress { width: 100%; height: 8px; background: #1a1a1a; border-radius: 4px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), #fbbf24); width: 0%; transition: width 0.3s ease-out; border-radius: 4px; }
+    .progress-bar.complete { background: var(--success); width: 100% !important; }
+    
+    /* Status steps */
+    .steps { margin: 2rem 0; text-align: left; }
+    .step-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; font-size: 0.9rem; color: var(--muted); }
+    .step-item.active { color: var(--text); }
+    .step-item.done { color: var(--success); }
+    .step-item .icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+    .step-item.pending .icon::before { content: '○'; }
+    .step-item.active .icon::before { content: '◐'; animation: pulse 1s ease-in-out infinite; }
+    .step-item.done .icon::before { content: '✓'; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    
+    /* Estimated time */
+    .estimate { margin-top: 1.5rem; padding: 1rem; background: #111; border-radius: 8px; border: 1px solid #222; }
+    .estimate-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.25rem; }
+    .estimate-time { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+    .estimate-time.ready { color: var(--success); }
+    
+    /* Login button */
+    .login-btn { 
+      margin-top: 2rem; 
+      display: inline-block; 
+      padding: 1rem 2.5rem; 
+      background: #333; 
+      color: #666; 
+      border-radius: 8px; 
+      font-weight: 600; 
+      font-size: 1rem;
+      text-decoration: none; 
+      cursor: not-allowed;
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+    .login-btn.ready { 
+      background: var(--accent); 
+      color: white; 
+      cursor: pointer; 
+      pointer-events: auto;
+      box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
+    }
+    .login-btn.ready:hover { 
+      background: #ea580c; 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5);
+    }
+    
+    /* Error state */
+    .error-msg { margin-top: 1rem; padding: 0.75rem 1rem; background: #1a0a0a; border: 1px solid #3a1a1a; border-radius: 6px; color: #f87171; font-size: 0.875rem; display: none; }
+    .error-msg.show { display: block; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🔥 Ignition</h1>
-    <div class="spinner"></div>
-    <p id="message">Preparing your session...</p>
-    <div class="progress"><div class="progress-bar"></div></div>
-    <p class="status" id="status">Starting services</p>
+    <div class="logo">🔥</div>
+    <h1>Preparing Ignition</h1>
+    <p class="subtitle">Getting everything ready for your session</p>
+    
+    <div class="progress-container">
+      <div class="progress-label">
+        <span class="step" id="step-text">Initializing...</span>
+        <span class="time" id="time-remaining">~15s</span>
+      </div>
+      <div class="progress">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+    </div>
+    
+    <div class="steps">
+      <div class="step-item pending" id="step-1">
+        <span class="icon"></span>
+        <span>Waking up services</span>
+      </div>
+      <div class="step-item pending" id="step-2">
+        <span class="icon"></span>
+        <span>Connecting to backend</span>
+      </div>
+      <div class="step-item pending" id="step-3">
+        <span class="icon"></span>
+        <span>Loading frontend</span>
+      </div>
+      <div class="step-item pending" id="step-4">
+        <span class="icon"></span>
+        <span>Ready to sign in</span>
+      </div>
+    </div>
+    
+    <div class="estimate">
+      <div class="estimate-label">Estimated time</div>
+      <div class="estimate-time" id="estimate">~15 seconds</div>
+    </div>
+    
+    <a href="#" class="login-btn" id="login-btn">Continue to Sign In</a>
+    
+    <div class="error-msg" id="error-msg">
+      Services are taking longer than expected. You can still try to sign in.
+    </div>
   </div>
+  
   <script>
     const authUrl = "${authUrl}";
     const containerUrl = "${containerUrl}";
-    const msg = document.getElementById('message');
-    const status = document.getElementById('status');
+    const backendUrl = "${env.BACKEND_API_URL}";
     
-    async function warmAndRedirect() {
-      status.textContent = 'Waking up services...';
+    const progressBar = document.getElementById('progress-bar');
+    const stepText = document.getElementById('step-text');
+    const timeRemaining = document.getElementById('time-remaining');
+    const estimate = document.getElementById('estimate');
+    const loginBtn = document.getElementById('login-btn');
+    const errorMsg = document.getElementById('error-msg');
+    
+    const steps = [
+      document.getElementById('step-1'),
+      document.getElementById('step-2'),
+      document.getElementById('step-3'),
+      document.getElementById('step-4'),
+    ];
+    
+    function setStep(index, state) {
+      steps[index].className = 'step-item ' + state;
+    }
+    
+    function updateProgress(percent, text, timeLeft) {
+      progressBar.style.width = percent + '%';
+      stepText.textContent = text;
+      timeRemaining.textContent = timeLeft;
+    }
+    
+    async function checkHealth(url) {
+      try {
+        const res = await fetch(url, { method: 'GET', mode: 'cors' });
+        return res.ok;
+      } catch (e) {
+        return false;
+      }
+    }
+    
+    async function warmAndReady() {
+      const startTime = Date.now();
+      const maxWait = 25000; // 25 seconds max
+      let backendReady = false;
+      let frontendReady = false;
       
-      // Wake both containers in parallel
-      const warmPromises = [
-        fetch(containerUrl + '/_health').then(r => r.ok).catch(() => false),
-        fetch('${env.BACKEND_API_URL}/health').then(r => r.ok).catch(() => false),
-      ];
+      // Step 1: Waking up
+      setStep(0, 'active');
+      updateProgress(10, 'Waking up services...', '~15s');
+      estimate.textContent = '~15 seconds';
       
-      msg.textContent = 'Starting containers...';
-      status.textContent = 'This may take a few seconds on first visit';
+      // Initial warm-up pings (fire and forget)
+      fetch(containerUrl + '/_health').catch(() => {});
+      fetch(backendUrl + '/health').catch(() => {});
       
-      // Poll until containers respond or timeout
+      await new Promise(r => setTimeout(r, 1000));
+      setStep(0, 'done');
+      
+      // Step 2: Backend check
+      setStep(1, 'active');
+      updateProgress(25, 'Connecting to backend...', '~12s');
+      estimate.textContent = '~12 seconds';
+      
       let attempts = 0;
-      const maxAttempts = 20; // ~20 seconds max
-      
-      while (attempts < maxAttempts) {
-        const results = await Promise.all([
-          fetch(containerUrl + '/_health').then(r => r.ok).catch(() => false),
-          fetch('${env.BACKEND_API_URL}/health').then(r => r.ok).catch(() => false),
-        ]);
-        
-        if (results[0] && results[1]) {
-          msg.textContent = 'Ready! Redirecting...';
-          status.textContent = 'Services online';
-          // Both containers ready - redirect to OAuth
-          window.location.href = authUrl;
-          return;
-        }
-        
-        if (results[1]) {
-          status.textContent = 'Backend ready, waiting for frontend...';
-        } else if (results[0]) {
-          status.textContent = 'Frontend ready, waiting for backend...';
-        }
-        
+      while (attempts < 15 && !backendReady) {
+        backendReady = await checkHealth(backendUrl + '/health');
+        if (backendReady) break;
         attempts++;
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const remaining = Math.max(1, 15 - elapsed);
+        updateProgress(25 + (attempts * 2), 'Connecting to backend...', '~' + remaining + 's');
+        estimate.textContent = '~' + remaining + ' seconds';
         await new Promise(r => setTimeout(r, 1000));
       }
       
-      // Timeout - try redirecting anyway
-      msg.textContent = 'Redirecting...';
-      status.textContent = 'Services may still be starting';
-      window.location.href = authUrl;
+      if (backendReady) {
+        setStep(1, 'done');
+      } else {
+        setStep(1, 'active'); // Still trying
+      }
+      
+      // Step 3: Frontend check
+      setStep(2, 'active');
+      updateProgress(55, 'Loading frontend...', '~8s');
+      estimate.textContent = '~8 seconds';
+      
+      attempts = 0;
+      while (attempts < 10 && !frontendReady) {
+        frontendReady = await checkHealth(containerUrl + '/_health');
+        if (frontendReady) break;
+        attempts++;
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const remaining = Math.max(1, 20 - elapsed);
+        updateProgress(55 + (attempts * 3), 'Loading frontend...', '~' + remaining + 's');
+        estimate.textContent = '~' + remaining + ' seconds';
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      
+      if (frontendReady) {
+        setStep(2, 'done');
+      }
+      
+      // Step 4: Ready state
+      setStep(3, 'active');
+      
+      if (backendReady && frontendReady) {
+        // All systems go!
+        setStep(3, 'done');
+        progressBar.classList.add('complete');
+        updateProgress(100, 'All systems ready!', '✓');
+        estimate.textContent = 'Ready!';
+        estimate.classList.add('ready');
+        
+        // Enable login button
+        loginBtn.classList.add('ready');
+        loginBtn.href = authUrl;
+        loginBtn.textContent = 'Continue to Sign In →';
+        
+      } else if (backendReady) {
+        // Backend ready, frontend still loading - allow proceed with warning
+        setStep(3, 'done');
+        updateProgress(90, 'Almost ready...', '~5s');
+        estimate.textContent = 'Almost ready';
+        
+        loginBtn.classList.add('ready');
+        loginBtn.href = authUrl;
+        loginBtn.textContent = 'Continue to Sign In →';
+        errorMsg.textContent = 'Frontend is still warming up, but you can sign in now.';
+        errorMsg.classList.add('show');
+        
+      } else {
+        // Timeout - show error but allow manual proceed
+        updateProgress(85, 'Taking longer than expected', '—');
+        estimate.textContent = 'Please wait...';
+        
+        loginBtn.classList.add('ready');
+        loginBtn.href = authUrl;
+        loginBtn.textContent = 'Try Signing In Anyway →';
+        errorMsg.classList.add('show');
+      }
     }
     
-    warmAndRedirect();
+    warmAndReady();
   </script>
 </body>
 </html>`,
@@ -456,7 +636,7 @@ export default {
       
       return response;
     } catch (error) {
-      // Container not ready - show loading page
+      // Container not ready - show loading page with estimate
       return new Response(
         `<!DOCTYPE html>
 <html lang="en">
@@ -465,20 +645,79 @@ export default {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Loading - Ignition</title>
   <style>
-    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0a0a0a; color: #fafafa; }
-    .container { text-align: center; }
-    h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #f97316; }
-    p { color: #888; }
-    .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #f97316; border-radius: 50%; animation: spin 1s linear infinite; margin: 2rem auto; }
+    :root { --bg: #0a0a0a; --text: #fafafa; --muted: #888; --accent: #f97316; --success: #22c55e; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .container { text-align: center; max-width: 400px; padding: 2rem; }
+    .logo { font-size: 3rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text); }
+    .subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.9rem; }
+    
+    .spinner { 
+      width: 56px; 
+      height: 56px; 
+      border: 4px solid #1a1a1a; 
+      border-top-color: var(--accent); 
+      border-radius: 50%; 
+      animation: spin 0.8s linear infinite; 
+      margin: 1.5rem auto; 
+      box-shadow: 0 0 20px rgba(249, 115, 22, 0.2);
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .progress-container { margin: 1.5rem 0; }
+    .progress { width: 100%; height: 6px; background: #1a1a1a; border-radius: 3px; overflow: hidden; }
+    .progress-bar { 
+      height: 100%; 
+      background: linear-gradient(90deg, var(--accent), #fbbf24); 
+      width: 0%; 
+      border-radius: 3px;
+      animation: loading 12s ease-out forwards;
+    }
+    @keyframes loading { 
+      0% { width: 0%; } 
+      30% { width: 40%; } 
+      60% { width: 70%; }
+      90% { width: 88%; }
+      100% { width: 92%; }
+    }
+    
+    .estimate { 
+      margin-top: 1rem;
+      padding: 0.75rem 1rem; 
+      background: #111; 
+      border-radius: 6px; 
+      border: 1px solid #222;
+      display: inline-block;
+    }
+    .estimate-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .estimate-time { font-size: 1.25rem; font-weight: 600; color: var(--accent); margin-top: 0.25rem; }
+    
+    .status { 
+      font-size: 0.8rem; 
+      color: var(--muted); 
+      margin-top: 1.5rem; 
+      padding: 0.5rem 1rem;
+      background: rgba(249, 115, 22, 0.1);
+      border-radius: 4px;
+    }
   </style>
   <meta http-equiv="refresh" content="3">
 </head>
 <body>
   <div class="container">
-    <h1>🔥 Ignition</h1>
+    <div class="logo">🔥</div>
+    <h1>Starting Ignition</h1>
+    <p class="subtitle">The app is waking up — this only takes a moment</p>
     <div class="spinner"></div>
-    <p>Starting up... This page will refresh automatically.</p>
+    <div class="progress-container">
+      <div class="progress"><div class="progress-bar"></div></div>
+    </div>
+    <div class="estimate">
+      <div class="estimate-label">Estimated wait</div>
+      <div class="estimate-time">~10 seconds</div>
+    </div>
+    <p class="status">This page will refresh automatically</p>
   </div>
 </body>
 </html>`,

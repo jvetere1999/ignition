@@ -29,11 +29,22 @@ pub struct ServerConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DatabaseConfig {
+    /// Database URL - can be set via DATABASE_URL env var
+    /// Uses serde default to handle missing values gracefully
+    #[serde(default = "default_database_url")]
     pub url: String,
     /// Pool size - used when sqlx pool is configured
     #[serde(default = "default_pool_size")]
     #[allow(dead_code)]
     pub pool_size: u32,
+}
+
+fn default_database_url() -> String {
+    // Check environment directly as fallback
+    std::env::var("DATABASE_URL")
+        .ok()
+        .filter(|s| !s.is_empty() && s != "undefined")
+        .unwrap_or_else(|| "postgres://localhost/ignition".to_string())
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -134,12 +145,20 @@ impl AppConfig {
     pub fn load() -> anyhow::Result<Self> {
         let env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
 
+        // Get database URL directly from environment - handle missing/empty/undefined values
+        let database_url = std::env::var("DATABASE_URL")
+            .ok()
+            .filter(|s| !s.is_empty() && s != "undefined")
+            .unwrap_or_else(|| "postgres://localhost/ignition".to_string());
+
         let config = Config::builder()
             // Default configuration
             .set_default("server.host", "0.0.0.0")?
             .set_default("server.port", 8080)?
             .set_default("server.environment", env.clone())?
             .set_default("server.public_url", "http://localhost:8080")?
+            // Set database.url BEFORE adding Environment source so it acts as fallback
+            .set_default("database.url", database_url.clone())?
             .set_default("database.pool_size", 10)?
             .set_default("auth.cookie_domain", "localhost")?
             .set_default("auth.session_ttl_seconds", 60 * 60 * 24 * 30)?
@@ -152,10 +171,19 @@ impl AppConfig {
             .add_source(File::with_name("config/default").required(false))
             .add_source(File::with_name(&format!("config/{}", env)).required(false))
             // Override with environment variables (e.g., DATABASE_URL, SERVER_PORT)
+            // Note: separator("_") means DATABASE_URL -> database.url
             .add_source(Environment::default().separator("_").try_parsing(true))
             .build()?;
 
-        Ok(config.try_deserialize()?)
+        // Deserialize but handle potential empty url from env override
+        let mut app_config: Self = config.try_deserialize()?;
+        
+        // If url is empty after deserialization (env var was empty string), use our fallback
+        if app_config.database.url.is_empty() || app_config.database.url == "undefined" {
+            app_config.database.url = database_url;
+        }
+
+        Ok(app_config)
     }
 
     /// Check if running in production
