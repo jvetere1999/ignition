@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth";
 import { useRouter, usePathname } from "next/navigation";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -24,7 +24,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { data: session, status, update } = useSession();
+  const { user, isAuthenticated, isLoading, refresh } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -34,40 +34,29 @@ export function AppShell({ children }: AppShellProps) {
 
   // Redirect unauthenticated users
   useEffect(() => {
-    if (status === "loading") return;
+    if (isLoading) return;
 
-    if (status === "unauthenticated") {
+    if (!isAuthenticated) {
       router.push(`/auth/signin?callbackUrl=${encodeURIComponent(pathname)}`);
     }
-  }, [status, router, pathname]);
+  }, [isLoading, isAuthenticated, router, pathname]);
 
   // Check TOS acceptance
   useEffect(() => {
-    if (status !== "authenticated" || tosChecked) return;
+    if (!isAuthenticated || tosChecked) return;
 
-    const checkTOS = async () => {
-      try {
-        const response = await fetch("/api/auth/accept-tos");
-        if (response.ok) {
-          const data = await response.json() as { needsAcceptance?: boolean; accepted?: boolean };
-          if (data.needsAcceptance && !data.accepted) {
-            setShowTOS(true);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to check TOS status:", error);
-      }
-      setTosChecked(true);
-    };
-
-    checkTOS();
-  }, [status, tosChecked]);
+    // User from backend includes tosAccepted field
+    if (user && !user.tosAccepted) {
+      setShowTOS(true);
+    }
+    setTosChecked(true);
+  }, [isAuthenticated, tosChecked, user]);
 
   const handleTOSAccept = useCallback(() => {
     setShowTOS(false);
     // Refresh session to get updated TOS status
-    update();
-  }, [update]);
+    refresh();
+  }, [refresh]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
@@ -114,7 +103,7 @@ export function AppShell({ children }: AppShellProps) {
           onCommandPaletteClick={() => setOmnibarOpen(true)}
           onInboxClick={() => setOmnibarOpen(true)}
         />
-        <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} userEmail={session?.user?.email || undefined} />
+        <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} userEmail={user?.email || undefined} />
         <main className={styles.main}>
           <div className={styles.content}>{children}</div>
         </main>

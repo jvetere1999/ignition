@@ -6,7 +6,7 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@/lib/auth/useAuth";
+import { useAuth } from "@/lib/auth";
 import { UserMenu } from "./UserMenu";
 import styles from "./Header.module.css";
 

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { SessionProvider } from "@/lib/auth/SessionProvider";
+import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import { themeScript } from "@/lib/theme/script";
 import { SiteFooter } from "@/components/shell/SiteFooter";
@@ -132,12 +132,12 @@ export default function RootLayout({
         )}
       </head>
       <body>
-        <SessionProvider>
+        <AuthProvider>
           <ThemeProvider>
             <div id="app-root">{children}</div>
             <SiteFooter />
           </ThemeProvider>
-        </SessionProvider>
+        </AuthProvider>
       </body>
     </html>
   );

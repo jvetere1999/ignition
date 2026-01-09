@@ -5,8 +5,7 @@
  */
 
 import type { Metadata, Viewport } from "next";
-import { SessionProvider } from "next-auth/react";
-import { auth } from "@/lib/auth";
+import { AuthProvider } from "@/lib/auth";
 import { MobileShell } from "@/components/mobile/MobileShell";
 import "@/styles/mobile.css";
 
@@ -38,9 +37,7 @@ interface MobileLayoutProps {
   children: React.ReactNode;
 }
 
-export default async function MobileLayout({ children }: MobileLayoutProps) {
-  const session = await auth();
-
+export default function MobileLayout({ children }: MobileLayoutProps) {
   return (
     <html lang="en" data-surface="mobile">
       <head>
@@ -63,9 +60,9 @@ export default async function MobileLayout({ children }: MobileLayoutProps) {
         />
       </head>
       <body>
-        <SessionProvider session={session}>
+        <AuthProvider>
           <MobileShell>{children}</MobileShell>
-        </SessionProvider>
+        </AuthProvider>
       </body>
     </html>
   );

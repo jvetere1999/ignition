@@ -1,0 +1,63 @@
+/**
+ * Server-side auth utilities
+ * 
+ * For server components that need to check auth or get user data.
+ * Uses cookies to authenticate with the backend.
+ */
+
+import { cookies } from "next/headers";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ecent.online';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  image: string | null;
+  role: string;
+  entitlements: string[];
+  ageVerified: boolean;
+  tosAccepted: boolean;
+}
+
+export interface Session {
+  user: AuthUser | null;
+}
+
+/**
+ * Get session from backend API (for server components)
+ * Forwards the session cookie to the backend
+ */
+export async function auth(): Promise<Session | null> {
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('session');
+    
+    if (!sessionCookie) {
+      return null;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/session`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': `session=${sessionCookie.value}`,
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json() as { user: AuthUser | null };
+    
+    if (!data.user) {
+      return null;
+    }
+
+    return { user: data.user };
+  } catch (error) {
+    console.error('Failed to get session:', error);
+    return null;
+  }
+}

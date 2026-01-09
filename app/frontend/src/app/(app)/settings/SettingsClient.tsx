@@ -6,7 +6,7 @@
 "use client";
 
 import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth/api-auth";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import styles from "./page.module.css";
 
@@ -63,7 +63,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
 
       if (response.ok) {
         // Sign out and redirect to home
-        await signOut({ callbackUrl: "/" });
+        await signOut();
       } else {
         const data = await response.json() as { error?: string };
         alert(data.error || "Failed to delete account.");

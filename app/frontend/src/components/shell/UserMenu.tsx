@@ -7,7 +7,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth/api-auth";
 import { useTheme, type Theme } from "@/lib/theme";
 import { isAdminEmail } from "@/lib/admin";
 import styles from "./UserMenu.module.css";
@@ -56,7 +56,7 @@ export function UserMenu({ user }: UserMenuProps) {
 
   const handleSignOut = async () => {
     setIsOpen(false);
-    await signOut({ callbackUrl: "/" });
+    await signOut();
   };
 
   const initials = user.name

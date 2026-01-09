@@ -19,8 +19,6 @@ export {
   type RequestContext,
 } from "./request-context";
 
-export {
-  createAPIHandler,
-  type APIContext,
-} from "./api-handler";
+// Note: createAPIHandler was deprecated when API routes moved to Rust backend
+// See deprecated/app/frontend/src/lib/perf/api-handler.ts
 

@@ -5,9 +5,11 @@
  * Navigation to additional features and settings
  */
 
-import type { User } from "next-auth";
+import type { AuthUser } from "@/lib/auth/api-auth";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth/api-auth";
+
+type User = AuthUser;
 import styles from "./MobileMore.module.css";
 
 interface MobileMoreProps {
@@ -41,8 +43,9 @@ const MENU_SECTIONS = [
 ];
 
 export function MobileMore({ user }: MobileMoreProps) {
-  const handleSignOut = () => {
-    signOut({ callbackUrl: "/m/auth/signin" });
+  const handleSignOut = async () => {
+    await signOut();
+    // signOut redirects to / automatically
   };
 
   return (

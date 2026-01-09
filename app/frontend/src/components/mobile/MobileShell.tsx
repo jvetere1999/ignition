@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/lib/auth";
 import { MobileHeader } from "./MobileHeader";
 import { MobileTabBar } from "./MobileTabBar";
 import styles from "./MobileShell.module.css";
@@ -18,7 +18,7 @@ interface MobileShellProps {
 
 export function MobileShell({ children }: MobileShellProps) {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
 
   // Detect if we're on auth pages (hide tab bar)
@@ -30,7 +30,7 @@ export function MobileShell({ children }: MobileShellProps) {
 
   return (
     <div className={styles.shell}>
-      <MobileHeader isScrolled={isScrolled} user={session?.user} />
+      <MobileHeader isScrolled={isScrolled} user={user} />
 
       <main
         className={styles.main}

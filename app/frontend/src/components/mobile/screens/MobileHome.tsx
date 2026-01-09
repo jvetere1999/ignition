@@ -5,7 +5,9 @@
  * Today view with quick actions for mobile
  */
 
-import type { User } from "next-auth";
+import type { AuthUser } from "@/lib/auth/api-auth";
+
+type User = AuthUser;
 import styles from "./MobileHome.module.css";
 
 interface MobileHomeProps {

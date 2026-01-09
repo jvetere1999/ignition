@@ -4,12 +4,12 @@
  * Mobile Sign In Screen
  */
 
-import { signIn } from "next-auth/react";
+import { getSignInUrl } from "@/lib/auth/api-auth";
 import styles from "./MobileSignIn.module.css";
 
 export function MobileSignIn() {
-  const handleSignIn = (provider: string) => {
-    signIn(provider, { callbackUrl: "/m" });
+  const handleSignIn = (provider: 'google' | 'azure') => {
+    window.location.href = getSignInUrl(provider);
   };
 
   return (
@@ -44,7 +44,7 @@ export function MobileSignIn() {
 
           <button
             className={`${styles.signInBtn} ${styles.microsoft}`}
-            onClick={() => handleSignIn("azure-ad")}
+            onClick={() => handleSignIn("azure")}
           >
             <MicrosoftIcon />
             <span>Continue with Microsoft</span>

@@ -1,8 +1,7 @@
 /**
  * Next.js middleware for route protection
- * 
- * Checks session via backend API.
- * Frontend performs 0% auth logic beyond forwarding cookies.
+ * Redirects unauthenticated users to sign in page
+ * Enforces TOS acceptance on first sign-in
  *
  * Performance optimizations:
  * - Precompiled route patterns (avoid runtime regex)
@@ -10,10 +9,9 @@
  * - Timing instrumentation with x-perf-debug=1
  */
 
+import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ecent.online';
 
 /**
  * Public routes that don't require authentication
@@ -60,34 +58,6 @@ function isPublicRoute(path: string): boolean {
   return false;
 }
 
-/**
- * Check session with backend API
- * Forwards cookies from the request
- */
-async function checkSession(request: NextRequest): Promise<{ authenticated: boolean }> {
-  try {
-    // Forward the cookie header to the backend
-    const cookieHeader = request.headers.get('cookie') || '';
-    
-    const response = await fetch(`${API_BASE_URL}/auth/session`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': cookieHeader,
-      },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      return { authenticated: false };
-    }
-
-    const data = await response.json() as { user: unknown | null };
-    return { authenticated: !!data.user };
-  } catch {
-    return { authenticated: false };
-  }
-}
-
 export async function middleware(req: NextRequest) {
   const startTime = performance.now();
   const perfDebug = req.headers.get("x-perf-debug") === "1";
@@ -102,7 +72,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check public routes before auth (avoid API call when not needed)
+  // Check public routes before auth (avoid auth() call when not needed)
   const isPublic = isPublicRoute(pathname);
 
   // For the landing page, we need auth to check for redirect
@@ -111,13 +81,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get session from backend - this is the expensive call
+  // Get session - this is the expensive call
   const authStart = performance.now();
-  const { authenticated } = await checkSession(req);
+  const session = await auth();
   const authDuration = performance.now() - authStart;
+  const isAuthenticated = !!session?.user;
 
   // Redirect authenticated users from landing page to Today
-  if (pathname === "/" && authenticated) {
+  if (pathname === "/" && isAuthenticated) {
     const response = NextResponse.redirect(new URL("/today", req.url));
     if (perfDebug) {
       response.headers.set(
@@ -134,7 +105,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Redirect unauthenticated users to sign in
-  if (!authenticated) {
+  if (!isAuthenticated) {
     const signInUrl = new URL("/auth/signin", req.url);
     signInUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(signInUrl);
@@ -162,3 +133,4 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };
+

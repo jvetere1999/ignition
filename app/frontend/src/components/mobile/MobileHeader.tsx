@@ -5,7 +5,9 @@
  * Top bar with safe area padding
  */
 
-import type { User } from "next-auth";
+import type { AuthUser } from "@/lib/auth/api-auth";
+
+type User = AuthUser;
 import styles from "./MobileHeader.module.css";
 
 interface MobileHeaderProps {

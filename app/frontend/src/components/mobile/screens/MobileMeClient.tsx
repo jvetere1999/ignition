@@ -7,7 +7,7 @@
  */
 
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth/api-auth";
 import styles from "./MobileMe.module.css";
 
 interface MobileMeClientProps {
@@ -21,7 +21,8 @@ interface MobileMeClientProps {
 
 export function MobileMeClient({ user, isAdmin }: MobileMeClientProps) {
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: "/" });
+    await signOut();
+    // signOut redirects to / automatically
   };
 
   return (

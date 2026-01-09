@@ -1,24 +1,20 @@
 "use client";
 
-import { signIn } from "next-auth/react";
 import { useState } from "react";
+import { getSignInUrl } from "@/lib/auth/api-auth";
 import styles from "./SignInButtons.module.css";
 
 /**
  * Sign in buttons component
- * Client component for handling OAuth sign-in
+ * Client component for handling OAuth sign-in via backend
  */
 export function SignInButtons() {
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
-  const handleSignIn = async (provider: string) => {
+  const handleSignIn = (provider: 'google' | 'azure') => {
     setIsLoading(provider);
-    try {
-      await signIn(provider, { callbackUrl: "/today" });
-    } catch (error) {
-      console.error("Sign in error:", error);
-      setIsLoading(null);
-    }
+    // Redirect to backend OAuth endpoint
+    window.location.href = getSignInUrl(provider);
   };
 
   return (
@@ -39,17 +35,17 @@ export function SignInButtons() {
       </button>
 
       <button
-        onClick={() => handleSignIn("microsoft-entra-id")}
+        onClick={() => handleSignIn("azure")}
         disabled={isLoading !== null}
         className={`${styles.button} ${styles.microsoftButton}`}
         style={{
-          opacity: isLoading && isLoading !== "microsoft-entra-id" ? 0.6 : 1,
+          opacity: isLoading && isLoading !== "azure" ? 0.6 : 1,
           cursor: isLoading ? "wait" : "pointer",
         }}
       >
         <MicrosoftIcon />
         <span>
-          {isLoading === "microsoft-entra-id"
+          {isLoading === "azure"
             ? "Signing in..."
             : "Sign in with Microsoft"}
         </span>
