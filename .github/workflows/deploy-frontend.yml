@@ -75,4 +75,4 @@ jobs:
           curl -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/ignition-frontend/domains" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             -H "Content-Type: application/json" \
-            --data '{"hostname": "ignition.ecent.online", "zone_id": "'"$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=ecent.online" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result[0].id')"'"}' || true
+            --data '{"hostname": "ignition-cloud.ecent.online", "zone_id": "'"$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=ecent.online" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result[0].id')"'"}' || true

@@ -40,6 +40,7 @@ export class ApiContainer extends Container {
   sleepAfter = "15m";
 
   // Environment variables passed to the container at runtime
+  // @ts-expect-error - Cloudflare Containers beta types define envVars as property, but getter works at runtime
   get envVars() {
     const env = this.env as Env;
     return {
@@ -93,7 +94,7 @@ export class ApiContainer extends Container {
  * Helper to get or create a container instance.
  * Uses consistent naming for load balancing across N instances.
  */
-function getApiContainer(env: Env, instanceId: number = 0): ApiContainer {
+function getApiContainer(env: Env, instanceId: number = 0) {
   const id = `api-instance-${instanceId}`;
   return getContainer(env.API_CONTAINER, id);
 }
@@ -104,7 +105,7 @@ function getApiContainer(env: Env, instanceId: number = 0): ApiContainer {
 let requestCounter = 0;
 const MAX_INSTANCES = 3;
 
-function loadBalance(env: Env): ApiContainer {
+function loadBalance(env: Env) {
   const instanceId = requestCounter % MAX_INSTANCES;
   requestCounter++;
   return getApiContainer(env, instanceId);

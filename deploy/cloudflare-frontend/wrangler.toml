@@ -1,12 +1,18 @@
 # Ignition Frontend - Cloudflare Containers Configuration
-# Next.js app running as a Container
+# Next.js app running as a Container at ignition-cloud.ecent.online
+# Landing page Worker (ignition-landing) handles ignition.ecent.online
 #
-# Deploy: cd deploy/cloudflare-frontend && npx wrangler deploy
+# Deploy via GitHub Actions or: cd deploy/cloudflare-frontend && npx wrangler deploy
 
 name = "ignition-frontend"
 compatibility_date = "2025-01-02"
 compatibility_flags = ["nodejs_compat"]
 main = "src/index.ts"
+
+# Custom domain route
+routes = [
+  { pattern = "ignition-cloud.ecent.online", custom_domain = true }
+]
 
 # Container configuration
 [[containers]]
@@ -29,15 +35,6 @@ new_sqlite_classes = ["FrontendContainer"]
 [vars]
 NODE_ENV = "production"
 NEXT_PUBLIC_API_URL = "https://api.ecent.online"
-
-# Custom domain routing
-[[routes]]
-pattern = "ignition.ecent.online/*"
-zone_name = "ecent.online"
-
-[[routes]]
-pattern = "www.ignition.ecent.online/*"
-zone_name = "ecent.online"
 
 # Observability
 [observability]

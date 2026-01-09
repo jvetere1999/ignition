@@ -1,0 +1,31 @@
+# Ignition Landing Page - Cloudflare Workers Configuration
+# Lightweight static landing page with container warm-up and proxy
+#
+# This Worker serves static pages instantly and proxies app routes to container.
+#
+# Deploy: cd deploy/cloudflare-landing && npx wrangler deploy
+
+name = "ignition-landing"
+compatibility_date = "2025-01-02"
+compatibility_flags = ["nodejs_compat"]
+main = "src/index.ts"
+
+# Environment variables
+[vars]
+FRONTEND_CONTAINER_URL = "https://ignition-cloud.ecent.online"
+BACKEND_API_URL = "https://api.ecent.online"
+
+# Custom domain routing - this Worker handles ALL routes for ignition.ecent.online
+# Static pages served instantly, app routes proxied to container
+[[routes]]
+pattern = "ignition.ecent.online/*"
+zone_name = "ecent.online"
+
+[[routes]]
+pattern = "www.ignition.ecent.online/*"
+zone_name = "ecent.online"
+
+# Observability
+[observability]
+enabled = true
+head_sampling_rate = 1

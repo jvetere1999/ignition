@@ -20,7 +20,7 @@ NEXT_PUBLIC_API_URL = "https://api.ecent.online"
 
 # Custom domain routing
 [[routes]]
-pattern = "admin.ignition.ecent.online/*"
+pattern = "admin.ecent.online/*"
 zone_name = "ecent.online"
 
 # Observability

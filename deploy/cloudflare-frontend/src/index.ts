@@ -17,20 +17,30 @@ export interface Env {
  * FrontendContainer - Durable Object that manages the Next.js container.
  */
 export class FrontendContainer extends Container {
+  // Port the Next.js server listens on (must match Dockerfile EXPOSE and ENV PORT)
   defaultPort = 3000;
+  
+  // Keep container alive for 15 minutes after last request
   sleepAfter = "15m";
 
-  // Keep container warm by increasing startup grace period
-  startupTimeoutMs = 30000; // 30 seconds
+  // Environment variables passed to the container at runtime
+  envVars = {
+    NODE_ENV: "production",
+    NEXT_PUBLIC_API_URL: "https://api.ecent.online",
+    PORT: "3000",
+    HOSTNAME: "0.0.0.0",
+  };
 
-  get envVars() {
-    const env = this.env as Env;
-    return {
-      NODE_ENV: env.NODE_ENV || "production",
-      NEXT_PUBLIC_API_URL: env.NEXT_PUBLIC_API_URL || "https://api.ecent.online",
-      PORT: "3000",
-      HOSTNAME: "0.0.0.0",
-    };
+  override onStart(): void {
+    console.log("Ignition Frontend container started on port 3000");
+  }
+
+  override onStop(): void {
+    console.log("Ignition Frontend container stopped");
+  }
+
+  override onError(error: unknown): void {
+    console.error("Frontend container error:", error);
   }
 }
 
@@ -85,22 +95,17 @@ export default {
     }
 
     try {
-      // Get container instance
-      const id = env.FRONTEND_CONTAINER.idFromName("frontend");
-      const container = getContainer(env.FRONTEND_CONTAINER, id);
+      // Get container instance using consistent naming
+      // @ts-expect-error - Cloudflare Containers beta types mismatch with runtime API
+      const container = getContainer(env.FRONTEND_CONTAINER, "frontend");
 
-      // Forward request to container with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
-
+      // Forward request to container
+      // Note: Container.fetch doesn't support AbortController, so we rely on container startup timeout
       try {
-        const response = await container.fetch(new Request(request, { signal: controller.signal }));
-        clearTimeout(timeoutId);
+        const response = await container.fetch(request);
         return response;
       } catch (fetchError) {
-        clearTimeout(timeoutId);
-        
-        // If timeout or container starting, show fallback for landing page
+        // If container starting, show fallback for landing page
         if (url.pathname === "/" || url.pathname === "") {
           return new Response(LANDING_PAGE_FALLBACK, {
             status: 503,
