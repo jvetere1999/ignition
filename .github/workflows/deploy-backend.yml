@@ -26,6 +26,10 @@ jobs:
       - name: Install wrangler
         run: npm install -g wrangler
 
+      - name: Install dependencies
+        working-directory: deploy/cloudflare-containers
+        run: npm install
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
