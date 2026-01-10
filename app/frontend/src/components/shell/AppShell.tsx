@@ -32,14 +32,9 @@ export function AppShell({ children }: AppShellProps) {
   const [showTOS, setShowTOS] = useState(false);
   const [tosChecked, setTosChecked] = useState(false);
 
-  // Redirect unauthenticated users
-  useEffect(() => {
-    if (isLoading) return;
-
-    if (!isAuthenticated) {
-      router.push(`/auth/signin?callbackUrl=${encodeURIComponent(pathname)}`);
-    }
-  }, [isLoading, isAuthenticated, router, pathname]);
+  // Note: Authentication is enforced by middleware.
+  // Client-side redirect is disabled to prevent race conditions.
+  // The middleware already redirects unauthenticated users before this component renders.
 
   // Check TOS acceptance
   useEffect(() => {
