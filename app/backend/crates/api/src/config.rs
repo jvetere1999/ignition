@@ -221,6 +221,21 @@ impl AppConfig {
             app_config.database.url = database_url;
         }
 
+        // Manual Server config override - separator("_") splits SERVER_PUBLIC_URL into
+        // server.public.url instead of server.public_url. We need to manually read these.
+        if let Ok(public_url) = std::env::var("SERVER_PUBLIC_URL") {
+            if !public_url.is_empty() {
+                tracing::info!("Loading SERVER_PUBLIC_URL from environment: {}", public_url);
+                app_config.server.public_url = public_url;
+            }
+        }
+        if let Ok(cookie_domain) = std::env::var("AUTH_COOKIE_DOMAIN") {
+            if !cookie_domain.is_empty() {
+                tracing::info!("Loading AUTH_COOKIE_DOMAIN from environment: {}", cookie_domain);
+                app_config.auth.cookie_domain = cookie_domain;
+            }
+        }
+
         // Manual OAuth override - the config crate separator("_") splits ALL underscores,
         // so AUTH_OAUTH_GOOGLE_CLIENT_ID becomes auth.oauth.google.client.id instead of
         // auth.oauth.google.client_id. We need to manually read these env vars.
