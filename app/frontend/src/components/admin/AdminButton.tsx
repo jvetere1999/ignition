@@ -31,7 +31,7 @@ export function AdminButton() {
         });
         
         if (response.ok) {
-          const session = await response.json();
+          const session = await response.json() as { user?: { is_admin?: boolean } };
           setIsAdmin(session.user?.is_admin === true);
         }
       } catch {

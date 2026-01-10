@@ -38,6 +38,7 @@ pub enum AuditEventType {
 
     // Admin events
     AdminAction,
+    AdminClaimed,
     ConfigChanged,
     BackupCreated,
     BackupRestored,

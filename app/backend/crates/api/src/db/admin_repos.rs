@@ -9,6 +9,62 @@ use super::admin_models::*;
 use crate::error::AppError;
 
 // ============================================
+// Admin Status & Claiming Repository
+// ============================================
+
+pub struct AdminClaimRepo;
+
+impl AdminClaimRepo {
+    /// Check if any admins exist in the system
+    pub async fn has_any_admins(pool: &PgPool) -> Result<bool, AppError> {
+        let count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM users WHERE is_admin = TRUE"
+        )
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to count admins: {}", e)))?;
+
+        Ok(count > 0)
+    }
+
+    /// Check if a user is an admin
+    pub async fn is_user_admin(pool: &PgPool, user_id: &Uuid) -> Result<bool, AppError> {
+        let is_admin = sqlx::query_scalar::<_, bool>(
+            "SELECT COALESCE(is_admin, FALSE) FROM users WHERE id = $1"
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to check admin status: {}", e)))?;
+
+        Ok(is_admin.unwrap_or(false))
+    }
+
+    /// Set a user as admin (for initial bootstrap only)
+    pub async fn set_user_admin(pool: &PgPool, user_id: &Uuid) -> Result<(), AppError> {
+        sqlx::query("UPDATE users SET is_admin = TRUE WHERE id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to set admin: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Count total admins
+    pub async fn count_admins(pool: &PgPool) -> Result<i64, AppError> {
+        let count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM users WHERE is_admin = TRUE"
+        )
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to count admins: {}", e)))?;
+
+        Ok(count)
+    }
+}
+
+// ============================================
 // User Management Repository
 // ============================================
 

@@ -4,6 +4,8 @@
 //! Per DEC-004=B: Role-based access using DB-backed roles.
 
 use std::sync::Arc;
+use once_cell::sync::Lazy;
+use rand::Rng;
 
 use axum::{
     extract::{Path, Query, State},
@@ -21,11 +23,33 @@ use crate::middleware::auth::AuthContext;
 use crate::shared::audit::{write_audit, AuditEventType};
 use crate::state::AppState;
 
+/// Generate and log a random claim key for admin bootstrap
+fn generate_claim_key() -> String {
+    let key: String = rand::thread_rng()
+        .sample_iter(&rand::distributions::Alphanumeric)
+        .take(32)
+        .map(char::from)
+        .collect();
+    
+    // Log the claim key prominently
+    tracing::warn!("{}", "=".repeat(60));
+    tracing::warn!("ADMIN CLAIM KEY: {}", key);
+    tracing::warn!("Use this key to claim admin access at first launch");
+    tracing::warn!("{}", "=".repeat(60));
+    
+    key
+}
+
+static CLAIM_KEY: Lazy<String> = Lazy::new(generate_claim_key);
+
 /// Create admin routes
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         // Admin info
         .route("/", get(admin_info))
+        // Admin status and claiming (auth required, no admin role needed for these)
+        .route("/status", get(admin_status))
+        .route("/claim", post(admin_claim))
         // User management
         .nest("/users", users_routes())
         // Quest management
@@ -78,6 +102,91 @@ async fn admin_info() -> Json<AdminInfo> {
         ],
         role_required: "admin".to_string(),
     })
+}
+
+// ============================================
+// Admin Status & Claiming Handlers
+// ============================================
+
+/// GET /api/admin/status
+/// Check if user is admin and if claiming is available
+async fn admin_status(
+    State(state): State<Arc<AppState>>,
+    Extension(auth): Extension<AuthContext>,
+) -> Result<Json<AdminStatus>, AppError> {
+    // Check if user is admin
+    let is_admin = AdminClaimRepo::is_user_admin(&state.db, &auth.user_id).await?;
+
+    // Check if any admins exist (for claiming)
+    let has_admins = AdminClaimRepo::has_any_admins(&state.db).await?;
+    let can_claim = !has_admins;
+
+    // Get user info
+    let user_info = Some(AdminUserInfo {
+        id: auth.user_id.to_string(),
+        email: auth.email.clone(),
+        name: auth.name.clone(),
+    });
+
+    Ok(Json(AdminStatus {
+        is_admin,
+        can_claim,
+        user: user_info,
+    }))
+}
+
+/// POST /api/admin/claim
+/// Claim admin role (only works if no admins exist)
+async fn admin_claim(
+    State(state): State<Arc<AppState>>,
+    Extension(auth): Extension<AuthContext>,
+    Json(payload): Json<ClaimRequest>,
+) -> Result<Json<ClaimResponse>, AppError> {
+    // Check if any admins exist
+    let has_admins = AdminClaimRepo::has_any_admins(&state.db).await?;
+    if has_admins {
+        return Ok(Json(ClaimResponse {
+            success: false,
+            message: "Admin claiming is disabled - admins already exist".to_string(),
+        }));
+    }
+
+    // Validate claim key
+    if payload.claim_key != *CLAIM_KEY {
+        tracing::warn!(
+            "Invalid admin claim attempt by user {} with key: {}",
+            auth.user_id,
+            payload.claim_key
+        );
+        return Ok(Json(ClaimResponse {
+            success: false,
+            message: "Invalid claim key".to_string(),
+        }));
+    }
+
+    // Set user as admin
+    AdminClaimRepo::set_user_admin(&state.db, &auth.user_id).await?;
+
+    tracing::info!(
+        "User {} ({}) successfully claimed admin access",
+        auth.user_id,
+        auth.email
+    );
+
+    // Audit log
+    write_audit(
+        state.db.clone(),
+        AuditEventType::AdminClaimed,
+        Some(auth.user_id),
+        "User claimed admin role during initial bootstrap",
+        Some("user"),
+        Some(auth.user_id),
+    );
+
+    Ok(Json(ClaimResponse {
+        success: true,
+        message: "Admin access granted".to_string(),
+    }))
 }
 
 // User management routes
