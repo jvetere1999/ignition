@@ -64,14 +64,17 @@ export class ApiContainer extends Container {
       // Auth
       SESSION_SECRET: env.SESSION_SECRET,
       AUTH_COOKIE_DOMAIN: "ecent.online",
+      AUTH_SESSION_TTL_SECONDS: "2592000", // 30 days
       AUTH_DEV_BYPASS: "false",
 
-      // OAuth
-      GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET: env.GOOGLE_CLIENT_SECRET,
-      AZURE_CLIENT_ID: env.AZURE_CLIENT_ID,
-      AZURE_CLIENT_SECRET: env.AZURE_CLIENT_SECRET,
-      AZURE_TENANT_ID: env.AZURE_TENANT_ID,
+      // OAuth - use nested format for config crate with _ separator
+      AUTH_OAUTH_GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
+      AUTH_OAUTH_GOOGLE_CLIENT_SECRET: env.GOOGLE_CLIENT_SECRET,
+      AUTH_OAUTH_GOOGLE_REDIRECT_URI: "https://api.ecent.online/auth/callback/google",
+      AUTH_OAUTH_AZURE_CLIENT_ID: env.AZURE_CLIENT_ID,
+      AUTH_OAUTH_AZURE_CLIENT_SECRET: env.AZURE_CLIENT_SECRET,
+      AUTH_OAUTH_AZURE_REDIRECT_URI: "https://api.ecent.online/auth/callback/azure",
+      AUTH_OAUTH_AZURE_TENANT_ID: env.AZURE_TENANT_ID,
 
       // Storage (R2)
       STORAGE_ENDPOINT: env.STORAGE_ENDPOINT,
