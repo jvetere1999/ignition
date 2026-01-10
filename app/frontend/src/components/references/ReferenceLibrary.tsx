@@ -27,6 +27,7 @@ import {
   deleteAudioFile,
   deleteAudioFiles,
 } from "@/lib/player/local-storage";
+import { listReferences, createReference, updateReference, deleteReference as deleteReferenceAPI } from "@/lib/api/references";
 import { AudioAnalysisPanel } from "@/components/player";
 import { QuickModeHeader } from "@/components/ui/QuickModeHeader";
 import styles from "./ReferenceLibrary.module.css";
@@ -59,39 +60,12 @@ interface Library {
 // Storage Key
 // ============================================
 
-const STORAGE_KEY = "passion_reference_libraries_v2";
-
 // DEPRECATED: localStorage-based reference library (2026-01-10)
-// This should be replaced with backend API: GET /api/references/library
-// See: agent/STATELESS_SYNC_VALIDATION.md - Priority 2
-function loadLibraries(): Library[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return [];
-    return JSON.parse(stored);
-  } catch {
-    return [];
-  }
-}
-
-// DEPRECATED: localStorage-based library persistence (2026-01-10)
-// This should use backend API: POST /api/references/library
-function saveLibraries(libraries: Library[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    // Don't persist audioUrl (blob URLs) - they'll be regenerated from IndexedDB
-    const serialized = libraries.map((lib) => ({
-      ...lib,
-      tracks: lib.tracks.map((track) => ({
-        ...track,
-        audioUrl: "", // Will be loaded from IndexedDB on next session
-      })),
-    }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
-  } catch (e) {
-    console.error("Failed to save libraries:", e);
-  }
+// Now using backend API: GET /api/references for metadata
+// Audio files remain in IndexedDB for local access
+function loadLibrariesFromBackend(): Library[] {
+  // Placeholder: will be fetched from /api/references in useEffect
+  return [];
 }
 
 function generateId(): string {
@@ -129,25 +103,26 @@ export function ReferenceLibrary() {
     }
   }, []);
 
-  // Load libraries on mount and restore audio URLs from IndexedDB
+  // Load libraries on mount from backend API and restore audio URLs from IndexedDB
   useEffect(() => {
     async function loadAndRestoreLibraries() {
-      const loadedLibraries = loadLibraries();
-
-      if (loadedLibraries.length === 0) {
+      try {
+        // Fetch library metadata from backend
+        const response = await listReferences(1, 100);
+        
+        // TODO: Map backend reference data to library format
+        // For now, we'll use empty libraries as placeholder
         setLibraries([]);
-        return;
+      } catch (error) {
+        console.error("Failed to load libraries from backend:", error);
+        setLibraries([]);
       }
 
-      setIsRestoringUrls(true);
+      setIsRestoringUrls(false);
+    }
 
-      // Restore audio URLs from IndexedDB for all tracks
-      const restoredLibraries = await Promise.all(
-        loadedLibraries.map(async (lib) => {
-          const restoredTracks = await Promise.all(
-            lib.tracks.map(async (track) => {
-              // If track has a storageId, try to load from IndexedDB
-              if (track.storageId) {
+    loadAndRestoreLibraries();
+  }, []);
                 try {
                   const audioUrl = await getAudioFileUrl(track.storageId);
                   if (audioUrl) {

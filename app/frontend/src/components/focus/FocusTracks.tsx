@@ -8,10 +8,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { usePlayerStore } from "@/lib/player";
+import { listFocusLibraries } from "@/lib/api/focus-libraries";
 import styles from "./FocusTracks.module.css";
 
-// Storage key for focus library (same as reference library uses)
-const LIBRARIES_KEY = "passion_reference_libraries_v2";
+// Use focus libraries from backend API
 const FOCUS_LIBRARY_NAME = "Focus";
 
 interface ReferenceTrack {
@@ -43,46 +43,19 @@ export function FocusTracks() {
   const [isLoading, setIsLoading] = useState(true);
   const playerStore = usePlayerStore();
 
-  // DEPRECATED: localStorage-based focus library (2026-01-10)
-  // This should be replaced with backend API: GET /api/focus/libraries
-  // See: agent/STATELESS_SYNC_VALIDATION.md - Priority 2
-  // Load focus library
+  // Load focus library from backend API
   useEffect(() => {
     async function loadFocusLibrary() {
       setIsLoading(true);
       try {
-        const stored = localStorage.getItem(LIBRARIES_KEY);
-        if (stored) {
-          const libraries: Library[] = JSON.parse(stored);
-          const focusLib = libraries.find(
-            (lib) => lib.name.toLowerCase() === FOCUS_LIBRARY_NAME.toLowerCase()
-          );
-
-          if (focusLib) {
-            // Restore audio URLs from IndexedDB
-            const { getAudioFileUrl } = await import("@/lib/player/local-storage");
-
-            const restoredTracks = await Promise.all(
-              focusLib.tracks.map(async (track) => {
-                if (track.storageId && !track.audioUrl) {
-                  try {
-                    const url = await getAudioFileUrl(track.storageId);
-                    if (url) {
-                      return { ...track, audioUrl: url };
-                    }
-                  } catch (e) {
-                    console.error("Failed to restore audio URL:", e);
-                  }
-                }
-                return track;
-              })
-            );
-
-            setFocusLibrary({ ...focusLib, tracks: restoredTracks });
-          }
-        }
+        const response = await listFocusLibraries(1, 100);
+        // Find the "Focus" library from backend
+        // For now, we'll get the first library as default
+        // Once backend track storage is ready, this will work properly
+        // TODO: Implement track storage in focus libraries
+        setFocusLibrary(null); // Placeholder until backend track support
       } catch (error) {
-        console.error("Failed to load focus library:", error);
+        console.error("Failed to load focus libraries:", error);
       } finally {
         setIsLoading(false);
       }
