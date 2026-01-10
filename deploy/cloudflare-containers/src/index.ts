@@ -50,6 +50,10 @@ export class ApiContainer extends Container<Env> {
 
   // Keep container alive for 4 hours after last request
   sleepAfter = "4h";
+  
+  // Config version - bump this to force container restart on deploy
+  private static readonly CONFIG_VERSION = "2026-01-10-v1";
+  private configVersionKey = "__config_version";
 
   constructor(ctx: DurableObjectState<Env>, env: Env) {
     super(ctx, env);
@@ -162,6 +166,24 @@ export class ApiContainer extends Container<Env> {
   // Override fetch to intercept debug requests BEFORE forwarding to container
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    
+    // Auto-restart if config version changed (new deployment with different env vars)
+    const storedVersion = await this.ctx.storage.get<string>(this.configVersionKey);
+    if (storedVersion !== ApiContainer.CONFIG_VERSION) {
+      console.log(`[ApiContainer] Config version changed: ${storedVersion} -> ${ApiContainer.CONFIG_VERSION}`);
+      // Stop container if running so it restarts with new envVars
+      try {
+        const state = await this.getState();
+        if (state.status === "healthy" || state.status === "running") {
+          console.log("[ApiContainer] Stopping container for config update...");
+          await this.stop();
+        }
+      } catch (e) {
+        console.log("[ApiContainer] Container not running, will start fresh");
+      }
+      // Save new version
+      await this.ctx.storage.put(this.configVersionKey, ApiContainer.CONFIG_VERSION);
+    }
     
     // Restart endpoint - stop container so it restarts with new envVars
     if (url.pathname === "/_restart") {
