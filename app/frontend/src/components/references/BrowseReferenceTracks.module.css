@@ -1,0 +1,350 @@
+/**
+ * BrowseReferenceTracks Styles
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Search Form */
+.searchForm {
+  width: 100%;
+}
+
+.searchInputWrapper {
+  display: flex;
+  gap: 12px;
+  max-width: 600px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 1rem;
+  border: 1px solid var(--border-color, #333);
+  border-radius: 8px;
+  background: var(--bg-secondary, #1a1a1a);
+  color: var(--text-primary, #fff);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.searchInput:focus {
+  border-color: var(--accent-color, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.searchInput::placeholder {
+  color: var(--text-tertiary, #666);
+}
+
+.searchButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent-color, #3b82f6);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.searchButton:hover:not(:disabled) {
+  background: var(--accent-hover, #2563eb);
+}
+
+.searchButton:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.searchButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error Message */
+.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.9rem;
+}
+
+/* Results */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: var(--bg-secondary, #1a1a1a);
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #333);
+}
+
+.userAvatar {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-color, #3b82f6), #8b5cf6);
+  border-radius: 50%;
+}
+
+.userDetails {
+  flex: 1;
+}
+
+.userName {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+}
+
+.userEmail {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #888);
+}
+
+.trackCount {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary, #666);
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-tertiary, #666);
+}
+
+.emptyState svg {
+  opacity: 0.5;
+}
+
+/* Track List */
+.trackList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trackItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-secondary, #1a1a1a);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #333);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.trackItem:hover {
+  border-color: var(--border-hover, #444);
+  background: var(--bg-hover, #222);
+}
+
+.trackItem.playing {
+  border-color: var(--accent-color, #3b82f6);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.playButton {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-color, #3b82f6);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #fff;
+  transition: transform 0.1s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.playButton:hover {
+  transform: scale(1.05);
+  background: var(--accent-hover, #2563eb);
+}
+
+.playButton:active {
+  transform: scale(0.95);
+}
+
+.trackInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.trackName {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trackMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #888);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tag {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  background: var(--bg-tertiary, #2a2a2a);
+  border-radius: 4px;
+  color: var(--text-secondary, #888);
+}
+
+.trackStatus {
+  flex-shrink: 0;
+}
+
+.statusBadge {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  border-radius: 4px;
+}
+
+.statusBadge.ready {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.statusBadge.processing {
+  background: rgba(234, 179, 8, 0.2);
+  color: #eab308;
+}
+
+.statusBadge.uploading {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.statusBadge.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.pageInfo {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #888);
+}
+
+/* Back Link */
+.backLink {
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color, #333);
+}
+
+.backLink a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent-color, #3b82f6);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.backLink a:hover {
+  color: var(--accent-hover, #2563eb);
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .searchInputWrapper {
+    flex-direction: column;
+  }
+
+  .searchButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .userInfo {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .trackItem {
+    flex-wrap: wrap;
+  }
+
+  .trackInfo {
+    width: calc(100% - 64px);
+  }
+
+  .trackStatus {
+    width: 100%;
+    padding-left: 64px;
+  }
+}

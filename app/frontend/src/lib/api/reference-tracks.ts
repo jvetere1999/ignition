@@ -257,12 +257,27 @@ export interface UpdateRegionInput {
 // Reference Tracks API
 // ============================================
 
+export interface BrowseTracksResponse {
+  user_email: string;
+  user_name: string | null;
+  tracks: ReferenceTrackResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 export const referenceTracksApi = {
   // --- Tracks ---
 
   async listTracks(page = 1, pageSize = 20): Promise<PaginatedResponse<ReferenceTrackResponse>> {
     return api.get<PaginatedResponse<ReferenceTrackResponse>>(
       `/reference/tracks?page=${page}&page_size=${pageSize}`
+    );
+  },
+
+  async browseByEmail(email: string, page = 1, pageSize = 20): Promise<BrowseTracksResponse> {
+    return api.get<BrowseTracksResponse>(
+      `/reference/browse?email=${encodeURIComponent(email)}&page=${page}&page_size=${pageSize}`
     );
   },
 
