@@ -6,10 +6,11 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     routing::{get, post},
     Extension, Json, Router,
 };
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -37,8 +38,10 @@ pub fn router() -> Router<Arc<AppState>> {
         .nest("/content", content_routes())
         // Statistics
         .nest("/stats", stats_routes())
-        // Database operations
+        // Database operations (enhanced)
         .nest("/db", db_routes())
+        // Session management
+        .nest("/sessions", sessions_routes())
         // Listening prompt templates (admin-curated)
         .nest("/templates", super::admin_templates::router())
         // Backup/restore
@@ -122,9 +125,20 @@ fn stats_routes() -> Router<Arc<AppState>> {
     Router::new().route("/", get(get_stats))
 }
 
-// Database operations routes
+// Database operations routes (enhanced database viewer)
 fn db_routes() -> Router<Arc<AppState>> {
-    Router::new().route("/health", get(db_health))
+    Router::new()
+        .route("/health", get(db_health))
+        .route("/tables", get(list_tables))
+        .route("/tables/{table}", get(get_table_data))
+        .route("/query", post(run_query))
+}
+
+// Session management routes
+fn sessions_routes() -> Router<Arc<AppState>> {
+    Router::new()
+        .route("/", get(list_sessions))
+        .route("/{id}", axum::routing::delete(delete_session))
 }
 
 // Audit log routes
@@ -397,8 +411,6 @@ async fn restore_backup() -> Json<serde_json::Value> {
 // Audit Log Handlers
 // ============================================
 
-use axum::extract::Query;
-
 /// GET /admin/audit
 /// List audit log entries with optional filters
 async fn list_audit_entries(
@@ -416,4 +428,272 @@ async fn get_audit_event_types(
 ) -> Result<Json<Vec<String>>, AppError> {
     let types = AdminAuditRepo::get_event_types(&state.db).await?;
     Ok(Json(types))
+}
+
+// ============================================
+// Database Viewer Handlers
+// ============================================
+
+/// Table info for the database viewer
+#[derive(Serialize)]
+struct TableInfo {
+    name: String,
+    row_count: i64,
+    size_bytes: Option<i64>,
+}
+
+/// List all tables with row counts
+async fn list_tables(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<TableInfo>>, AppError> {
+    let rows = sqlx::query_as::<_, (String, i64, Option<i64>)>(
+        r#"
+        SELECT 
+            tablename::text as name,
+            (xpath('/row/cnt/text()', 
+                query_to_xml(format('SELECT COUNT(*) as cnt FROM %I.%I', schemaname, tablename), false, true, '')
+            ))[1]::text::bigint as row_count,
+            pg_table_size(quote_ident(schemaname) || '.' || quote_ident(tablename)) as size_bytes
+        FROM pg_tables 
+        WHERE schemaname = 'public'
+        ORDER BY tablename
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| AppError::Internal(format!("Failed to list tables: {}", e)))?;
+
+    let tables: Vec<TableInfo> = rows
+        .into_iter()
+        .map(|(name, row_count, size_bytes)| TableInfo { name, row_count, size_bytes })
+        .collect();
+
+    Ok(Json(tables))
+}
+
+/// Query parameters for table data
+#[derive(serde::Deserialize)]
+struct TableDataQuery {
+    limit: Option<i32>,
+    offset: Option<i32>,
+}
+
+/// Get data from a specific table
+async fn get_table_data(
+    State(state): State<Arc<AppState>>,
+    Path(table): Path<String>,
+    Query(query): Query<TableDataQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // Validate table name to prevent SQL injection
+    let valid_tables: Vec<String> = sqlx::query_scalar(
+        "SELECT tablename::text FROM pg_tables WHERE schemaname = 'public'"
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| AppError::Internal(format!("Failed to validate table: {}", e)))?;
+
+    if !valid_tables.contains(&table) {
+        return Err(AppError::NotFound(format!("Table '{}' not found", table)));
+    }
+
+    let limit = query.limit.unwrap_or(100).min(1000);
+    let offset = query.offset.unwrap_or(0);
+
+    // Get column names first
+    let columns: Vec<String> = sqlx::query_scalar(
+        r#"
+        SELECT column_name::text
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = $1
+        ORDER BY ordinal_position
+        "#
+    )
+    .bind(&table)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| AppError::Internal(format!("Failed to get columns: {}", e)))?;
+
+    // Execute query and convert to JSON
+    let sql = format!(
+        "SELECT row_to_json(t) FROM (SELECT * FROM {} LIMIT {} OFFSET {}) t",
+        table, limit, offset
+    );
+    
+    let rows: Vec<serde_json::Value> = sqlx::query_scalar(&sql)
+        .fetch_all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to fetch data: {}", e)))?;
+
+    // Get total count
+    let count_sql = format!("SELECT COUNT(*) FROM {}", table);
+    let total: i64 = sqlx::query_scalar(&count_sql)
+        .fetch_one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to count: {}", e)))?;
+
+    Ok(Json(serde_json::json!({
+        "table": table,
+        "columns": columns,
+        "rows": rows,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    })))
+}
+
+/// Request body for running queries
+#[derive(serde::Deserialize)]
+struct RunQueryRequest {
+    sql: String,
+}
+
+/// Run a read-only SQL query
+async fn run_query(
+    State(state): State<Arc<AppState>>,
+    Extension(auth): Extension<AuthContext>,
+    Json(request): Json<RunQueryRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let sql = request.sql.trim();
+    
+    // Security: Only allow SELECT statements
+    let sql_upper = sql.to_uppercase();
+    if !sql_upper.starts_with("SELECT") && !sql_upper.starts_with("WITH") {
+        return Err(AppError::Validation("Only SELECT queries are allowed".to_string()));
+    }
+    
+    // Block dangerous keywords
+    let dangerous = ["DELETE", "UPDATE", "INSERT", "DROP", "TRUNCATE", "ALTER", "CREATE", "GRANT", "REVOKE"];
+    for keyword in dangerous {
+        if sql_upper.contains(keyword) {
+            return Err(AppError::Validation(format!("Query contains forbidden keyword: {}", keyword)));
+        }
+    }
+
+    // Limit results
+    let limited_sql = if !sql_upper.contains("LIMIT") {
+        format!("{} LIMIT 1000", sql)
+    } else {
+        sql.to_string()
+    };
+
+    // Execute and return as JSON
+    let start = std::time::Instant::now();
+    let rows: Vec<serde_json::Value> = sqlx::query_scalar(
+        &format!("SELECT row_to_json(t) FROM ({}) t", limited_sql)
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| AppError::Internal(format!("Query failed: {}", e)))?;
+
+    let duration_ms = start.elapsed().as_millis();
+
+    // Audit log: admin query
+    write_audit(
+        state.db.clone(),
+        AuditEventType::AdminAction,
+        Some(auth.user_id),
+        &format!("Admin ran query: {}", if sql.len() > 100 { &sql[..100] } else { sql }),
+        None,
+        None,
+    );
+
+    Ok(Json(serde_json::json!({
+        "rows": rows,
+        "count": rows.len(),
+        "duration_ms": duration_ms,
+        "sql": sql
+    })))
+}
+
+// ============================================
+// Session Management Handlers
+// ============================================
+
+/// Session info for admin view
+#[derive(Serialize)]
+struct SessionInfo {
+    id: Uuid,
+    user_id: Uuid,
+    user_email: Option<String>,
+    user_name: Option<String>,
+    created_at: DateTime<Utc>,
+    last_activity_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+    user_agent: Option<String>,
+    ip_address: Option<String>,
+}
+
+/// List all active sessions
+async fn list_sessions(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<SessionInfo>>, AppError> {
+    let rows = sqlx::query_as::<_, (Uuid, Uuid, Option<String>, Option<String>, DateTime<Utc>, DateTime<Utc>, DateTime<Utc>, Option<String>, Option<String>)>(
+        r#"
+        SELECT 
+            s.id,
+            s.user_id,
+            u.email,
+            u.name,
+            s.created_at,
+            s.last_activity_at,
+            s.expires_at,
+            s.user_agent,
+            s.ip_address::text
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.expires_at > NOW()
+        ORDER BY s.last_activity_at DESC
+        LIMIT 500
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| AppError::Internal(format!("Failed to list sessions: {}", e)))?;
+
+    let sessions: Vec<SessionInfo> = rows
+        .into_iter()
+        .map(|(id, user_id, user_email, user_name, created_at, last_activity_at, expires_at, user_agent, ip_address)| {
+            SessionInfo {
+                id,
+                user_id,
+                user_email,
+                user_name,
+                created_at,
+                last_activity_at,
+                expires_at,
+                user_agent,
+                ip_address,
+            }
+        })
+        .collect();
+
+    Ok(Json(sessions))
+}
+
+/// Delete a session (force logout)
+async fn delete_session(
+    State(state): State<Arc<AppState>>,
+    Extension(auth): Extension<AuthContext>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    sqlx::query("DELETE FROM sessions WHERE id = $1")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to delete session: {}", e)))?;
+
+    // Audit log
+    write_audit(
+        state.db.clone(),
+        AuditEventType::AdminAction,
+        Some(auth.user_id),
+        &format!("Admin deleted session {}", id),
+        Some("session"),
+        Some(id),
+    );
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Session deleted"
+    })))
 }

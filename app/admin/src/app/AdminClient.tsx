@@ -857,26 +857,179 @@ export function AdminClient({ userEmail }: AdminClientProps) {
 
 /**
  * Database Tab Component
- * Backup, restore, and documentation access
+ * Full database viewer with table browser, query interface, sessions, and backup/restore
  */
+type DbSubTab = "tables" | "query" | "sessions" | "backup";
+
+interface TableInfo {
+  name: string;
+  row_count: number;
+  size_bytes: number | null;
+}
+
+interface TableData {
+  table: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+interface SessionInfo {
+  id: string;
+  user_id: string;
+  user_email: string | null;
+  user_name: string | null;
+  created_at: string;
+  last_activity_at: string;
+  expires_at: string;
+  user_agent: string | null;
+  ip_address: string | null;
+}
+
 function DatabaseTab() {
+  const [subTab, setSubTab] = useState<DbSubTab>("tables");
+  const [tables, setTables] = useState<TableInfo[]>([]);
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [tableData, setTableData] = useState<TableData | null>(null);
+  const [isLoadingTables, setIsLoadingTables] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [tableOffset, setTableOffset] = useState(0);
+  const [tableLimit] = useState(50);
+
+  // Query state
+  const [query, setQuery] = useState("SELECT * FROM users LIMIT 10");
+  const [queryResult, setQueryResult] = useState<{ rows: Record<string, unknown>[]; count: number; duration_ms: number; sql: string } | null>(null);
+  const [isRunningQuery, setIsRunningQuery] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
+
+  // Sessions state
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+
+  // Backup state
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [dbInfo, setDbInfo] = useState<{ currentVersion: number; currentVersionName: string } | null>(null);
   const [restoreResult, setRestoreResult] = useState<string | null>(null);
 
+  // Load tables on mount
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/backup`)
+    fetchTables();
+    fetch(`${API_BASE}/admin/backup`)
       .then((res) => res.json() as Promise<{ currentVersion: number; currentVersionName: string }>)
       .then((data) => setDbInfo(data))
       .catch(console.error);
   }, []);
 
+  const fetchTables = async () => {
+    setIsLoadingTables(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/db/tables`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json() as TableInfo[];
+        setTables(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch tables:", error);
+    } finally {
+      setIsLoadingTables(false);
+    }
+  };
+
+  const fetchTableData = async (tableName: string, offset = 0) => {
+    setIsLoadingData(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/db/tables/${tableName}?limit=${tableLimit}&offset=${offset}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json() as TableData;
+        setTableData(data);
+        setTableOffset(offset);
+      }
+    } catch (error) {
+      console.error("Failed to fetch table data:", error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  const handleSelectTable = (tableName: string) => {
+    setSelectedTable(tableName);
+    setTableOffset(0);
+    fetchTableData(tableName, 0);
+  };
+
+  const handleRunQuery = async () => {
+    setIsRunningQuery(true);
+    setQueryError(null);
+    setQueryResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/admin/db/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ sql: query }),
+      });
+      const data = await res.json() as { rows?: Record<string, unknown>[]; count?: number; duration_ms?: number; sql?: string; error?: string };
+      if (res.ok && data.rows) {
+        setQueryResult({
+          rows: data.rows,
+          count: data.count || 0,
+          duration_ms: data.duration_ms || 0,
+          sql: data.sql || query,
+        });
+      } else {
+        setQueryError(data.error || "Query failed");
+      }
+    } catch (error) {
+      setQueryError(`Query failed: ${error}`);
+    } finally {
+      setIsRunningQuery(false);
+    }
+  };
+
+  const fetchSessions = async () => {
+    setIsLoadingSessions(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/sessions`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json() as SessionInfo[];
+        setSessions(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch sessions:", error);
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!confirm("Force logout this session?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      }
+    } catch (error) {
+      console.error("Failed to delete session:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (subTab === "sessions") {
+      fetchSessions();
+    }
+  }, [subTab]);
+
   const handleBackup = async () => {
     setIsBackingUp(true);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/backup`, { method: "POST" });
+      const response = await fetch(`${API_BASE}/admin/backup`, { method: "POST", credentials: "include" });
       if (response.ok) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
@@ -914,9 +1067,10 @@ function DatabaseTab() {
       const text = await restoreFile.text();
       const data = JSON.parse(text);
 
-      const response = await fetch(`${API_BASE}/api/admin/restore`, {
+      const response = await fetch(`${API_BASE}/admin/restore`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
 
@@ -934,117 +1088,331 @@ function DatabaseTab() {
     }
   };
 
+  const formatBytes = (bytes: number | null) => {
+    if (bytes === null) return "N/A";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatDate = (iso: string) => {
+    return new Date(iso).toLocaleString();
+  };
+
   return (
     <div className={styles.databasePage}>
-      {/* Version Card */}
-      <div className={styles.dbVersionCard}>
-        <div className={styles.dbVersionIcon}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <ellipse cx="12" cy="5" rx="9" ry="3" />
-            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-          </svg>
-        </div>
-        <div className={styles.dbVersionInfo}>
-          <span className={styles.dbVersionLabel}>Database Version</span>
-          <span className={styles.dbVersionValue}>v{dbInfo?.currentVersion || "..."}</span>
-          <span className={styles.dbVersionMigration}>{dbInfo?.currentVersionName || "Loading..."}</span>
-        </div>
+      {/* Sub-tabs */}
+      <div className={styles.dbSubTabs}>
+        <button className={`${styles.dbSubTab} ${subTab === "tables" ? styles.active : ""}`} onClick={() => setSubTab("tables")}>
+          📊 Tables
+        </button>
+        <button className={`${styles.dbSubTab} ${subTab === "query" ? styles.active : ""}`} onClick={() => setSubTab("query")}>
+          🔍 Query
+        </button>
+        <button className={`${styles.dbSubTab} ${subTab === "sessions" ? styles.active : ""}`} onClick={() => setSubTab("sessions")}>
+          🔐 Sessions
+        </button>
+        <button className={`${styles.dbSubTab} ${subTab === "backup" ? styles.active : ""}`} onClick={() => setSubTab("backup")}>
+          💾 Backup
+        </button>
       </div>
 
-      {/* Action Cards Grid */}
-      <div className={styles.dbActionsGrid}>
-        {/* Backup Card */}
-        <div className={styles.dbActionCard}>
-          <div className={styles.dbActionHeader}>
-            <div className={styles.dbActionIcon} style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="7,10 12,15 17,10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-            </div>
-            <h3 className={styles.dbActionTitle}>Backup Database</h3>
+      {/* Tables Sub-Tab */}
+      {subTab === "tables" && (
+        <div className={styles.dbTablesContainer}>
+          <div className={styles.dbTablesList}>
+            <h3 className={styles.dbSectionTitle}>Tables ({tables.length})</h3>
+            {isLoadingTables ? (
+              <div className={styles.loading}>Loading...</div>
+            ) : (
+              <div className={styles.dbTablesScroll}>
+                {tables.map((t) => (
+                  <button
+                    key={t.name}
+                    className={`${styles.dbTableItem} ${selectedTable === t.name ? styles.active : ""}`}
+                    onClick={() => handleSelectTable(t.name)}
+                  >
+                    <span className={styles.dbTableName}>{t.name}</span>
+                    <span className={styles.dbTableMeta}>
+                      {t.row_count} rows • {formatBytes(t.size_bytes)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <p className={styles.dbActionDesc}>
-            Download a complete JSON backup of all tables with version metadata for safe migration.
-          </p>
-          <button
-            className={styles.dbBackupButton}
-            onClick={handleBackup}
-            disabled={isBackingUp}
-          >
-            {isBackingUp ? "Creating..." : "Download Backup"}
-          </button>
-        </div>
 
-        {/* Restore Card */}
-        <div className={styles.dbActionCard}>
-          <div className={styles.dbActionHeader}>
-            <div className={styles.dbActionIcon} style={{ background: "rgba(249, 115, 22, 0.1)", color: "#f97316" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="17,8 12,3 7,8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
+          <div className={styles.dbTableViewer}>
+            {!selectedTable ? (
+              <div className={styles.dbNoSelection}>Select a table to view data</div>
+            ) : isLoadingData ? (
+              <div className={styles.loading}>Loading...</div>
+            ) : tableData ? (
+              <>
+                <div className={styles.dbTableHeader}>
+                  <h3>{selectedTable}</h3>
+                  <span className={styles.dbTableStats}>
+                    Showing {tableData.offset + 1}-{Math.min(tableData.offset + tableData.rows.length, tableData.total)} of {tableData.total}
+                  </span>
+                </div>
+                <div className={styles.dbTableScroll}>
+                  <table className={styles.dbDataTable}>
+                    <thead>
+                      <tr>
+                        {tableData.columns.map((col) => (
+                          <th key={col}>{col}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableData.rows.map((row, i) => (
+                        <tr key={i}>
+                          {tableData.columns.map((col) => (
+                            <td key={col}>
+                              {typeof row[col] === "object" ? JSON.stringify(row[col]) : String(row[col] ?? "")}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className={styles.dbPagination}>
+                  <button
+                    disabled={tableOffset === 0}
+                    onClick={() => fetchTableData(selectedTable, tableOffset - tableLimit)}
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    disabled={tableOffset + tableLimit >= tableData.total}
+                    onClick={() => fetchTableData(selectedTable, tableOffset + tableLimit)}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Query Sub-Tab */}
+      {subTab === "query" && (
+        <div className={styles.dbQueryContainer}>
+          <div className={styles.dbQueryEditor}>
+            <textarea
+              className={styles.dbQueryInput}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="SELECT * FROM users LIMIT 10"
+              rows={6}
+            />
+            <div className={styles.dbQueryActions}>
+              <button
+                className={styles.dbRunButton}
+                onClick={handleRunQuery}
+                disabled={isRunningQuery || !query.trim()}
+              >
+                {isRunningQuery ? "Running..." : "▶ Run Query"}
+              </button>
+              <span className={styles.dbQueryHint}>Only SELECT queries allowed</span>
             </div>
-            <h3 className={styles.dbActionTitle}>Restore Database</h3>
           </div>
-          <p className={styles.dbActionDesc}>
-            Upload a backup file to restore. Older versions are automatically migrated.
-          </p>
-          <div className={styles.dbRestoreForm}>
-            <label className={styles.dbFileLabel}>
-              <input
-                type="file"
-                accept=".json"
-                onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
-                className={styles.dbFileInput}
-              />
-              <span className={styles.dbFileName}>
-                {restoreFile ? restoreFile.name : "Choose backup file..."}
-              </span>
-            </label>
-            <button
-              className={styles.dbRestoreButton}
-              onClick={handleRestore}
-              disabled={isRestoring || !restoreFile}
-            >
-              {isRestoring ? "Restoring..." : "Restore"}
-            </button>
-          </div>
-          {restoreResult && (
-            <p className={restoreResult.startsWith("Error") ? styles.dbResultError : styles.dbResultSuccess}>
-              {restoreResult}
-            </p>
+
+          {queryError && (
+            <div className={styles.dbQueryError}>{queryError}</div>
+          )}
+
+          {queryResult && (
+            <div className={styles.dbQueryResult}>
+              <div className={styles.dbQueryMeta}>
+                {queryResult.count} rows in {queryResult.duration_ms}ms
+              </div>
+              <div className={styles.dbTableScroll}>
+                <table className={styles.dbDataTable}>
+                  <thead>
+                    <tr>
+                      {queryResult.rows.length > 0 &&
+                        Object.keys(queryResult.rows[0]).map((col) => (
+                          <th key={col}>{col}</th>
+                        ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {queryResult.rows.map((row, i) => (
+                      <tr key={i}>
+                        {Object.entries(row).map(([col, val]) => (
+                          <td key={col}>
+                            {typeof val === "object" ? JSON.stringify(val) : String(val ?? "")}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </div>
+      )}
 
-        {/* Documentation Card */}
-        <div className={styles.dbActionCard}>
-          <div className={styles.dbActionHeader}>
-            <div className={styles.dbActionIcon} style={{ background: "rgba(99, 102, 241, 0.1)", color: "#6366f1" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                <polyline points="14,2 14,8 20,8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10,9 9,9 8,9" />
+      {/* Sessions Sub-Tab */}
+      {subTab === "sessions" && (
+        <div className={styles.dbSessionsContainer}>
+          <div className={styles.dbSessionsHeader}>
+            <h3>Active Sessions ({sessions.length})</h3>
+            <button className={styles.dbRefreshButton} onClick={fetchSessions} disabled={isLoadingSessions}>
+              {isLoadingSessions ? "Loading..." : "🔄 Refresh"}
+            </button>
+          </div>
+
+          {isLoadingSessions ? (
+            <div className={styles.loading}>Loading sessions...</div>
+          ) : sessions.length === 0 ? (
+            <div className={styles.dbNoSelection}>No active sessions</div>
+          ) : (
+            <div className={styles.dbSessionsList}>
+              {sessions.map((s) => (
+                <div key={s.id} className={styles.dbSessionCard}>
+                  <div className={styles.dbSessionUser}>
+                    <strong>{s.user_name || s.user_email || "Unknown"}</strong>
+                    {s.user_email && <span className={styles.dbSessionEmail}>{s.user_email}</span>}
+                  </div>
+                  <div className={styles.dbSessionMeta}>
+                    <div>Created: {formatDate(s.created_at)}</div>
+                    <div>Last Activity: {formatDate(s.last_activity_at)}</div>
+                    <div>Expires: {formatDate(s.expires_at)}</div>
+                    {s.ip_address && <div>IP: {s.ip_address}</div>}
+                    {s.user_agent && <div className={styles.dbUserAgent}>{s.user_agent.substring(0, 60)}...</div>}
+                  </div>
+                  <button
+                    className={styles.dbSessionDelete}
+                    onClick={() => handleDeleteSession(s.id)}
+                  >
+                    Force Logout
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Backup Sub-Tab */}
+      {subTab === "backup" && (
+        <>
+          {/* Version Card */}
+          <div className={styles.dbVersionCard}>
+            <div className={styles.dbVersionIcon}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
               </svg>
             </div>
-            <h3 className={styles.dbActionTitle}>Documentation</h3>
+            <div className={styles.dbVersionInfo}>
+              <span className={styles.dbVersionLabel}>Database Version</span>
+              <span className={styles.dbVersionValue}>v{dbInfo?.currentVersion || "..."}</span>
+              <span className={styles.dbVersionMigration}>{dbInfo?.currentVersionName || "Loading..."}</span>
+            </div>
           </div>
-          <p className={styles.dbActionDesc}>
-            View complete database schema, API routes, table definitions, and technical specs.
-          </p>
-          <a href="/admin/docs" className={styles.dbDocsLink}>
-            View Technical Docs
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </a>
-        </div>
-      </div>
+
+          {/* Action Cards Grid */}
+          <div className={styles.dbActionsGrid}>
+            {/* Backup Card */}
+            <div className={styles.dbActionCard}>
+              <div className={styles.dbActionHeader}>
+                <div className={styles.dbActionIcon} style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7,10 12,15 17,10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </div>
+                <h3 className={styles.dbActionTitle}>Backup Database</h3>
+              </div>
+              <p className={styles.dbActionDesc}>
+                Download a complete JSON backup of all tables with version metadata for safe migration.
+              </p>
+              <button
+                className={styles.dbBackupButton}
+                onClick={handleBackup}
+                disabled={isBackingUp}
+              >
+                {isBackingUp ? "Creating..." : "Download Backup"}
+              </button>
+            </div>
+
+            {/* Restore Card */}
+            <div className={styles.dbActionCard}>
+              <div className={styles.dbActionHeader}>
+                <div className={styles.dbActionIcon} style={{ background: "rgba(249, 115, 22, 0.1)", color: "#f97316" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="17,8 12,3 7,8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </div>
+                <h3 className={styles.dbActionTitle}>Restore Database</h3>
+              </div>
+              <p className={styles.dbActionDesc}>
+                Upload a backup file to restore. Older versions are automatically migrated.
+              </p>
+              <div className={styles.dbRestoreForm}>
+                <label className={styles.dbFileLabel}>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
+                    className={styles.dbFileInput}
+                  />
+                  <span className={styles.dbFileName}>
+                    {restoreFile ? restoreFile.name : "Choose backup file..."}
+                  </span>
+                </label>
+                <button
+                  className={styles.dbRestoreButton}
+                  onClick={handleRestore}
+                  disabled={isRestoring || !restoreFile}
+                >
+                  {isRestoring ? "Restoring..." : "Restore"}
+                </button>
+              </div>
+              {restoreResult && (
+                <p className={restoreResult.startsWith("Error") ? styles.dbResultError : styles.dbResultSuccess}>
+                  {restoreResult}
+                </p>
+              )}
+            </div>
+
+            {/* Documentation Card */}
+            <div className={styles.dbActionCard}>
+              <div className={styles.dbActionHeader}>
+                <div className={styles.dbActionIcon} style={{ background: "rgba(99, 102, 241, 0.1)", color: "#6366f1" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <polyline points="14,2 14,8 20,8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10,9 9,9 8,9" />
+                  </svg>
+                </div>
+                <h3 className={styles.dbActionTitle}>Documentation</h3>
+              </div>
+              <p className={styles.dbActionDesc}>
+                View complete database schema, API routes, table definitions, and technical specs.
+              </p>
+              <a href="/admin/docs" className={styles.dbDocsLink}>
+                View Technical Docs
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
