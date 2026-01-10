@@ -123,28 +123,6 @@ export function ReferenceLibrary() {
 
     loadAndRestoreLibraries();
   }, []);
-                try {
-                  const audioUrl = await getAudioFileUrl(track.storageId);
-                  if (audioUrl) {
-                    return { ...track, audioUrl };
-                  }
-                } catch (e) {
-                  console.error("Failed to restore audio for track:", track.name, e);
-                }
-              }
-              return track;
-            })
-          );
-          return { ...lib, tracks: restoredTracks };
-        })
-      );
-
-      setLibraries(restoredLibraries);
-      setIsRestoringUrls(false);
-    }
-
-    loadAndRestoreLibraries();
-  }, []);
 
   const selectedLibrary = libraries.find((l) => l.id === selectedLibraryId) || null;
   const selectedTrack = selectedLibrary?.tracks.find((t) => t.id === selectedTrackId) || null;
@@ -162,7 +140,6 @@ export function ReferenceLibrary() {
 
     const updated = [...libraries, newLibrary];
     setLibraries(updated);
-    saveLibraries(updated);
     setSelectedLibraryId(newLibrary.id);
     setIsCreatingLibrary(false);
     setNewLibraryName("");
@@ -196,7 +173,6 @@ export function ReferenceLibrary() {
 
     const updated = libraries.filter((l) => l.id !== selectedLibraryId);
     setLibraries(updated);
-    saveLibraries(updated);
     setSelectedLibraryId(null);
     setSelectedTrackId(null);
   }, [selectedLibraryId, libraries]);
@@ -309,7 +285,6 @@ export function ReferenceLibrary() {
       l.id === selectedLibraryId ? updatedLibrary : l
     );
     setLibraries(updated);
-    saveLibraries(updated);
   }, [selectedLibraryId, selectedLibrary, libraries]);
 
   // Handle file input change (for visible file input on iOS)
@@ -402,7 +377,6 @@ export function ReferenceLibrary() {
         l.id === selectedLibraryId ? updatedLibrary : l
       );
       setLibraries(updated);
-      saveLibraries(updated);
 
       if (selectedTrackId === trackId) {
         setSelectedTrackId(null);

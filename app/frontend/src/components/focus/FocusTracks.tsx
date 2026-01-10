@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { usePlayerStore } from "@/lib/player";
-import { listFocusLibraries } from "@/lib/api/focus-libraries";
+import { listFocusLibraries, createFocusLibrary } from "@/lib/api/focus-libraries";
 import styles from "./FocusTracks.module.css";
 
 // Use focus libraries from backend API
@@ -90,21 +90,10 @@ export function FocusTracks() {
   // DEPRECATED: localStorage-based library creation (2026-01-10)
   // This should use backend API: POST /api/focus/libraries
   // Create focus library
-  const handleCreateLibrary = useCallback(() => {
+  const handleCreateLibrary = useCallback(async () => {
     try {
-      const stored = localStorage.getItem(LIBRARIES_KEY);
-      const libraries: Library[] = stored ? JSON.parse(stored) : [];
-
-      const newLibrary: Library = {
-        id: `focus-${Date.now()}`,
-        name: FOCUS_LIBRARY_NAME,
-        tracks: [],
-        createdAt: new Date().toISOString(),
-      };
-
-      libraries.push(newLibrary);
-      localStorage.setItem(LIBRARIES_KEY, JSON.stringify(libraries));
-      setFocusLibrary(newLibrary);
+      const newLibrary = await createFocusLibrary(FOCUS_LIBRARY_NAME);
+      setFocusLibrary(null); // Placeholder until backend track support
     } catch (error) {
       console.error("Failed to create focus library:", error);
     }
