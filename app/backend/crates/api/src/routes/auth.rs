@@ -221,11 +221,32 @@ async fn handle_google_callback(
     let redirect_url = oauth_state_row.redirect_uri
         .unwrap_or_else(|| format!("{}/today", state.config.server.frontend_url));
     
+    // Use HTML form auto-submit instead of 302 redirect
+    // This preserves the Set-Cookie header across domain boundaries
+    // (Browser policy: cookies in 302 redirects may be dropped for cross-domain requests)
+    let html_body = format!(
+        r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>Authenticating...</title>
+</head>
+<body>
+    <p>Completing authentication...</p>
+    <form id="redirectForm" action="{}" method="GET" style="display:none;">
+    </form>
+    <script>
+        document.getElementById('redirectForm').submit();
+    </script>
+</body>
+</html>"#,
+        redirect_url
+    );
+
     let response = Response::builder()
-        .status(StatusCode::FOUND)
-        .header(header::LOCATION, &redirect_url)
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
         .header(header::SET_COOKIE, cookie)
-        .body(axum::body::Body::empty())
+        .body(axum::body::Body::from(html_body))
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     tracing::info!(
@@ -304,11 +325,32 @@ async fn handle_azure_callback(
     let redirect_url = oauth_state_row.redirect_uri
         .unwrap_or_else(|| format!("{}/today", state.config.server.frontend_url));
     
+    // Use HTML form auto-submit instead of 302 redirect
+    // This preserves the Set-Cookie header across domain boundaries
+    // (Browser policy: cookies in 302 redirects may be dropped for cross-domain requests)
+    let html_body = format!(
+        r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>Authenticating...</title>
+</head>
+<body>
+    <p>Completing authentication...</p>
+    <form id="redirectForm" action="{}" method="GET" style="display:none;">
+    </form>
+    <script>
+        document.getElementById('redirectForm').submit();
+    </script>
+</body>
+</html>"#,
+        redirect_url
+    );
+
     let response = Response::builder()
-        .status(StatusCode::FOUND)
-        .header(header::LOCATION, &redirect_url)
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
         .header(header::SET_COOKIE, cookie)
-        .body(axum::body::Body::empty())
+        .body(axum::body::Body::from(html_body))
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     tracing::info!(
