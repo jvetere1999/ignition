@@ -99,6 +99,9 @@ export function FocusIndicator() {
       console.error("Failed to fetch pause state from D1:", e);
     }
 
+    // DEPRECATED: localStorage fallback for focus_paused_state (2026-01-10)
+    // This should NOT fall back to localStorage - always use /api/focus/pause
+    // See: agent/STATELESS_SYNC_VALIDATION.md - Priority 1
     // Only fall back to localStorage if deprecation is disabled
     if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
       try {
@@ -161,6 +164,7 @@ export function FocusIndicator() {
     // Poll for session changes every 30 seconds
     const pollInterval = setInterval(fetchActiveSession, 30000);
 
+    // DEPRECATED: storage event listener for focus_paused_state (2026-01-10)
     // Listen for storage changes only if deprecation is disabled
     const handleStorageChange = (e: StorageEvent) => {
       if (!DISABLE_MASS_LOCAL_PERSISTENCE && e.key === "focus_paused_state") {
@@ -222,6 +226,7 @@ export function FocusIndicator() {
 
   // Handle dismiss paused state
   const handleDismissPaused = useCallback(async () => {
+    // DEPRECATED: localStorage cleanup (2026-01-10)
     // Always clean up localStorage (even if deprecated, for cleanup)
     if (typeof localStorage !== "undefined") {
       localStorage.removeItem("focus_paused_state");

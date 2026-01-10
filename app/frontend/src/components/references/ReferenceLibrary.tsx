@@ -61,6 +61,9 @@ interface Library {
 
 const STORAGE_KEY = "passion_reference_libraries_v2";
 
+// DEPRECATED: localStorage-based reference library (2026-01-10)
+// This should be replaced with backend API: GET /api/references/library
+// See: agent/STATELESS_SYNC_VALIDATION.md - Priority 2
 function loadLibraries(): Library[] {
   if (typeof window === "undefined") return [];
   try {
@@ -72,6 +75,8 @@ function loadLibraries(): Library[] {
   }
 }
 
+// DEPRECATED: localStorage-based library persistence (2026-01-10)
+// This should use backend API: POST /api/references/library
 function saveLibraries(libraries: Library[]): void {
   if (typeof window === "undefined") return;
   try {

@@ -43,6 +43,9 @@ export function FocusTracks() {
   const [isLoading, setIsLoading] = useState(true);
   const playerStore = usePlayerStore();
 
+  // DEPRECATED: localStorage-based focus library (2026-01-10)
+  // This should be replaced with backend API: GET /api/focus/libraries
+  // See: agent/STATELESS_SYNC_VALIDATION.md - Priority 2
   // Load focus library
   useEffect(() => {
     async function loadFocusLibrary() {
@@ -111,6 +114,8 @@ export function FocusTracks() {
     [focusLibrary, playerStore]
   );
 
+  // DEPRECATED: localStorage-based library creation (2026-01-10)
+  // This should use backend API: POST /api/focus/libraries
   // Create focus library
   const handleCreateLibrary = useCallback(() => {
     try {

@@ -107,6 +107,9 @@ export function Omnibar({ isOpen, onClose }: OmnibarProps) {
   const isCommandMode = input.startsWith(">");
   const searchQuery = isCommandMode ? input.slice(1).trim() : input;
 
+  // DEPRECATED: localStorage-based inbox (2026-01-10)
+  // This should be replaced with backend API: GET /api/user/inbox
+  // See: agent/STATELESS_SYNC_VALIDATION.md - Priority 2
   // Load inbox items
   useEffect(() => {
     try {
@@ -119,6 +122,8 @@ export function Omnibar({ isOpen, onClose }: OmnibarProps) {
     }
   }, []);
 
+  // DEPRECATED: localStorage-based inbox persistence (2026-01-10)
+  // This should be replaced with backend API: POST /api/user/inbox
   // Save inbox items
   const saveInboxItems = useCallback((items: InboxItem[]) => {
     setInboxItems(items);
@@ -171,18 +176,24 @@ export function Omnibar({ isOpen, onClose }: OmnibarProps) {
       "theme-toggle": () => {
         const current = document.documentElement.getAttribute("data-theme");
         document.documentElement.setAttribute("data-theme", current === "dark" ? "light" : "dark");
-        localStorage.setItem("theme", current === "dark" ? "light" : "dark");
+        // DEPRECATED: localStorage theme (2026-01-10)
+        // Theme state should be managed by ThemeProvider only via useServerSettings API
+        // Duplicate localStorage.setItem removed - use ThemeProvider for persistence
+        // localStorage.setItem("theme", current === "dark" ? "light" : "dark");
       },
       "theme-light": () => {
         document.documentElement.setAttribute("data-theme", "light");
-        localStorage.setItem("theme", "light");
+        // DEPRECATED: localStorage theme (2026-01-10)
+        // localStorage.setItem("theme", "light");
       },
       "theme-dark": () => {
         document.documentElement.setAttribute("data-theme", "dark");
-        localStorage.setItem("theme", "dark");
+        // DEPRECATED: localStorage theme (2026-01-10)
+        // localStorage.setItem("theme", "dark");
       },
       "theme-system": () => {
-        localStorage.removeItem("theme");
+        // DEPRECATED: localStorage theme (2026-01-10)
+        // localStorage.removeItem("theme");
         const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
       },
