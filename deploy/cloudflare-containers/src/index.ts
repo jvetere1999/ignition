@@ -32,16 +32,15 @@ export interface Env {
  * ApiContainer - Durable Object that manages the Rust API container.
  * Each instance can handle multiple requests.
  */
-export class ApiContainer extends Container {
+export class ApiContainer extends Container<Env> {
   // Port the Rust server listens on
   defaultPort = 8080;
 
   // Keep container alive for 4 hours after last request
   sleepAfter = "4h";
 
-  // Environment variables passed to the container at runtime
-  envVars = (() => {
-    const env = this.env as Env;
+  constructor(ctx: DurableObjectState<Env>, env: Env) {
+    super(ctx, env);
     
     // Helper to safely get env var - returns undefined for empty/missing
     const safeGet = (value: string | undefined): string | undefined => {
@@ -69,7 +68,8 @@ export class ApiContainer extends Container {
       safeGet(env.STORAGE_SECRET_ACCESS_KEY)
     );
 
-    const result: Record<string, string> = {
+    // Set envVars instance property - read by Container when starting
+    this.envVars = {
       // Database
       DATABASE_URL: safeGet(env.DATABASE_URL) || "",
 
@@ -117,9 +117,7 @@ export class ApiContainer extends Container {
     console.log(`[ApiContainer] OAuth Google: ${safeGet(env.GOOGLE_CLIENT_ID) ? "ENABLED" : "DISABLED"}`);
     console.log(`[ApiContainer] OAuth Azure: ${safeGet(env.AZURE_TENANT_ID) ? "ENABLED" : "DISABLED"}`);
     console.log(`[ApiContainer] Storage R2: ${hasAllStorageSecrets ? "ENABLED" : "DISABLED"}`);
-
-    return result;
-  })();
+  }
 
   override onStart(): void {
     console.log("Ignition API container started");
