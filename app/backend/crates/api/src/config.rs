@@ -265,6 +265,25 @@ impl AppConfig {
             }
         }
 
+        // Manual Storage override - same issue as OAuth: separator("_") splits ALL underscores,
+        // so STORAGE_ACCESS_KEY_ID becomes storage.access.key.id instead of storage.access_key_id.
+        let storage_endpoint = std::env::var("STORAGE_ENDPOINT").ok().filter(|s| !s.is_empty());
+        let storage_bucket = std::env::var("STORAGE_BUCKET").ok().filter(|s| !s.is_empty());
+        let storage_access_key = std::env::var("STORAGE_ACCESS_KEY_ID").ok().filter(|s| !s.is_empty());
+        let storage_secret_key = std::env::var("STORAGE_SECRET_ACCESS_KEY").ok().filter(|s| !s.is_empty());
+        let storage_region = std::env::var("STORAGE_REGION").ok().filter(|s| !s.is_empty());
+
+        if storage_endpoint.is_some() || storage_access_key.is_some() {
+            tracing::info!("Loading Storage config from environment variables");
+            app_config.storage.endpoint = storage_endpoint.or(app_config.storage.endpoint);
+            app_config.storage.bucket = storage_bucket.or(app_config.storage.bucket);
+            app_config.storage.access_key_id = storage_access_key.or(app_config.storage.access_key_id);
+            app_config.storage.secret_access_key = storage_secret_key.or(app_config.storage.secret_access_key);
+            if let Some(region) = storage_region {
+                app_config.storage.region = region;
+            }
+        }
+
         Ok(app_config)
     }
 
