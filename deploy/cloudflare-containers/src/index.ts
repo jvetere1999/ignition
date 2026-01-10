@@ -169,6 +169,9 @@ export default {
       // Get a container instance (load balanced)
       const container = loadBalance(env);
 
+      // Ensure container is started
+      await container.start();
+
       // Forward the request to the container
       const response = await container.fetch(request);
 
