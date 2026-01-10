@@ -6,6 +6,9 @@
  */
 
 import { Container, getContainer } from "@cloudflare/containers";
+// Import env as global to access secrets - required for Containers
+// https://developers.cloudflare.com/workers/runtime-apis/bindings/#importing-env-as-a-global
+import { env as globalEnv } from "cloudflare:workers";
 
 export interface Env {
   API_CONTAINER: DurableObjectNamespace<ApiContainer>;
@@ -28,6 +31,15 @@ export interface Env {
   API_URL: string;
 }
 
+// Helper to safely get env var - returns undefined for empty/missing
+const safeGet = (value: string | undefined): string | undefined => {
+  if (!value || value === "" || value === "undefined") return undefined;
+  return value;
+};
+
+// Type assertion for global env
+const typedEnv = globalEnv as Env;
+
 /**
  * ApiContainer - Durable Object that manages the Rust API container.
  * Each instance can handle multiple requests.
@@ -42,69 +54,64 @@ export class ApiContainer extends Container<Env> {
   constructor(ctx: DurableObjectState<Env>, env: Env) {
     super(ctx, env);
     
-    // Helper to safely get env var - returns undefined for empty/missing
-    const safeGet = (value: string | undefined): string | undefined => {
-      if (!value || value === "" || value === "undefined") return undefined;
-      return value;
-    };
-    
+    // Use global env for secrets (more reliable than constructor param)
     // Log configuration status for debugging
-    console.log("[ApiContainer] Env var status:");
-    console.log(`  DATABASE_URL: ${safeGet(env.DATABASE_URL) ? "✓ SET" : "✗ MISSING"}`);
-    console.log(`  SESSION_SECRET: ${safeGet(env.SESSION_SECRET) ? "✓ SET" : "✗ MISSING"}`);
-    console.log(`  GOOGLE_CLIENT_ID: ${safeGet(env.GOOGLE_CLIENT_ID) ? "✓ SET" : "✗ MISSING"}`);
-    console.log(`  GOOGLE_CLIENT_SECRET: ${safeGet(env.GOOGLE_CLIENT_SECRET) ? "✓ SET" : "✗ MISSING"}`);
-    console.log(`  AZURE_CLIENT_ID: ${safeGet(env.AZURE_CLIENT_ID) ? "✓ SET" : "✗ MISSING"}`);
-    console.log(`  AZURE_CLIENT_SECRET: ${safeGet(env.AZURE_CLIENT_SECRET) ? "✓ SET" : "✗ MISSING"}`);
-    console.log(`  AZURE_TENANT_ID: ${safeGet(env.AZURE_TENANT_ID) ? "✓ SET" : "✗ MISSING"}`);
-    console.log(`  STORAGE_ENDPOINT: ${safeGet(env.STORAGE_ENDPOINT) ? "✓ SET" : "✗ MISSING"}`);
-    console.log(`  STORAGE_ACCESS_KEY_ID: ${safeGet(env.STORAGE_ACCESS_KEY_ID) ? "✓ SET" : "✗ MISSING"}`);
-    console.log(`  STORAGE_SECRET_ACCESS_KEY: ${safeGet(env.STORAGE_SECRET_ACCESS_KEY) ? "✓ SET" : "✗ MISSING"}`);
+    console.log("[ApiContainer] Env var status (using global env import):");
+    console.log(`  DATABASE_URL: ${safeGet(typedEnv.DATABASE_URL) ? "✓ SET" : "✗ MISSING"}`);
+    console.log(`  SESSION_SECRET: ${safeGet(typedEnv.SESSION_SECRET) ? "✓ SET" : "✗ MISSING"}`);
+    console.log(`  GOOGLE_CLIENT_ID: ${safeGet(typedEnv.GOOGLE_CLIENT_ID) ? "✓ SET" : "✗ MISSING"}`);
+    console.log(`  GOOGLE_CLIENT_SECRET: ${safeGet(typedEnv.GOOGLE_CLIENT_SECRET) ? "✓ SET" : "✗ MISSING"}`);
+    console.log(`  AZURE_CLIENT_ID: ${safeGet(typedEnv.AZURE_CLIENT_ID) ? "✓ SET" : "✗ MISSING"}`);
+    console.log(`  AZURE_CLIENT_SECRET: ${safeGet(typedEnv.AZURE_CLIENT_SECRET) ? "✓ SET" : "✗ MISSING"}`);
+    console.log(`  AZURE_TENANT_ID: ${safeGet(typedEnv.AZURE_TENANT_ID) ? "✓ SET" : "✗ MISSING"}`);
+    console.log(`  STORAGE_ENDPOINT: ${safeGet(typedEnv.STORAGE_ENDPOINT) ? "✓ SET" : "✗ MISSING"}`);
+    console.log(`  STORAGE_ACCESS_KEY_ID: ${safeGet(typedEnv.STORAGE_ACCESS_KEY_ID) ? "✓ SET" : "✗ MISSING"}`);
+    console.log(`  STORAGE_SECRET_ACCESS_KEY: ${safeGet(typedEnv.STORAGE_SECRET_ACCESS_KEY) ? "✓ SET" : "✗ MISSING"}`);
 
     // Build env vars object - only include storage vars if ALL are present
     const hasAllStorageSecrets = !!(
-      safeGet(env.STORAGE_ENDPOINT) &&
-      safeGet(env.STORAGE_ACCESS_KEY_ID) &&
-      safeGet(env.STORAGE_SECRET_ACCESS_KEY)
+      safeGet(typedEnv.STORAGE_ENDPOINT) &&
+      safeGet(typedEnv.STORAGE_ACCESS_KEY_ID) &&
+      safeGet(typedEnv.STORAGE_SECRET_ACCESS_KEY)
     );
 
     // Set envVars instance property - read by Container when starting
     this.envVars = {
       // Database
-      DATABASE_URL: safeGet(env.DATABASE_URL) || "",
+      DATABASE_URL: safeGet(typedEnv.DATABASE_URL) || "",
 
       // Server config
       SERVER_HOST: "0.0.0.0",
       SERVER_PORT: "8080",
-      SERVER_ENVIRONMENT: env.NODE_ENV || "production",
+      SERVER_ENVIRONMENT: typedEnv.NODE_ENV || "production",
       SERVER_PUBLIC_URL: "https://api.ecent.online",
 
       // Auth
-      SESSION_SECRET: safeGet(env.SESSION_SECRET) || "",
+      SESSION_SECRET: safeGet(typedEnv.SESSION_SECRET) || "",
       AUTH_COOKIE_DOMAIN: "ecent.online",
       AUTH_SESSION_TTL_SECONDS: "2592000", // 30 days
       AUTH_DEV_BYPASS: "false",
 
       // OAuth - use nested format for config crate with _ separator
       // Only set if credentials are present
-      ...(safeGet(env.GOOGLE_CLIENT_ID) && safeGet(env.GOOGLE_CLIENT_SECRET) ? {
-        AUTH_OAUTH_GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
-        AUTH_OAUTH_GOOGLE_CLIENT_SECRET: env.GOOGLE_CLIENT_SECRET,
+      ...(safeGet(typedEnv.GOOGLE_CLIENT_ID) && safeGet(typedEnv.GOOGLE_CLIENT_SECRET) ? {
+        AUTH_OAUTH_GOOGLE_CLIENT_ID: typedEnv.GOOGLE_CLIENT_ID,
+        AUTH_OAUTH_GOOGLE_CLIENT_SECRET: typedEnv.GOOGLE_CLIENT_SECRET,
         AUTH_OAUTH_GOOGLE_REDIRECT_URI: "https://api.ecent.online/auth/callback/google",
       } : {}),
 
-      ...(safeGet(env.AZURE_CLIENT_ID) && safeGet(env.AZURE_CLIENT_SECRET) && safeGet(env.AZURE_TENANT_ID) ? {
-        AUTH_OAUTH_AZURE_CLIENT_ID: env.AZURE_CLIENT_ID,
-        AUTH_OAUTH_AZURE_CLIENT_SECRET: env.AZURE_CLIENT_SECRET,
+      ...(safeGet(typedEnv.AZURE_CLIENT_ID) && safeGet(typedEnv.AZURE_CLIENT_SECRET) && safeGet(typedEnv.AZURE_TENANT_ID) ? {
+        AUTH_OAUTH_AZURE_CLIENT_ID: typedEnv.AZURE_CLIENT_ID,
+        AUTH_OAUTH_AZURE_CLIENT_SECRET: typedEnv.AZURE_CLIENT_SECRET,
         AUTH_OAUTH_AZURE_REDIRECT_URI: "https://api.ecent.online/auth/callback/azure",
-        AUTH_OAUTH_AZURE_TENANT_ID: env.AZURE_TENANT_ID,
+        AUTH_OAUTH_AZURE_TENANT_ID: typedEnv.AZURE_TENANT_ID,
       } : {}),
 
       // Storage (R2) - only include if ALL storage secrets are present
       ...(hasAllStorageSecrets ? {
-        STORAGE_ENDPOINT: env.STORAGE_ENDPOINT,
-        STORAGE_ACCESS_KEY_ID: env.STORAGE_ACCESS_KEY_ID,
-        STORAGE_SECRET_ACCESS_KEY: env.STORAGE_SECRET_ACCESS_KEY,
+        STORAGE_ENDPOINT: typedEnv.STORAGE_ENDPOINT,
+        STORAGE_ACCESS_KEY_ID: typedEnv.STORAGE_ACCESS_KEY_ID,
+        STORAGE_SECRET_ACCESS_KEY: typedEnv.STORAGE_SECRET_ACCESS_KEY,
         STORAGE_BUCKET: "ignition",
         STORAGE_REGION: "auto",
       } : {}),
@@ -114,8 +121,8 @@ export class ApiContainer extends Container<Env> {
         "https://ignition.ecent.online,https://admin.ignition.ecent.online",
     };
 
-    console.log(`[ApiContainer] OAuth Google: ${safeGet(env.GOOGLE_CLIENT_ID) ? "ENABLED" : "DISABLED"}`);
-    console.log(`[ApiContainer] OAuth Azure: ${safeGet(env.AZURE_TENANT_ID) ? "ENABLED" : "DISABLED"}`);
+    console.log(`[ApiContainer] OAuth Google: ${safeGet(typedEnv.GOOGLE_CLIENT_ID) ? "ENABLED" : "DISABLED"}`);
+    console.log(`[ApiContainer] OAuth Azure: ${safeGet(typedEnv.AZURE_TENANT_ID) ? "ENABLED" : "DISABLED"}`);
     console.log(`[ApiContainer] Storage R2: ${hasAllStorageSecrets ? "ENABLED" : "DISABLED"}`);
   }
 
