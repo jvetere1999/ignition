@@ -198,10 +198,11 @@ export class ApiContainer extends Container<Env> {
           { headers: { "Content-Type": "application/json" } }
         );
       } catch (err) {
+        console.error("[ApiContainer] Failed to restart container", err);
         return new Response(
           JSON.stringify({
             success: false,
-            error: String(err),
+            error: "Failed to restart container",
           }),
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
