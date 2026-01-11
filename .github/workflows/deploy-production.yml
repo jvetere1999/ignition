@@ -151,15 +151,27 @@ jobs:
       
       - name: Verify backend health
         run: |
-          for i in {1..10}; do
-            if curl -f https://api.ecent.online/health > /dev/null 2>&1; then
-              echo "✓ Backend is healthy"
+          echo "Verifying backend health..."
+          RETRIES=15
+          RETRY_DELAY=5
+          
+          for i in $(seq 1 $RETRIES); do
+            echo "Health check attempt $i/$RETRIES..."
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://api.ecent.online/health || echo "000")
+            
+            if [ "$RESPONSE" = "200" ]; then
+              echo "✓ Backend is healthy (HTTP 200)"
               exit 0
             fi
-            echo "Waiting for backend... ($i/10)"
-            sleep 10
+            
+            if [ $i -lt $RETRIES ]; then
+              echo "✗ Got HTTP $RESPONSE, retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+            fi
           done
-          echo "✗ Backend health check failed"
+          
+          echo "✗ CRITICAL: Backend health check failed after $RETRIES attempts"
+          echo "✗ Deployment is NOT healthy - aborting pipeline"
           exit 1
       
       - name: Check deployment logs
