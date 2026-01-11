@@ -56,22 +56,10 @@ impl AppState {
 
         tracing::info!("Database connection pool created");
 
-        // Run pending migrations on every startup
-        // sqlx tracks applied migrations in _sqlx_migrations table
-        tracing::info!("Checking database migrations...");
-        match Self::run_migrations(&db).await {
-            Ok(applied) => {
-                if applied > 0 {
-                    tracing::info!("Applied {} new migration(s)", applied);
-                } else {
-                    tracing::info!("Database schema is up to date");
-                }
-            }
-            Err(e) => {
-                tracing::error!("Migration failed: {}", e);
-                return Err(e.into());
-            }
-        }
+        // ✓ Migrations are now handled by the deployment pipeline (wipe-and-rebuild-neon job)
+        // ✓ Backend no longer runs migrations on startup to avoid conflicts
+        // ✓ Database schema is verified and ready before container deployment
+        tracing::info!("Database ready (migrations pre-applied by deployment pipeline)");
 
         // Create storage client if configured
         let storage = if config.storage.endpoint.is_some() {
@@ -97,9 +85,9 @@ impl AppState {
         })
     }
 
-    /// Run database migrations
-    /// 
-    /// Returns the number of newly applied migrations.
+    /// Legacy: Database migrations are now handled by the deployment pipeline
+    /// This method is kept for reference but is no longer called on startup
+    #[allow(dead_code)]
     async fn run_migrations(db: &PgPool) -> Result<usize, sqlx::migrate::MigrateError> {
         // Migrations are embedded at compile time
         // Path relative to Cargo.toml: app/backend/migrations
