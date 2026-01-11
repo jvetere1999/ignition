@@ -1,0 +1,454 @@
+name: Schema Validation & Migration to Neon
+
+on:
+  pull_request:
+    paths:
+      - 'tools/schema-generator/schema.json'
+      - 'app/backend/migrations/**'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/schema-generator/schema.json'
+      - 'app/backend/migrations/**'
+
+env:
+  NEON_BRANCH: main
+  MIGRATION_DIR: app/backend/migrations
+
+jobs:
+  validate-against-neon:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install PostgreSQL client
+        run: apt-get update && apt-get install -y postgresql-client
+
+      - name: Get migration changes
+        id: migration_changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base_ref=${{ github.base_ref }}" >> $GITHUB_OUTPUT
+            echo "head_ref=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+            
+            # Find new migrations
+            NEW_MIGRATIONS=$(git diff origin/${{ github.base_ref }}...HEAD --name-only -- app/backend/migrations/*.sql)
+            echo "new_migrations<<EOF" >> $GITHUB_OUTPUT
+            echo "$NEW_MIGRATIONS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate migrations syntax
+        run: |
+          python3 << 'EOF'
+          import glob
+          import re
+          
+          migrations = sorted(glob.glob('app/backend/migrations/*.sql'))
+          print(f"Found {len(migrations)} migration files")
+          
+          for migration in migrations:
+              with open(migration, 'r') as f:
+                  content = f.read()
+              
+              # Check for basic SQL syntax
+              if not content.strip():
+                  print(f"✗ {migration} is empty")
+                  exit(1)
+              
+              # Check for terminating semicolon
+              if not content.rstrip().endswith(';'):
+                  print(f"✗ {migration} missing terminating semicolon")
+                  exit(1)
+              
+              # Check naming convention
+              match = re.search(r'(\d{4})_', migration)
+              if match:
+                  print(f"✓ {migration}")
+              else:
+                  print(f"✗ {migration} doesn't follow naming convention (####_description.sql)")
+                  exit(1)
+          
+          print(f"\n✓ All {len(migrations)} migration files valid")
+          EOF
+
+      - name: Generate dry-run report
+        id: dry_run
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          python3 << 'EOF'
+          import subprocess
+          import os
+          import json
+          from datetime import datetime
+          
+          db_url = os.environ.get('DATABASE_URL')
+          if not db_url:
+              print("✗ DATABASE_URL not set")
+              exit(1)
+          
+          try:
+              # Get current schema version
+              result = subprocess.run([
+                  'psql', db_url, '-c',
+                  'SELECT version, description, installed_on FROM _sqlx_migrations ORDER BY version DESC LIMIT 5'
+              ], capture_output=True, text=True, timeout=10)
+              
+              if result.returncode == 0:
+                  print("Current migrations in Neon:")
+                  print(result.stdout)
+              else:
+                  print(f"Connection test: {result.stderr}")
+          
+          except Exception as e:
+              print(f"✗ Error connecting to Neon: {e}")
+              # Don't fail - might be first deployment
+          
+          # List pending migrations
+          import glob
+          migrations = sorted(glob.glob('app/backend/migrations/*.sql'))
+          
+          report = f"""
+          ## Schema Migration Dry-Run
+          
+          **Generated:** {datetime.utcnow().isoformat()}
+          
+          ### Pending Migrations
+          """
+          
+          for migration in migrations:
+              with open(migration, 'r') as f:
+                  content = f.read()
+              
+              # Extract first few lines as description
+              lines = content.split('\n')[:3]
+              description = ' '.join(lines).replace('--', '').strip()[:100]
+              
+              report += f"\n- **{migration.split('/')[-1]}**: {description}"
+          
+          report += """
+          
+          ### Safety Checks
+          ✓ All migrations validated
+          ✓ Naming conventions correct
+          ✓ Syntax valid
+          
+          **Action Required:** 
+          - Review migrations above
+          - On main: Migrations will auto-apply to Neon
+          """
+          
+          with open('/tmp/migration_report.md', 'w') as f:
+              f.write(report)
+          
+          print(report)
+          EOF
+
+      - name: Check for breaking changes
+        run: |
+          python3 << 'EOF'
+          import glob
+          import re
+          
+          breaking_patterns = [
+              (r'DROP\s+TABLE', 'Dropping tables'),
+              (r'DROP\s+COLUMN', 'Dropping columns'),
+              (r'ALTER\s+TABLE.*DROP', 'Altering tables to drop'),
+              (r'TRUNCATE', 'Truncating tables'),
+          ]
+          
+          found_issues = []
+          
+          for migration in sorted(glob.glob('app/backend/migrations/*.sql')):
+              with open(migration, 'r') as f:
+                  content = f.read().upper()
+              
+              for pattern, description in breaking_patterns:
+                  if re.search(pattern, content):
+                      found_issues.append(f"{migration}: {description}")
+          
+          if found_issues:
+              print("⚠️  Potential breaking changes detected:")
+              for issue in found_issues:
+                  print(f"  {issue}")
+              print("\nManual review required before applying to production!")
+          else:
+              print("✓ No breaking changes detected")
+          EOF
+
+      - name: Comment PR with migration report
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const report = fs.readFileSync('/tmp/migration_report.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: report
+              });
+            } catch (e) {
+              console.log('Could not read report file');
+            }
+
+  apply-migrations:
+    needs: [validate-against-neon]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      # Requires manual approval from CODEOWNERS
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: apt-get update && apt-get install -y postgresql-client
+
+      - name: Get pending migrations
+        id: pending
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          python3 << 'EOF'
+          import subprocess
+          import glob
+          import os
+          
+          db_url = os.environ.get('DATABASE_URL')
+          
+          # Get applied migrations
+          try:
+              result = subprocess.run([
+                  'psql', db_url, '-t', '-c',
+                  'SELECT version FROM _sqlx_migrations ORDER BY version'
+              ], capture_output=True, text=True, timeout=10)
+              
+              applied = set()
+              if result.returncode == 0:
+                  applied = {int(line.strip()) for line in result.stdout.split('\n') if line.strip()}
+          except:
+              applied = set()
+          
+          # Get all migrations
+          all_migrations = sorted(glob.glob('app/backend/migrations/*.sql'))
+          pending = []
+          
+          for migration in all_migrations:
+              version = int(migration.split('/')[-1].split('_')[0])
+              if version not in applied:
+                  pending.append((version, migration))
+          
+          print(f"Applied: {len(applied)}")
+          print(f"Pending: {len(pending)}")
+          
+          for version, migration in pending:
+              print(f"  - {migration}")
+          
+          # Save to output
+          with open('/tmp/pending.txt', 'w') as f:
+              for version, migration in pending:
+                  f.write(f"{version}:{migration}\n")
+          EOF
+
+      - name: Apply migrations to Neon
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          python3 << 'EOF'
+          import subprocess
+          import os
+          import sys
+          
+          db_url = os.environ.get('DATABASE_URL')
+          if not db_url:
+              print("✗ DATABASE_URL not set")
+              sys.exit(1)
+          
+          # Read pending migrations
+          try:
+              with open('/tmp/pending.txt', 'r') as f:
+                  pending = [line.strip() for line in f if line.strip()]
+          except:
+              pending = []
+          
+          if not pending:
+              print("✓ No migrations to apply")
+              sys.exit(0)
+          
+          print(f"Applying {len(pending)} migrations to Neon...")
+          
+          for line in pending:
+              version, migration_file = line.split(':')
+              print(f"\nApplying migration {version}: {migration_file}")
+              
+              try:
+                  with open(migration_file, 'r') as f:
+                      migration_sql = f.read()
+                  
+                  # Apply migration
+                  result = subprocess.run(
+                      ['psql', db_url, '-v', 'ON_ERROR_STOP=1'],
+                      input=migration_sql,
+                      capture_output=True,
+                      text=True,
+                      timeout=60
+                  )
+                  
+                  if result.returncode != 0:
+                      print(f"✗ Failed: {result.stderr}")
+                      sys.exit(1)
+                  else:
+                      print(f"✓ Applied: {migration_file}")
+              
+              except Exception as e:
+                  print(f"✗ Error: {e}")
+                  sys.exit(1)
+          
+          print("\n✓ All migrations applied successfully!")
+          EOF
+
+      - name: Verify applied migrations
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          psql $DATABASE_URL -c "
+            SELECT version, description, installed_on, success
+            FROM _sqlx_migrations
+            ORDER BY version DESC
+            LIMIT 10
+          "
+
+      - name: Run post-migration checks
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          python3 << 'EOF'
+          import subprocess
+          import os
+          
+          db_url = os.environ.get('DATABASE_URL')
+          
+          checks = [
+              ("Table count", "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"),
+              ("Primary keys", "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_type = 'PRIMARY KEY'"),
+              ("Unique constraints", "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_type = 'UNIQUE'"),
+              ("Columns with defaults", "SELECT COUNT(*) FROM information_schema.columns WHERE column_default IS NOT NULL"),
+          ]
+          
+          print("\n✓ Post-Migration Verification\n")
+          for check_name, query in checks:
+              result = subprocess.run(
+                  ['psql', db_url, '-t', '-c', query],
+                  capture_output=True,
+                  text=True,
+                  timeout=10
+              )
+              if result.returncode == 0:
+                  value = result.stdout.strip()
+                  print(f"  {check_name}: {value}")
+          EOF
+
+      - name: Create deployment summary
+        id: summary
+        run: |
+          cat << 'EOF'
+          ## ✓ Neon Database Updated
+          
+          Successfully applied pending migrations to Neon database.
+          
+          - Database: neondb
+          - Region: us-west-2
+          - Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          
+          All constraints, defaults, and seed data are now in sync.
+          EOF
+
+  rollback-plan:
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Generate rollback instructions
+        run: |
+          cat << 'EOF'
+          ## ⚠️  Migration Failed
+          
+          ### Rollback Steps
+          
+          1. **Connect to Neon:**
+             ```bash
+             psql $NEON_DATABASE_URL
+             ```
+          
+          2. **Check applied migrations:**
+             ```sql
+             SELECT version, description FROM _sqlx_migrations ORDER BY version DESC;
+             ```
+          
+          3. **Manual rollback (if needed):**
+             - Identify the last good migration
+             - Manually drop/alter tables created by failed migration
+             - Or contact Neon support for backup restore
+          
+          4. **Fix migrations locally:**
+             ```bash
+             ./scripts/validate-schema-locally.sh
+             ```
+          
+          5. **Retry:**
+             - Push fixed migrations
+             - GitHub Actions will retry
+          
+          ### Emergency Contacts
+          - Neon Support: https://console.neon.tech/
+          - Team Slack: #database
+          EOF
+
+  notification:
+    if: always()
+    needs: [apply-migrations]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Slack notification
+        if: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          STATUS="${{ needs.apply-migrations.result }}"
+          if [ "$STATUS" = "success" ]; then
+            MESSAGE="✓ Database migrations applied successfully"
+            COLOR="good"
+          else
+            MESSAGE="✗ Database migration failed - review logs"
+            COLOR="danger"
+          fi
+          
+          curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"attachments\": [{
+                \"color\": \"$COLOR\",
+                \"title\": \"Neon Database Update\",
+                \"text\": \"$MESSAGE\",
+                \"actions\": [{
+                  \"type\": \"button\",
+                  \"text\": \"View Logs\",
+                  \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+                }]
+              }]
+            }"

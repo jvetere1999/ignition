@@ -57,14 +57,16 @@ impl UserRepo {
 
     /// Create a new user
     pub async fn create(pool: &PgPool, input: CreateUserInput) -> Result<User, AppError> {
+        let id = Uuid::new_v4();
         let user = sqlx::query_as::<_, User>(
-            r#"INSERT INTO users (email, name, image, email_verified)
-            VALUES ($1, $2, $3, $4)
+            r#"INSERT INTO users (id, email, name, image, email_verified, role, approved, age_verified, tos_accepted, is_admin, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, 'user', false, false, false, false, NOW(), NOW())
             RETURNING
                 id, name, email, email_verified, image, role,
                 approved, age_verified, tos_accepted, tos_accepted_at,
                 tos_version, last_activity_at, created_at, updated_at"#,
         )
+        .bind(id)
         .bind(&input.email)
         .bind(&input.name)
         .bind(&input.image)
@@ -186,9 +188,10 @@ impl AccountRepo {
         expires_at: Option<i64>,
         id_token: Option<&str>,
     ) -> Result<Account, AppError> {
+        let id = Uuid::new_v4();
         let account = sqlx::query_as::<_, Account>(
-            r#"INSERT INTO accounts (user_id, type, provider, provider_account_id, access_token, refresh_token, expires_at, id_token)
-            VALUES ($1, 'oauth', $2, $3, $4, $5, $6, $7)
+            r#"INSERT INTO accounts (id, user_id, type, provider, provider_account_id, access_token, refresh_token, expires_at, id_token, created_at, updated_at)
+            VALUES ($1, $2, 'oauth', $3, $4, $5, $6, $7, $8, NOW(), NOW())
             ON CONFLICT (provider, provider_account_id)
             DO UPDATE SET
                 access_token = EXCLUDED.access_token,
@@ -201,6 +204,7 @@ impl AccountRepo {
                 refresh_token, access_token, expires_at, token_type, scope,
                 id_token, session_state, created_at, updated_at"#
         )
+        .bind(id)
         .bind(user_id)
         .bind(provider)
         .bind(provider_account_id)
@@ -243,16 +247,18 @@ impl SessionRepo {
         input: CreateSessionInput,
         ttl_days: i64,
     ) -> Result<Session, AppError> {
+        let id = Uuid::new_v4();
         let token = generate_session_token();
         let expires_at = Utc::now() + Duration::days(ttl_days);
 
         let session = sqlx::query_as::<_, Session>(
-            r#"INSERT INTO sessions (user_id, token, expires_at, user_agent, ip_address)
-            VALUES ($1, $2, $3, $4, $5::inet)
+            r#"INSERT INTO sessions (id, user_id, token, expires_at, user_agent, ip_address, created_at, last_activity_at)
+            VALUES ($1, $2, $3, $4, $5, $6::inet, NOW(), NOW())
             RETURNING
                 id, user_id, token, expires_at, created_at, last_activity_at,
                 user_agent, ip_address::text, rotated_from"#,
         )
+        .bind(id)
         .bind(input.user_id)
         .bind(&token)
         .bind(expires_at)
@@ -435,8 +441,8 @@ impl RbacRepo {
         granted_by: Option<Uuid>,
     ) -> Result<(), AppError> {
         sqlx::query(
-            r#"INSERT INTO user_roles (user_id, role_id, granted_by)
-            SELECT $1, r.id, $3
+            r#"INSERT INTO user_roles (user_id, role_id, granted_by, granted_at)
+            SELECT $1, r.id, $3, NOW()
             FROM roles r WHERE r.name = $2
             ON CONFLICT (user_id, role_id) DO NOTHING"#,
         )

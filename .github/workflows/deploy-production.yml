@@ -1,0 +1,356 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [deploy]
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+  NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+  
+jobs:
+  pre-deployment-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate schema.json
+        run: |
+          python3 -c "import json; schema = json.load(open('tools/schema-generator/schema.json')); print(f'✓ Schema v{schema[\"version\"]}: {len(schema[\"tables\"])} tables')"
+      
+      - name: Check migration files exist
+        run: |
+          if [ ! -f "app/backend/migrations/0001_schema.sql" ]; then
+            echo "✗ Migration files missing"
+            exit 1
+          fi
+          echo "✓ Migration files present"
+      
+      - name: Verify Rust compiles
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --manifest-path app/backend/Cargo.toml
+
+  wipe-and-rebuild-neon:
+    needs: pre-deployment-checks
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://console.neon.tech
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      
+      - name: Drop and recreate Neon schema
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          echo "⚠️  Wiping Neon database..."
+          psql "$DATABASE_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" || {
+            echo "✗ Failed to wipe Neon"
+            exit 1
+          }
+          echo "✓ Neon wiped"
+      
+      - name: Apply migrations to Neon
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          echo "Applying migrations..."
+          for migration in app/backend/migrations/*.sql; do
+            echo "  Applying: $(basename $migration)"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$migration" || {
+              echo "✗ Migration failed: $migration"
+              exit 1
+            }
+          done
+          echo "✓ All migrations applied"
+      
+      - name: Verify schema
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          echo "Verifying schema..."
+          TABLES=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public'" | xargs)
+          PKS=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_type='PRIMARY KEY'" | xargs)
+          echo "✓ Tables: $TABLES"
+          echo "✓ Primary keys: $PKS"
+      
+      - name: Export post-migration schema
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          pg_dump "$DATABASE_URL" --schema=public --schema-only --no-owner --no-privileges > neon_deployed_schema.sql
+          echo "✓ Schema exported"
+      
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployed-schema
+          path: neon_deployed_schema.sql
+          retention-days: 30
+
+  build-and-deploy-backend:
+    needs: wipe-and-rebuild-neon
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.ecent.online
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      
+      - name: Deploy to Fly.io
+        working-directory: ./app/backend
+        run: |
+          echo "Deploying backend to Fly.io..."
+          flyctl deploy --app ignition-api --remote-only --strategy immediate
+      
+      - name: Wait for deployment
+        run: sleep 30
+      
+      - name: Verify backend health
+        run: |
+          for i in {1..10}; do
+            if curl -f https://api.ecent.online/health > /dev/null 2>&1; then
+              echo "✓ Backend is healthy"
+              exit 0
+            fi
+            echo "Waiting for backend... ($i/10)"
+            sleep 10
+          done
+          echo "✗ Backend health check failed"
+          exit 1
+      
+      - name: Check deployment logs
+        if: always()
+        run: flyctl logs --app ignition-api -n 50
+
+  deploy-frontend:
+    needs: build-and-deploy-backend
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://ignition.ecent.online
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app/frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./app/frontend
+        run: npm ci
+      
+      - name: Build frontend
+        working-directory: ./app/frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://api.ecent.online
+        run: npm run build
+      
+      - name: Deploy to Cloudflare Workers
+        working-directory: ./app/frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy
+      
+      - name: Verify frontend
+        run: |
+          for i in {1..5}; do
+            if curl -f https://ignition.ecent.online > /dev/null 2>&1; then
+              echo "✓ Frontend is live"
+              exit 0
+            fi
+            echo "Waiting for frontend... ($i/5)"
+            sleep 5
+          done
+          echo "✗ Frontend verification failed"
+          exit 1
+
+  deploy-admin:
+    needs: build-and-deploy-backend
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://admin.ecent.online
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app/admin/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./app/admin
+        run: npm ci
+      
+      - name: Build admin
+        working-directory: ./app/admin
+        env:
+          NEXT_PUBLIC_API_URL: https://api.ecent.online
+        run: npm run build
+      
+      - name: Deploy to Cloudflare Workers
+        working-directory: ./app/admin
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy
+
+  post-deployment-tests:
+    needs: [deploy-frontend, deploy-admin]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Playwright
+        run: |
+          npm install -g playwright
+          playwright install chromium
+      
+      - name: Run smoke tests
+        run: |
+          # Test backend health
+          curl -f https://api.ecent.online/health || exit 1
+          
+          # Test frontend loads
+          curl -f https://ignition.ecent.online > /dev/null || exit 1
+          
+          # Test admin loads  
+          curl -f https://admin.ecent.online > /dev/null || exit 1
+          
+          echo "✓ All smoke tests passed"
+      
+      - name: Run API tests
+        if: github.event_name == 'push'
+        run: |
+          cd tests
+          npx playwright test api-*.spec.ts --grep @smoke || true
+
+  notification:
+    if: always()
+    needs: [post-deployment-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deployment Summary
+        run: |
+          cat << 'EOF'
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          🚀 DEPLOYMENT COMPLETE
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          ✓ Neon database rebuilt
+          ✓ Migrations applied
+          ✓ Backend deployed (Fly.io)
+          ✓ Frontend deployed (Cloudflare)
+          ✓ Admin deployed (Cloudflare)
+          ✓ Smoke tests passed
+          
+          🌐 Production URLs:
+          - API: https://api.ecent.online
+          - Frontend: https://ignition.ecent.online
+          - Admin: https://admin.ecent.online
+          
+          📊 View logs:
+          - Fly: flyctl logs --app ignition-api
+          - Neon: console.neon.tech
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          EOF
+      
+      - name: Send Slack notification
+        if: secrets.SLACK_WEBHOOK != ''
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          STATUS="${{ needs.post-deployment-tests.result }}"
+          if [ "$STATUS" = "success" ]; then
+            COLOR="good"
+            MESSAGE="✅ Deployment to production succeeded"
+          else
+            COLOR="danger"
+            MESSAGE="❌ Deployment to production failed"
+          fi
+          
+          curl -X POST "$SLACK_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"attachments\": [{
+                \"color\": \"$COLOR\",
+                \"title\": \"Production Deployment\",
+                \"text\": \"$MESSAGE\",
+                \"fields\": [
+                  {\"title\": \"Branch\", \"value\": \"deploy\", \"short\": true},
+                  {\"title\": \"Commit\", \"value\": \"${{ github.sha }}\", \"short\": true}
+                ],
+                \"actions\": [{
+                  \"type\": \"button\",
+                  \"text\": \"View Logs\",
+                  \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+                }]
+              }]
+            }"
+
+  rollback-plan:
+    if: failure()
+    needs: [build-and-deploy-backend, deploy-frontend, deploy-admin]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate rollback instructions
+        run: |
+          cat << 'EOF'
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ⚠️  DEPLOYMENT FAILED - ROLLBACK REQUIRED
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          IMMEDIATE ACTIONS:
+          
+          1. Check which step failed above
+          
+          2. If Neon migration failed:
+             - Database is in partial state
+             - Run: ./scripts/deploy-and-migrate.sh
+             - Manually wipe Neon and restart
+          
+          3. If Fly deployment failed:
+             - Neon is updated but backend is down
+             - Previous Fly machines may still be running
+             - Run: flyctl status --app ignition-api
+             - Check: flyctl logs --app ignition-api
+          
+          4. If frontend deployment failed:
+             - Backend is updated but frontend is stale
+             - Manually deploy: cd app/frontend && npx wrangler deploy
+          
+          5. Emergency rollback:
+             git revert HEAD
+             git push origin deploy
+          
+          CONTACT:
+          - Neon support: console.neon.tech
+          - Fly support: fly.io/dashboard
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          EOF

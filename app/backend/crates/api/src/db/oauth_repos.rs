@@ -20,20 +20,23 @@ impl OAuthStateRepo {
         redirect_uri: Option<&str>,
     ) -> AppResult<()> {
         let expires_at = Utc::now() + Duration::minutes(10);
+        let created_at = Utc::now();
         
         sqlx::query(
             r#"
-            INSERT INTO oauth_states (state_key, pkce_verifier, redirect_uri, expires_at)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO oauth_states (state_key, pkce_verifier, redirect_uri, created_at, expires_at)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (state_key) DO UPDATE SET
                 pkce_verifier = EXCLUDED.pkce_verifier,
                 redirect_uri = EXCLUDED.redirect_uri,
+                created_at = EXCLUDED.created_at,
                 expires_at = EXCLUDED.expires_at
             "#,
         )
         .bind(state_key)
         .bind(pkce_verifier)
         .bind(redirect_uri)
+        .bind(created_at)
         .bind(expires_at)
         .execute(pool)
         .await?;

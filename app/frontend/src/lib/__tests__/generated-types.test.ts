@@ -47,6 +47,7 @@ describe('Generated Types', () => {
         approved: true,
         age_verified: false,
         tos_accepted: true,
+        is_admin: false,
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
       };
@@ -71,6 +72,7 @@ describe('Generated Types', () => {
         approved: true,
         age_verified: true,
         tos_accepted: true,
+        is_admin: true,
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
       };
@@ -339,6 +341,7 @@ describe('Generated Types', () => {
         approved: false,
         age_verified: false,
         tos_accepted: false,
+        is_admin: false,
       };
 
       expect(createData.email).toBe('new@example.com');

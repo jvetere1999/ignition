@@ -133,6 +133,7 @@ pub struct Users {
     pub tos_accepted: bool,
     pub tos_accepted_at: Option<chrono::DateTime<chrono::Utc>>,
     pub tos_version: Option<String>,
+    pub is_admin: bool,
     pub last_activity_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -276,7 +277,6 @@ pub struct UserSkills {
     pub skill_key: String,
     pub current_stars: i32,
     pub current_level: i32,
-    pub total_stars: i32,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -303,6 +303,7 @@ pub struct FocusPauseState {
     pub id: Uuid,
     pub user_id: Uuid,
     pub session_id: Uuid,
+    pub mode: Option<String>,
     pub is_paused: bool,
     pub time_remaining_seconds: Option<i32>,
     pub paused_at: Option<chrono::DateTime<chrono::Utc>>,
@@ -327,6 +328,8 @@ pub struct FocusSessions {
     pub coins_awarded: i32,
     pub task_id: Option<Uuid>,
     pub task_title: Option<String>,
+    pub paused_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub paused_remaining_seconds: Option<i32>,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -415,8 +418,7 @@ pub struct Books {
     pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
     pub rating: Option<i32>,
     pub notes: Option<String>,
-    pub cover_url: Option<String>,
-    pub isbn: Option<String>,
+    pub cover_blob_id: Option<Uuid>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -550,14 +552,13 @@ pub struct UserLessonProgress {
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct MarketItems {
     pub id: Uuid,
-    pub key: Option<String>,
+    pub key: String,
     pub name: String,
     pub description: Option<String>,
     pub category: String,
     pub cost_coins: i32,
-    pub rarity: String,
+    pub rarity: Option<String>,
     pub icon: Option<String>,
-    pub icon_url: Option<String>,
     pub image_url: Option<String>,
     pub is_global: bool,
     pub is_available: bool,
@@ -566,8 +567,6 @@ pub struct MarketItems {
     pub uses_per_purchase: Option<i32>,
     pub total_stock: Option<i32>,
     pub remaining_stock: Option<i32>,
-    pub available_from: Option<chrono::DateTime<chrono::Utc>>,
-    pub available_until: Option<chrono::DateTime<chrono::Utc>>,
     pub created_by_user_id: Option<Uuid>,
     pub sort_order: i32,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -980,9 +979,8 @@ pub struct MarketTransactions {
 /// Database model for `oauth_states` table
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct OauthStates {
-    pub id: Uuid,
-    pub state: String,
-    pub provider: String,
+    pub state_key: String,
+    pub pkce_verifier: String,
     pub redirect_uri: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub expires_at: chrono::DateTime<chrono::Utc>,
@@ -1012,7 +1010,7 @@ pub struct PointsLedger {
     pub event_id: Option<Uuid>,
     pub coins: i32,
     pub xp: i32,
-    pub skill_stars: Option<i32>,
+    pub skill_stars: i32,
     pub skill_key: Option<String>,
     pub reason: Option<String>,
     pub idempotency_key: Option<String>,

@@ -118,6 +118,7 @@ export interface Users {
   tos_accepted: boolean;
   tos_accepted_at?: string;
   tos_version?: string;
+  is_admin: boolean;
   last_activity_at?: string;
   created_at: string;
   updated_at: string;
@@ -252,7 +253,6 @@ export interface UserSkills {
   skill_key: string;
   current_stars: number;
   current_level: number;
-  total_stars: number;
   created_at: string;
   updated_at: string;
 }
@@ -277,6 +277,7 @@ export interface FocusPauseState {
   id: string;
   user_id: string;
   session_id: string;
+  mode?: string;
   is_paused: boolean;
   time_remaining_seconds?: number;
   paused_at?: string;
@@ -300,6 +301,8 @@ export interface FocusSessions {
   coins_awarded: number;
   task_id?: string;
   task_title?: string;
+  paused_at?: string;
+  paused_remaining_seconds?: number;
   created_at: string;
 }
 
@@ -383,8 +386,7 @@ export interface Books {
   completed_at?: string;
   rating?: number;
   notes?: string;
-  cover_url?: string;
-  isbn?: string;
+  cover_blob_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -510,14 +512,13 @@ export interface UserLessonProgress {
 /** Database model for `market_items` table */
 export interface MarketItems {
   id: string;
-  key?: string;
+  key: string;
   name: string;
   description?: string;
   category: string;
   cost_coins: number;
-  rarity: string;
+  rarity?: string;
   icon?: string;
-  icon_url?: string;
   image_url?: string;
   is_global: boolean;
   is_available: boolean;
@@ -526,8 +527,6 @@ export interface MarketItems {
   uses_per_purchase?: number;
   total_stock?: number;
   remaining_stock?: number;
-  available_from?: string;
-  available_until?: string;
   created_by_user_id?: string;
   sort_order: number;
   created_at: string;
@@ -915,9 +914,8 @@ export interface MarketTransactions {
 
 /** Database model for `oauth_states` table */
 export interface OauthStates {
-  id: string;
-  state: string;
-  provider: string;
+  state_key: string;
+  pkce_verifier: string;
   redirect_uri?: string;
   created_at: string;
   expires_at: string;
@@ -945,7 +943,7 @@ export interface PointsLedger {
   event_id?: string;
   coins: number;
   xp: number;
-  skill_stars?: number;
+  skill_stars: number;
   skill_key?: string;
   reason?: string;
   idempotency_key?: string;

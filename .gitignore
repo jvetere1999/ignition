@@ -1,51 +1,333 @@
-# Dependencies
+# ============================================================================
+# SECURITY & SECRETS - CRITICAL
+# ============================================================================
+# Never commit tokens, credentials, or sensitive data
+token
+tokens/
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+.envrc
+secrets/
+credentials/
+*.secret
+
+# Cloud provider configs with potential secrets
+fly.toml.local
+wrangler.toml.local
+.wrangler/
+.cloudflare/
+.aws/
+.azure/
+
+# Database connection strings
+database.url
+*.db.url
+pgpass
+.pgpass
+
+# ============================================================================
+# AGENT & AI DEVELOPMENT
+# ============================================================================
+# Agent state tracking and prompts (internal dev only)
+agent/
+qc/agent/
+prompts/
+deprecated/agent/
+*.prompt.md
+.copilot/
+.aider*
+.agent/
+
+# AI Toolkit
+.aitk/
+
+# ============================================================================
+# BUILD OUTPUTS & ARTIFACTS
+# ============================================================================
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Node.js
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
 .pnpm-store/
-package-lock.json
 
 # Next.js
 .next/
 out/
-
-# OpenNext build output
 .open-next/
+.vercel
 
-# Wrangler
-.wrangler/
-.dev.vars
+# Build artifacts
+dist/
+build/
+*.wasm
 
-# Testing
-coverage/
-playwright-report/
+# ============================================================================
+# GENERATED CODE
+# ============================================================================
+# Schema generator outputs at root (should use tools/schema-generator/ instead)
+/generated_*.rs
+/generated_*.ts
+/generated_*.sql
+/generated_*.txt
+
+# Keep generated code in expected locations
+!app/backend/crates/api/src/db/generated.rs
+!app/frontend/src/lib/generated_types.ts
+!app/backend/migrations/0001_schema.sql
+!app/backend/migrations/0002_seeds.sql
+
+# ============================================================================
+# DATABASES & DATA
+# ============================================================================
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Database dumps
+*.sql.gz
+*.dump
+db_dump/
+backups/
+
+# Test data
+test-data/
+fixtures/private/
+
+# ============================================================================
+# OPERATING SYSTEMS
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# IDEs & EDITORS
+# ============================================================================
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+Session.vim
+Sessionx.vim
+.netrwhist
+tags
+[._]*.un~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+.org-id-locations
+*_archive
+*_flymake.*
+/eshell/history
+/eshell/lastdir
+/elpa/
+*.rel
+
+# Sublime Text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+sftp-config.json
+sftp-config-alt*.json
+Package Control.last-run
+Package Control.ca-list
+Package Control.ca-bundle
+Package Control.system-ca-bundle
+Package Control.cache/
+Package Control.ca-certs/
+Package Control.merged-ca-bundle
+Package Control.user-ca-bundle
+oscrypto-ca-bundle.crt
+bh_unicode_properties.cache
+GitHub.sublime-settings
+
+# ============================================================================
+# TESTING
+# ============================================================================
+# Test results
 test-results/
+coverage/
+.nyc_output/
+*.lcov
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.hypothesis/
 
-# Performance baselines (generated)
+# Playwright
+playwright-report/
+playwright/.cache/
+
+# Performance baselines
 .perf/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Environment files (local only)
-.env
-.env.local
-.env.*.local
-.dev.vars
-
+# ============================================================================
+# LOGS & TEMP FILES
+# ============================================================================
 # Logs
+logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
+# Temp files
+tmp/
+.tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.cache
+
+# ============================================================================
+# DOCKER
+# ============================================================================
+.dockerignore
+docker-compose.override.yml
+.docker/
+
+# ============================================================================
+# MONITORING & PROFILING
+# ============================================================================
+*.prof
+*.trace
+*.memprof
+.flamegraph/
+
+# ============================================================================
+# PACKAGE MANAGERS
+# ============================================================================
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.venv
+venv/
+ENV/
+env/
+.spyderproject
+.spyproject
+.ropeproject
+
+# Rust
+**/*.rs.bk
+
+# ============================================================================
+# DEPLOYMENT
+# ============================================================================
+# Fly.io
+.fly/
+
+# Cloudflare
+.dev.vars
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# ============================================================================
+# MISCELLANEOUS
+# ============================================================================
 # TypeScript
 *.tsbuildinfo
 
-# Temp files
-.tmp/
-.agent/
+# Sentry
+.sentryclirc
 
