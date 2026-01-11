@@ -192,13 +192,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: app/frontend/package-lock.json
       
       - name: Install dependencies
         working-directory: ./app/frontend
-        run: npm ci
+        run: npm install --legacy-peer-deps
       
       - name: Build frontend
         working-directory: ./app/frontend
@@ -239,13 +239,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: app/admin/package-lock.json
       
       - name: Install dependencies
         working-directory: ./app/admin
-        run: npm ci
+        run: npm install --legacy-peer-deps
       
       - name: Build admin
         working-directory: ./app/admin
