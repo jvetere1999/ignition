@@ -387,7 +387,7 @@ async fn fetch_dynamic_ui(pool: &PgPool, user_id: Uuid) -> Result<DynamicUIData,
     let pending_habits = sqlx::query_scalar::<_, i64>(
         r#"
         SELECT COUNT(*) FROM habits h
-        WHERE h.user_id = $1 AND h.archived = false
+        WHERE h.user_id = $1 AND h.is_active = true
         AND NOT EXISTS (
             SELECT 1 FROM habit_completions hl 
             WHERE hl.habit_id = h.id 

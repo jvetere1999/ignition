@@ -11,12 +11,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import styles from "./page.module.css";
+import { ApiTestTool } from "@/components/ApiTestTool";
 
 // API base URL - will be api.ecent.online once backend is deployed
 // For now, use relative paths (works with main app or backend proxy)
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-type AdminTab = "users" | "quests" | "feedback" | "skills" | "content" | "stats" | "database";
+type AdminTab = "users" | "quests" | "feedback" | "skills" | "content" | "stats" | "database" | "api-test";
 
 interface User {
   id: string;
@@ -370,13 +371,13 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
 
       {/* Tabs */}
       <div className={styles.tabs}>
-        {(["users", "quests", "feedback", "skills", "content", "stats", "database"] as AdminTab[]).map((tab) => (
+        {(["users", "quests", "feedback", "skills", "content", "stats", "database", "api-test"] as AdminTab[]).map((tab) => (
           <button
             key={tab}
             className={`${styles.tab} ${activeTab === tab ? styles.active : ""}`}
             onClick={() => setActiveTab(tab)}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === "api-test" ? "API Test" : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
@@ -802,6 +803,11 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
             {/* Database Tab */}
             {activeTab === "database" && (
               <DatabaseTab />
+            )}
+
+            {/* API Test Tool Tab */}
+            {activeTab === "api-test" && (
+              <ApiTestTool />
             )}
           </>
         )}

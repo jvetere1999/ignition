@@ -1,0 +1,42 @@
+fix: sync.rs date cast hotfix + admin API test tool
+
+PRODUCTION HOTFIXES
+-------------------
+sync.rs:436 - Add missing ::date cast for habit completion filtering
+  Issue: Query comparing DATE column to TEXT parameter causing type mismatch
+  Fix: Changed 'hc.completed_date = $2' to 'hc.completed_date = $2::date'
+  Impact: Fixes 500 errors on sync polling, restores badge/plan updates
+
+today.rs:395 - Already fixed in previous session (confirmed working)
+  Schema correctly uses h.is_active = true, not h.archived
+
+NEW FEATURES
+------------
+Admin API Test Tool - Complete implementation
+  - api-endpoints.ts: Registry of 35+ endpoints with metadata
+  - ApiTestTool.tsx: Visual request builder, response viewer, test history
+  - ApiTestTool.module.css: Dark theme styling, status-based colors
+  - AdminClient.tsx: Integrated as new 'API Test' tab
+
+VALIDATION
+----------
+✅ cargo check: 0 errors (12 warnings pre-existing)
+✅ npm lint (frontend): 0 errors (50+ warnings pre-existing)  
+✅ npm lint (admin): 0 errors
+
+FILES CHANGED
+-------------
+Modified:
+  - app/backend/crates/api/src/routes/sync.rs (1 line)
+  - app/admin/src/app/AdminClient.tsx (imports + tab integration)
+
+New:
+  - app/admin/src/lib/api-endpoints.ts
+  - app/admin/src/components/ApiTestTool.tsx
+  - app/admin/src/components/ApiTestTool.module.css
+
+DEPLOYMENT
+----------
+Backend MUST be recompiled (sync.rs change)
+Frontend/Admin auto-deploy via GitHub Actions
+Monitor: Fly.io logs for sync endpoint 500 error resolution

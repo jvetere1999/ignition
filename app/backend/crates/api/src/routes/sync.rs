@@ -433,7 +433,7 @@ async fn fetch_pending_habits_count(pool: &PgPool, user_id: Uuid) -> Result<i32,
           AND NOT EXISTS (
             SELECT 1 FROM habit_completions hc 
             WHERE hc.habit_id = h.id 
-              AND hc.completed_date = $2
+              AND hc.completed_date = $2::date
           )
         "#
     )
