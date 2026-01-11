@@ -2,7 +2,30 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [deploy]
+    branches: [production]
+    paths:
+      - 'app/backend/**'
+      - 'app/frontend/**'
+      - 'app/admin/**'
+      - 'app/database/**'
+      - 'app/backend/migrations/**'
+      - 'tools/schema-generator/**'
+      - 'deploy/cloudflare-admin/**'
+      - '.github/workflows/deploy-production.yml'
+  workflow_dispatch:
+    inputs:
+      skip_db:
+        description: 'Skip database rebuild (use incremental migrations)'
+        type: boolean
+        default: false
+      skip_frontend:
+        description: 'Skip frontend deployment'
+        type: boolean
+        default: false
+      skip_admin:
+        description: 'Skip admin deployment'
+        type: boolean
+        default: false
 
 env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

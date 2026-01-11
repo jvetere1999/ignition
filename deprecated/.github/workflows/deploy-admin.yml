@@ -1,13 +1,23 @@
-name: Deploy Admin
+name: Deploy Frontend & Admin
 
 on:
   push:
-    branches: [main]
+    branches: [production]
     paths:
+      - 'app/frontend/**'
       - 'app/admin/**'
       - 'deploy/cloudflare-admin/**'
       - '.github/workflows/deploy-admin.yml'
   workflow_dispatch:
+    inputs:
+      deploy_frontend:
+        description: 'Deploy frontend'
+        type: boolean
+        default: true
+      deploy_admin:
+        description: 'Deploy admin'
+        type: boolean
+        default: true
 
 jobs:
   deploy:
