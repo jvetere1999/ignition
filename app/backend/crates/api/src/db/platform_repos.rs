@@ -450,13 +450,13 @@ impl DailyPlanRepo {
         #[derive(FromRow)]
         struct QuestRow {
             id: Uuid,
-            title: String,
+            name: String,
             description: Option<String>,
         }
 
         let quests = sqlx::query_as::<_, QuestRow>(
             r#"
-            SELECT q.id, q.title, q.description
+            SELECT q.id, q.name, q.description
             FROM universal_quests q
             LEFT JOIN user_quest_progress p ON q.id = p.quest_id AND p.user_id = $1
             WHERE q.is_active = true AND (p.completed IS NULL OR p.completed = false)
@@ -472,7 +472,7 @@ impl DailyPlanRepo {
             items.push(PlanItem {
                 id: format!("plan_quest_{}", quest.id),
                 item_type: "quest".to_string(),
-                title: quest.title,
+                title: quest.name,
                 description: quest.description,
                 duration: None,
                 action_url: "/quests".to_string(),

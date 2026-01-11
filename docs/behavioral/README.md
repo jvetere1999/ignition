@@ -5,6 +5,7 @@ This section tracks system behavior, implementation verifications, architectural
 ## Contents
 
 ### Core Behavioral Docs
+- [Database Schema Rebuild](./database-schema-rebuild.md) - Target schema specification and rebuild plan
 - [Authentication & Cross-Domain Session](./authentication.md) - Session management, cookie domains, OAuth flow
 - [Admin System Implementation](./admin-system.md) - Admin role verification, claiming mechanism, access control
 - [Architecture Stateless Sync](./architecture-sync.md) - Backend/frontend split validation, state management patterns
@@ -18,6 +19,7 @@ This section tracks system behavior, implementation verifications, architectural
 
 ### Active Issues (⚠️ requires action)
 See [Outstanding Issues & TODOs](./ISSUES_AND_TODOS.md) for:
+- 🔴 **Database Schema Mismatch** (Critial Blocker) - Missing tables/columns causing widespread errors
 - Server-side auth checks in 20+ page components (redirect loop risk)
 - Frontend database code in deprecated location
 - Need manual OAuth flow verification in production

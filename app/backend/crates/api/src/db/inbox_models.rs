@@ -1,6 +1,6 @@
 //! Inbox models
 //!
-//! Models for user inbox (quick capture notes).
+//! Models for user inbox notifications and action items.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -16,11 +16,16 @@ use uuid::Uuid;
 pub struct InboxItem {
     pub id: Uuid,
     pub user_id: Uuid,
+    pub item_type: String,
     pub title: String,
-    pub description: Option<String>,
-    pub tags: Option<Vec<String>>,
+    pub body: Option<String>,
+    pub action_url: Option<String>,
+    pub action_data: Option<serde_json::Value>,
+    pub priority: i32,
+    pub is_read: bool,
+    pub is_archived: bool,
+    pub expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
 }
 
 // ============================================================================
@@ -30,50 +35,67 @@ pub struct InboxItem {
 /// Create inbox item request
 #[derive(Debug, Deserialize)]
 pub struct CreateInboxRequest {
+    pub item_type: String,
     pub title: String,
     #[serde(default)]
-    pub description: Option<String>,
+    pub body: Option<String>,
     #[serde(default)]
-    pub tags: Option<Vec<String>>,
+    pub action_url: Option<String>,
+    #[serde(default)]
+    pub action_data: Option<serde_json::Value>,
+    #[serde(default)]
+    pub priority: Option<i32>,
+    #[serde(default)]
+    pub expires_at: Option<DateTime<Utc>>,
 }
 
 /// Update inbox item request
 #[derive(Debug, Deserialize)]
 pub struct UpdateInboxRequest {
-    pub title: Option<String>,
-    pub description: Option<String>,
-    pub tags: Option<Vec<String>>,
+    pub is_read: Option<bool>,
+    pub is_archived: Option<bool>,
 }
 
 /// Inbox item response
 #[derive(Debug, Serialize)]
 pub struct InboxResponse {
     pub id: Uuid,
+    pub item_type: String,
     pub title: String,
-    pub description: Option<String>,
-    pub tags: Option<Vec<String>>,
+    pub body: Option<String>,
+    pub action_url: Option<String>,
+    pub action_data: Option<serde_json::Value>,
+    pub priority: i32,
+    pub is_read: bool,
+    pub is_archived: bool,
+    pub expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
 }
 
 impl From<InboxItem> for InboxResponse {
     fn from(item: InboxItem) -> Self {
         InboxResponse {
             id: item.id,
+            item_type: item.item_type,
             title: item.title,
-            description: item.description,
-            tags: item.tags,
+            body: item.body,
+            action_url: item.action_url,
+            action_data: item.action_data,
+            priority: item.priority,
+            is_read: item.is_read,
+            is_archived: item.is_archived,
+            expires_at: item.expires_at,
             created_at: item.created_at,
-            updated_at: item.updated_at,
         }
     }
 }
 
-/// Inbox list response
+/// List inbox response
 #[derive(Debug, Serialize)]
 pub struct InboxListResponse {
     pub items: Vec<InboxResponse>,
     pub total: i64,
+    pub unread_count: i64,
     pub page: i64,
     pub page_size: i64,
 }

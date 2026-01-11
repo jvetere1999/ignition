@@ -112,15 +112,18 @@ export function FocusStateProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch("/api/focus/active");
       if (response.ok) {
-        const data = await response.json() as { session?: FocusSession | null };
-        if (data.session && data.session.status === "active") {
-          setSession(data.session);
+        // Backend returns { data: { session: ..., pause_state: ... } }
+        const body = await response.json() as { data?: { session?: FocusSession; pause_state?: PausedState } };
+        const { session, pause_state } = body.data || {};
+        
+        if (session && session.status === "active") {
+          setSession(session);
           setPausedState(null);
 
           // Calculate remaining time
-          const startTime = new Date(data.session.started_at).getTime();
+          const startTime = new Date(session.started_at).getTime();
           const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          const remaining = Math.max(0, data.session.planned_duration - elapsed);
+          const remaining = Math.max(0, session.planned_duration - elapsed);
           setTimeRemaining(remaining);
         } else {
           setSession(null);
@@ -128,12 +131,24 @@ export function FocusStateProvider({ children }: { children: ReactNode }) {
           // Check for paused state from D1 API (if deprecation enabled)
           if (DISABLE_MASS_LOCAL_PERSISTENCE) {
             try {
+              // Only fetch specific pause state if active didn't return it
+              if (pause_state) {
+                 // Used pause_state from active response
+                 setPausedState(pause_state);
+                 setTimeRemaining(pause_state.timeRemaining);
+                 return;
+              }
+
+              // Fallback to explicit endpoint if needed (unlikely if active endpoint works)
+              // But keeping logic similar to before
               const pauseResponse = await fetch("/api/focus/pause");
               if (pauseResponse.ok) {
-                const pauseData = await pauseResponse.json() as { pauseState?: PausedState | null };
-                if (pauseData.pauseState) {
-                  setPausedState(pauseData.pauseState);
-                  setTimeRemaining(pauseData.pauseState.timeRemaining);
+                const pauseBody = await pauseResponse.json() as { data?: PausedState };
+                const pauseState = pauseBody.data;
+                
+                if (pauseState) {
+                  setPausedState(pauseState);
+                  setTimeRemaining(pauseState.timeRemaining);
                 } else {
                   setPausedState(null);
                   setTimeRemaining(0);

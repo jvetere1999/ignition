@@ -84,7 +84,7 @@ impl HabitsRepo {
 
         // Get today's completions
         let completions = sqlx::query_scalar::<_, Uuid>(
-            r#"SELECT habit_id FROM habit_logs
+            r#"SELECT habit_id FROM habit_completions
                WHERE user_id = $1 AND completed_date = $2"#,
         )
         .bind(user_id)
@@ -130,7 +130,7 @@ impl HabitsRepo {
 
         // Check if already completed today
         let already_completed = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM habit_logs WHERE habit_id = $1 AND completed_date = $2",
+            "SELECT COUNT(*) FROM habit_completions WHERE habit_id = $1 AND completed_date = $2",
         )
         .bind(habit_id)
         .bind(today)
@@ -163,7 +163,7 @@ impl HabitsRepo {
 
         // Get last completion date
         let last_date = sqlx::query_scalar::<_, NaiveDate>(
-            r#"SELECT completed_date FROM habit_logs
+            r#"SELECT completed_date FROM habit_completions
                WHERE habit_id = $1 ORDER BY completed_date DESC LIMIT 1"#,
         )
         .bind(habit_id)
@@ -187,7 +187,7 @@ impl HabitsRepo {
 
         // Insert log
         sqlx::query(
-            r#"INSERT INTO habit_logs (habit_id, user_id, completed_date, notes)
+            r#"INSERT INTO habit_completions (habit_id, user_id, completed_date, notes)
                VALUES ($1, $2, $3, $4)"#,
         )
         .bind(habit_id)

@@ -204,7 +204,7 @@ async fn fetch_progress(pool: &PgPool, user_id: Uuid) -> Result<ProgressData, Ap
     let row = sqlx::query_as::<_, (i32, i64, i64, i32)>(
         r#"
         SELECT 
-            COALESCE(up.level, 1) as level,
+            COALESCE(up.current_level, 1) as level,
             COALESCE(up.total_xp, 0) as total_xp,
             COALESCE(up.coins, 0) as coins,
             COALESCE(up.streak_days, 0) as streak_days

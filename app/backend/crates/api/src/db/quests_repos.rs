@@ -11,6 +11,12 @@ use super::gamification_repos::GamificationRepo;
 use super::quests_models::*;
 use crate::error::AppError;
 
+// Column list for user_quests table - matches Quest struct field order exactly
+const QUEST_COLUMNS: &str = r#"id, user_id, source_quest_id, title, description, category, difficulty,
+    xp_reward, coin_reward, status, progress, target, is_active, is_repeatable,
+    repeat_frequency, accepted_at, completed_at, claimed_at, expires_at,
+    last_completed_date, streak_count, created_at, updated_at"#;
+
 // ============================================================================
 // QUESTS REPOSITORY
 // ============================================================================
@@ -36,28 +42,30 @@ impl QuestsRepo {
 
         let xp = req.xp_reward.unwrap_or(default_xp);
         let coins = req.coin_reward.unwrap_or(default_coins);
+        let target = req.target.unwrap_or(1);
 
-        let quest = sqlx::query_as::<_, Quest>(
-            r#"INSERT INTO quests
+        let query = format!(
+            r#"INSERT INTO user_quests
                (user_id, title, description, category, difficulty, xp_reward, coin_reward,
-                is_repeatable, repeat_frequency, status)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'available')
-               RETURNING id, user_id, title, description, category, difficulty, xp_reward, coin_reward,
-                         status, is_active, is_universal, source_quest_id, accepted_at, completed_at,
-                         expires_at, is_repeatable, repeat_frequency, last_completed_date,
-                         streak_count, created_at, updated_at"#,
-        )
-        .bind(user_id)
-        .bind(&req.title)
-        .bind(&req.description)
-        .bind(&req.category)
-        .bind(&req.difficulty)
-        .bind(xp)
-        .bind(coins)
-        .bind(req.is_repeatable.unwrap_or(false))
-        .bind(&req.repeat_frequency)
-        .fetch_one(pool)
-        .await?;
+                target, is_repeatable, repeat_frequency, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active')
+               RETURNING {}"#,
+            QUEST_COLUMNS
+        );
+
+        let quest = sqlx::query_as::<_, Quest>(&query)
+            .bind(user_id)
+            .bind(&req.title)
+            .bind(&req.description)
+            .bind(&req.category)
+            .bind(&req.difficulty)
+            .bind(xp)
+            .bind(coins)
+            .bind(target)
+            .bind(req.is_repeatable.unwrap_or(false))
+            .bind(&req.repeat_frequency)
+            .fetch_one(pool)
+            .await?;
 
         Ok(quest)
     }
@@ -68,17 +76,16 @@ impl QuestsRepo {
         quest_id: Uuid,
         user_id: Uuid,
     ) -> Result<Option<Quest>, AppError> {
-        let quest = sqlx::query_as::<_, Quest>(
-            r#"SELECT id, user_id, title, description, category, difficulty, xp_reward, coin_reward,
-                      status, is_active, is_universal, source_quest_id, accepted_at, completed_at,
-                      expires_at, is_repeatable, repeat_frequency, last_completed_date,
-                      streak_count, created_at, updated_at
-               FROM quests WHERE id = $1 AND user_id = $2"#,
-        )
-        .bind(quest_id)
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await?;
+        let query = format!(
+            r#"SELECT {} FROM user_quests WHERE id = $1 AND user_id = $2"#,
+            QUEST_COLUMNS
+        );
+
+        let quest = sqlx::query_as::<_, Quest>(&query)
+            .bind(quest_id)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await?;
 
         Ok(quest)
     }
@@ -90,32 +97,28 @@ impl QuestsRepo {
         status_filter: Option<&str>,
     ) -> Result<QuestsListResponse, AppError> {
         let quests = if let Some(status) = status_filter {
-            sqlx::query_as::<_, Quest>(
-                r#"SELECT id, user_id, title, description, category, difficulty, xp_reward, coin_reward,
-                          status, is_active, is_universal, source_quest_id, accepted_at, completed_at,
-                          expires_at, is_repeatable, repeat_frequency, last_completed_date,
-                          streak_count, created_at, updated_at
-                   FROM quests
+            let query = format!(
+                r#"SELECT {} FROM user_quests
                    WHERE user_id = $1 AND status = $2 AND is_active = true
                    ORDER BY created_at DESC"#,
-            )
-            .bind(user_id)
-            .bind(status)
-            .fetch_all(pool)
-            .await?
+                QUEST_COLUMNS
+            );
+            sqlx::query_as::<_, Quest>(&query)
+                .bind(user_id)
+                .bind(status)
+                .fetch_all(pool)
+                .await?
         } else {
-            sqlx::query_as::<_, Quest>(
-                r#"SELECT id, user_id, title, description, category, difficulty, xp_reward, coin_reward,
-                          status, is_active, is_universal, source_quest_id, accepted_at, completed_at,
-                          expires_at, is_repeatable, repeat_frequency, last_completed_date,
-                          streak_count, created_at, updated_at
-                   FROM quests
+            let query = format!(
+                r#"SELECT {} FROM user_quests
                    WHERE user_id = $1 AND is_active = true
                    ORDER BY created_at DESC"#,
-            )
-            .bind(user_id)
-            .fetch_all(pool)
-            .await?
+                QUEST_COLUMNS
+            );
+            sqlx::query_as::<_, Quest>(&query)
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?
         };
 
         let total = quests.len() as i64;
@@ -135,26 +138,26 @@ impl QuestsRepo {
         let quest = Self::get_by_id(pool, quest_id, user_id).await?;
         let quest = quest.ok_or_else(|| AppError::NotFound("Quest not found".to_string()))?;
 
-        if quest.status != "available" {
+        if quest.status != "active" {
             return Err(AppError::BadRequest(format!(
                 "Quest cannot be accepted (status: {})",
                 quest.status
             )));
         }
 
-        let updated = sqlx::query_as::<_, Quest>(
-            r#"UPDATE quests
-               SET status = 'accepted', accepted_at = NOW()
+        let query = format!(
+            r#"UPDATE user_quests
+               SET status = 'accepted'
                WHERE id = $1 AND user_id = $2
-               RETURNING id, user_id, title, description, category, difficulty, xp_reward, coin_reward,
-                         status, is_active, is_universal, source_quest_id, accepted_at, completed_at,
-                         expires_at, is_repeatable, repeat_frequency, last_completed_date,
-                         streak_count, created_at, updated_at"#,
-        )
-        .bind(quest_id)
-        .bind(user_id)
-        .fetch_one(pool)
-        .await?;
+               RETURNING {}"#,
+            QUEST_COLUMNS
+        );
+
+        let updated = sqlx::query_as::<_, Quest>(&query)
+            .bind(quest_id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
 
         Ok(updated)
     }
@@ -168,7 +171,7 @@ impl QuestsRepo {
         let quest = Self::get_by_id(pool, quest_id, user_id).await?;
         let quest = quest.ok_or_else(|| AppError::NotFound("Quest not found".to_string()))?;
 
-        if quest.status != "accepted" && quest.status != "available" {
+        if quest.status != "accepted" && quest.status != "active" {
             return Err(AppError::BadRequest(format!(
                 "Quest cannot be completed (status: {})",
                 quest.status
@@ -190,22 +193,22 @@ impl QuestsRepo {
         };
 
         // Update quest
-        let updated = sqlx::query_as::<_, Quest>(
-            r#"UPDATE quests
+        let query = format!(
+            r#"UPDATE user_quests
                SET status = 'completed', completed_at = NOW(),
                    last_completed_date = $1, streak_count = $2
                WHERE id = $3 AND user_id = $4
-               RETURNING id, user_id, title, description, category, difficulty, xp_reward, coin_reward,
-                         status, is_active, is_universal, source_quest_id, accepted_at, completed_at,
-                         expires_at, is_repeatable, repeat_frequency, last_completed_date,
-                         streak_count, created_at, updated_at"#,
-        )
-        .bind(today)
-        .bind(new_streak)
-        .bind(quest_id)
-        .bind(user_id)
-        .fetch_one(pool)
-        .await?;
+               RETURNING {}"#,
+            QUEST_COLUMNS
+        );
+
+        let updated = sqlx::query_as::<_, Quest>(&query)
+            .bind(today)
+            .bind(new_streak)
+            .bind(quest_id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
 
         // Award points with idempotency
         let idempotency_key = format!("quest_complete_{}_{}", quest_id, today);
@@ -250,19 +253,19 @@ impl QuestsRepo {
             )));
         }
 
-        let updated = sqlx::query_as::<_, Quest>(
-            r#"UPDATE quests
+        let query = format!(
+            r#"UPDATE user_quests
                SET status = 'abandoned'
                WHERE id = $1 AND user_id = $2
-               RETURNING id, user_id, title, description, category, difficulty, xp_reward, coin_reward,
-                         status, is_active, is_universal, source_quest_id, accepted_at, completed_at,
-                         expires_at, is_repeatable, repeat_frequency, last_completed_date,
-                         streak_count, created_at, updated_at"#,
-        )
-        .bind(quest_id)
-        .bind(user_id)
-        .fetch_one(pool)
-        .await?;
+               RETURNING {}"#,
+            QUEST_COLUMNS
+        );
+
+        let updated = sqlx::query_as::<_, Quest>(&query)
+            .bind(quest_id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
 
         Ok(updated)
     }

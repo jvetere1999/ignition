@@ -9,6 +9,24 @@ This document consolidates all outstanding issues, known bugs, deprecated code, 
 
 ## 🔴 CRITICAL ISSUES (Block Deployment)
 
+### Issue #0: Database Schema Mismatch (Widespread Failures)
+**Severity:** BLOCKER
+**Status:** 🔴 OPEN
+**Source:** `agent/ERROR_SUMMARY.md`
+
+#### Symptoms
+- "relation does not exist" errors for `inbox_items`, `user_quests`, `habit_completions`, `reference_tracks`.
+- "column does not exist" errors (e.g., `up.level` in user profile).
+- Planner 404s, Focus not saving, Market failure.
+
+#### Root Cause
+The database schema is significantly behind the application code. It appears to be missing migrations from `0004` onwards (Habits, Quests, Market, Inbox), or they were applied partially.
+
+#### Action Required
+1. **Sync Migrations:** Ensure `app/backend/migrations` matches authoritative source.
+2. **Full Reset:** Drop all tables in the database.
+3. **Re-migrate:** Apply all migrations from scratch (`0001` to `0021+`).
+
 ### Issue #1: Server-Side Auth Checks Causing Redirect Loop
 **Severity:** CRITICAL  
 **Status:** ⚠️ IN PROGRESS - Partially fixed  

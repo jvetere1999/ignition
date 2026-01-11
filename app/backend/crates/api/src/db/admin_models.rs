@@ -246,39 +246,52 @@ pub struct AdminFeedbackResponse {
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct AdminQuest {
     pub id: Uuid,
-    pub title: String,
-    pub description: String,
+    pub key: Option<String>,
+    pub name: String,
+    pub description: Option<String>,
     pub quest_type: String,
+    pub category: Option<String>,
     pub xp_reward: i32,
     pub coin_reward: i32,
-    pub target: i32,
-    pub skill_id: Option<String>,
+    pub skill_key: Option<String>,
+    pub skill_star_reward: i32,
+    pub is_recurring: bool,
+    pub recurrence_period: Option<String>,
     pub is_active: bool,
+    pub sort_order: i32,
     pub created_at: DateTime<Utc>,
 }
 
 /// Create quest request
 #[derive(Debug, Clone, Deserialize)]
 pub struct CreateQuestRequest {
-    pub title: String,
-    pub description: String,
+    pub key: Option<String>,
+    pub name: String,
+    pub description: Option<String>,
     pub quest_type: Option<String>,
+    pub category: Option<String>,
     pub xp_reward: Option<i32>,
     pub coin_reward: Option<i32>,
-    pub target: Option<i32>,
-    pub skill_id: Option<String>,
+    pub skill_key: Option<String>,
+    pub skill_star_reward: Option<i32>,
+    pub is_recurring: Option<bool>,
+    pub recurrence_period: Option<String>,
 }
 
 /// Update quest request
 #[derive(Debug, Clone, Deserialize)]
 pub struct UpdateQuestRequest {
-    pub title: Option<String>,
+    pub key: Option<String>,
+    pub name: Option<String>,
     pub description: Option<String>,
     pub quest_type: Option<String>,
+    pub category: Option<String>,
     pub xp_reward: Option<i32>,
     pub coin_reward: Option<i32>,
-    pub target: Option<i32>,
-    pub skill_id: Option<String>,
+    pub skill_key: Option<String>,
+    pub skill_star_reward: Option<i32>,
+    pub is_recurring: Option<bool>,
+    pub recurrence_period: Option<String>,
     pub is_active: Option<bool>,
 }
 

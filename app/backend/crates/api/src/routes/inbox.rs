@@ -35,6 +35,8 @@ pub struct ListQuery {
     pub page: i64,
     #[serde(default = "default_page_size")]
     pub page_size: i64,
+    #[serde(default)]
+    pub include_archived: bool,
 }
 
 fn default_page() -> i64 {
@@ -75,7 +77,7 @@ async fn list_inbox(
     Extension(user): Extension<User>,
     Query(query): Query<ListQuery>,
 ) -> Result<Json<ListWrapper>, AppError> {
-    let response = InboxRepo::list(&state.db, user.id, query.page, query.page_size).await?;
+    let response = InboxRepo::list(&state.db, user.id, query.page, query.page_size, query.include_archived).await?;
     Ok(Json(ListWrapper { data: response }))
 }
 
@@ -88,6 +90,9 @@ async fn create_inbox_item(
 ) -> Result<Json<ItemWrapper>, AppError> {
     if req.title.is_empty() {
         return Err(AppError::Validation("Title cannot be empty".into()));
+    }
+    if req.item_type.is_empty() {
+        return Err(AppError::Validation("Item type cannot be empty".into()));
     }
 
     let item = InboxRepo::create(&state.db, user.id, &req).await?;

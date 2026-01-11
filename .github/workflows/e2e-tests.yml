@@ -1,0 +1,151 @@
+# E2E API Tests
+#
+# Runs comprehensive E2E tests against the backend API using
+# Docker Compose with PostgreSQL and MinIO.
+#
+# Tests use AUTH_DEV_BYPASS=true for authentication bypass.
+#
+# Triggers:
+#   - Push to main (backend changes)
+#   - Pull requests (backend changes)
+#   - Manual dispatch
+
+name: E2E API Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/backend/**'
+      - 'tests/api-*.spec.ts'
+      - 'infra/docker-compose.e2e.yml'
+      - '.github/workflows/e2e-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/backend/**'
+      - 'tests/api-*.spec.ts'
+      - 'infra/docker-compose.e2e.yml'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ignition
+          POSTGRES_PASSWORD: ignition_test
+          POSTGRES_DB: ignition_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/backend -> target
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm install -g playwright
+          npx playwright install --with-deps chromium
+
+      - name: Apply database migrations
+        run: |
+          for f in app/database/migrations/*.sql; do
+            echo "Applying $f..."
+            PGPASSWORD=ignition_test psql -h localhost -U ignition -d ignition_test -f "$f"
+          done
+
+      - name: Initialize MinIO bucket
+        run: |
+          # Install mc (MinIO client)
+          wget -q https://dl.min.io/client/mc/release/linux-amd64/mc
+          chmod +x mc
+          ./mc alias set local http://localhost:9000 minioadmin minioadmin
+          ./mc mb local/ignition-test --ignore-existing
+          ./mc anonymous set download local/ignition-test/public
+
+      - name: Build backend
+        working-directory: app/backend
+        run: cargo build --release
+
+      - name: Start backend API
+        working-directory: app/backend
+        run: |
+          ./target/release/ignition-api &
+          sleep 5
+          curl -sf http://localhost:8080/health || (echo "API failed to start" && exit 1)
+        env:
+          DATABASE_URL: postgres://ignition:ignition_test@localhost:5432/ignition_test
+          SERVER_HOST: 0.0.0.0
+          SERVER_PORT: 8080
+          SERVER_ENVIRONMENT: development
+          AUTH_COOKIE_DOMAIN: localhost
+          AUTH_DEV_BYPASS: "true"
+          CORS_ALLOWED_ORIGINS: http://localhost:3000
+          STORAGE_ENDPOINT: http://localhost:9000
+          STORAGE_BUCKET: ignition-test
+          STORAGE_ACCESS_KEY_ID: minioadmin
+          STORAGE_SECRET_ACCESS_KEY: minioadmin
+          STORAGE_REGION: us-east-1
+          SESSION_SECRET: e2e-test-secret
+
+      - name: Run E2E API tests
+        run: npx playwright test --config=playwright.api.config.ts
+        env:
+          API_BASE_URL: http://localhost:8080
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test traces
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-traces
+          path: test-results/
+          retention-days: 7

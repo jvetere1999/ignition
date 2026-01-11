@@ -85,7 +85,7 @@ impl AdminUserRepo {
                 u.tos_accepted,
                 u.last_activity_at,
                 u.created_at,
-                up.level,
+                up.current_level as level,
                 up.total_xp
             FROM users u
             LEFT JOIN user_progress up ON u.id = up.user_id
@@ -120,7 +120,7 @@ impl AdminUserRepo {
                 u.tos_accepted,
                 u.last_activity_at,
                 u.created_at,
-                up.level,
+                up.current_level as level,
                 up.total_xp
             FROM users u
             LEFT JOIN user_progress up ON u.id = up.user_id
@@ -180,7 +180,7 @@ impl AdminUserRepo {
         tables_cleaned += 1;
 
         // Habits
-        sqlx::query("DELETE FROM habit_logs WHERE user_id = $1")
+        sqlx::query("DELETE FROM habit_completions WHERE user_id = $1")
             .bind(user_id)
             .execute(pool)
             .await
@@ -458,7 +458,7 @@ impl AdminStatsRepo {
         .map(|r| r.count.unwrap_or(0))
         .unwrap_or(0);
 
-        let habits = sqlx::query_as::<_, CountRow>("SELECT COUNT(*) as count FROM habit_logs")
+        let habits = sqlx::query_as::<_, CountRow>("SELECT COUNT(*) as count FROM habit_completions")
             .fetch_one(pool)
             .await
             .map(|r| r.count.unwrap_or(0))
@@ -632,18 +632,11 @@ impl AdminQuestRepo {
         let quests = sqlx::query_as::<_, AdminQuest>(
             r#"
             SELECT 
-                id,
-                title,
-                description,
-                quest_type,
-                xp_reward,
-                coin_reward,
-                target,
-                skill_id,
-                is_active,
-                created_at
+                id, key, name, description, quest_type, category,
+                xp_reward, coin_reward, skill_key, skill_star_reward,
+                is_recurring, recurrence_period, is_active, sort_order, created_at
             FROM universal_quests
-            ORDER BY created_at DESC
+            ORDER BY sort_order, created_at DESC
             "#,
         )
         .fetch_all(pool)
@@ -657,8 +650,9 @@ impl AdminQuestRepo {
     pub async fn get_quest(pool: &PgPool, quest_id: Uuid) -> Result<Option<AdminQuest>, AppError> {
         let quest = sqlx::query_as::<_, AdminQuest>(
             r#"
-            SELECT id, title, description, quest_type, xp_reward, coin_reward,
-                   target, skill_id, is_active, created_at
+            SELECT id, key, name, description, quest_type, category,
+                   xp_reward, coin_reward, skill_key, skill_star_reward,
+                   is_recurring, recurrence_period, is_active, sort_order, created_at
             FROM universal_quests
             WHERE id = $1
             "#,
@@ -681,25 +675,31 @@ impl AdminQuestRepo {
         let quest_type = request.quest_type.unwrap_or_else(|| "daily".to_string());
         let xp_reward = request.xp_reward.unwrap_or(25);
         let coin_reward = request.coin_reward.unwrap_or(10);
-        let target = request.target.unwrap_or(1);
+        let skill_star_reward = request.skill_star_reward.unwrap_or(1);
+        let is_recurring = request.is_recurring.unwrap_or(false);
 
         let quest = sqlx::query_as::<_, AdminQuest>(
             r#"
             INSERT INTO universal_quests 
-                (id, title, description, quest_type, xp_reward, coin_reward, target, skill_id, is_active, created_by, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, NOW(), NOW())
-            RETURNING id, title, description, quest_type, xp_reward, coin_reward, target, skill_id, is_active, created_at
+                (id, key, name, description, quest_type, category, xp_reward, coin_reward, 
+                 skill_key, skill_star_reward, is_recurring, recurrence_period, is_active, sort_order, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, 0, NOW(), NOW())
+            RETURNING id, key, name, description, quest_type, category, xp_reward, coin_reward,
+                      skill_key, skill_star_reward, is_recurring, recurrence_period, is_active, sort_order, created_at
             "#,
         )
         .bind(id)
-        .bind(&request.title)
+        .bind(&request.key)
+        .bind(&request.name)
         .bind(&request.description)
         .bind(&quest_type)
+        .bind(&request.category)
         .bind(xp_reward)
         .bind(coin_reward)
-        .bind(target)
-        .bind(&request.skill_id)
-        .bind(admin_id)
+        .bind(&request.skill_key)
+        .bind(skill_star_reward)
+        .bind(is_recurring)
+        .bind(&request.recurrence_period)
         .fetch_one(pool)
         .await
         .map_err(|e| AppError::Internal(format!("Failed to create quest: {}", e)))?;
@@ -715,8 +715,11 @@ impl AdminQuestRepo {
     ) -> Result<AdminQuest, AppError> {
         let mut set_parts = vec!["updated_at = NOW()".to_string()];
 
-        if let Some(title) = &request.title {
-            set_parts.push(format!("title = '{}'", title.replace('\'', "''")));
+        if let Some(key) = &request.key {
+            set_parts.push(format!("key = '{}'", key.replace('\'', "''")));
+        }
+        if let Some(name) = &request.name {
+            set_parts.push(format!("name = '{}'", name.replace('\'', "''")));
         }
         if let Some(desc) = &request.description {
             set_parts.push(format!("description = '{}'", desc.replace('\'', "''")));
@@ -724,14 +727,26 @@ impl AdminQuestRepo {
         if let Some(qt) = &request.quest_type {
             set_parts.push(format!("quest_type = '{}'", qt));
         }
+        if let Some(cat) = &request.category {
+            set_parts.push(format!("category = '{}'", cat));
+        }
         if let Some(xp) = request.xp_reward {
             set_parts.push(format!("xp_reward = {}", xp));
         }
         if let Some(coin) = request.coin_reward {
             set_parts.push(format!("coin_reward = {}", coin));
         }
-        if let Some(t) = request.target {
-            set_parts.push(format!("target = {}", t));
+        if let Some(sk) = &request.skill_key {
+            set_parts.push(format!("skill_key = '{}'", sk));
+        }
+        if let Some(ssr) = request.skill_star_reward {
+            set_parts.push(format!("skill_star_reward = {}", ssr));
+        }
+        if let Some(ir) = request.is_recurring {
+            set_parts.push(format!("is_recurring = {}", ir));
+        }
+        if let Some(rp) = &request.recurrence_period {
+            set_parts.push(format!("recurrence_period = '{}'", rp));
         }
         if let Some(active) = request.is_active {
             set_parts.push(format!("is_active = {}", active));
@@ -741,7 +756,8 @@ impl AdminQuestRepo {
             r#"
             UPDATE universal_quests SET {}
             WHERE id = $1
-            RETURNING id, title, description, quest_type, xp_reward, coin_reward, target, skill_id, is_active, created_at
+            RETURNING id, key, name, description, quest_type, category, xp_reward, coin_reward,
+                      skill_key, skill_star_reward, is_recurring, recurrence_period, is_active, sort_order, created_at
             "#,
             set_parts.join(", ")
         );
