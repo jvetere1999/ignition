@@ -33,13 +33,13 @@ export function ErrorNotifications() {
   const getTypeEmoji = (type: string) => {
     switch (type) {
       case 'error':
-        return '❌';
+        return '✕';
       case 'warning':
-        return '⚠️';
+        return '!';
       case 'info':
-        return 'ℹ️';
+        return 'ⓘ';
       default:
-        return '📌';
+        return '•';
     }
   };
 
@@ -47,7 +47,7 @@ export function ErrorNotifications() {
     <div className="fixed bottom-4 right-4 max-w-md space-y-2 z-50">
       {/* Error List */}
       <div className="space-y-2 max-h-96 overflow-y-auto">
-        {errors.map((error, index) => (
+        {errors.map((error) => (
           <div
             key={error.id}
             className={`p-3 rounded-lg border-l-4 shadow-md transition-all ${getTypeColor(error.type)}`}

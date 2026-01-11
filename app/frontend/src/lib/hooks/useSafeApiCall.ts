@@ -6,7 +6,7 @@
  */
 
 import { useCallback } from 'react';
-import { useErrorNotification } from '@/lib/hooks/useErrorNotification';
+import { useErrorStore } from '@/lib/hooks/useErrorNotification';
 import { logApiError } from '@/lib/logger/errorLogger';
 
 /**
@@ -23,8 +23,6 @@ import { logApiError } from '@/lib/logger/errorLogger';
  * };
  */
 export function useSafeApiCall() {
-  const { notify } = useErrorNotification();
-
   const callApi = useCallback(
     async <T,>(
       apiCall: () => Promise<T>,
@@ -47,7 +45,7 @@ export function useSafeApiCall() {
         return null;
       }
     },
-    [notify]
+    []
   );
 
   return { callApi };
@@ -66,8 +64,6 @@ export function useSafeApiCall() {
  * }
  */
 export function useCatchError() {
-  const { notify } = useErrorNotification();
-
   const handleError = useCallback(
     (
       error: unknown,
@@ -86,14 +82,19 @@ export function useCatchError() {
           requestBody: undefined,
         });
       } else {
-        notify(`${context.method} ${context.endpoint} failed: ${String(error)}`, {
+        // Fallback: use store directly for non-Error objects
+        const store = useErrorStore.getState();
+        store.addError({
+          id: `error-${Date.now()}-${Math.random()}`,
+          timestamp: new Date(),
+          message: `${context.method} ${context.endpoint} failed: ${String(error)}`,
           endpoint: context.endpoint,
           method: context.method,
           type: 'error',
         });
       }
     },
-    [notify]
+    []
   );
 
   return { handleError };

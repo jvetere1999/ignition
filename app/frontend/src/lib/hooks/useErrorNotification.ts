@@ -7,7 +7,7 @@
  */
 
 import { create } from 'zustand';
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 
 // ============================================
 // Types

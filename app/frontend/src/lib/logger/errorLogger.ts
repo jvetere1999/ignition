@@ -3,9 +3,10 @@
  *
  * Provides structured error logging with endpoint context.
  * Used for explicit error tracking in API calls.
+ * Uses Zustand store directly to avoid React hooks in non-hook contexts.
  */
 
-import { useErrorNotification } from '@/lib/hooks/useErrorNotification';
+import { useErrorStore } from '@/lib/hooks/useErrorNotification';
 
 /**
  * Track API error with full context
@@ -20,11 +21,13 @@ export function logApiError(
     requestBody?: unknown;
   }
 ) {
-  const { notify } = useErrorNotification();
-
+  const store = useErrorStore.getState();
   const errorMessage = `${context.method} ${context.endpoint} failed: ${error.message}`;
 
-  notify(errorMessage, {
+  store.addError({
+    id: `api-${Date.now()}-${Math.random()}`,
+    timestamp: new Date(),
+    message: errorMessage,
     endpoint: context.endpoint,
     method: context.method,
     status: error.status,
@@ -65,11 +68,13 @@ export function logDbError(
     values?: unknown[];
   }
 ) {
-  const { notify } = useErrorNotification();
-
+  const store = useErrorStore.getState();
   const errorMessage = `Database ${context.operation} on ${context.table} failed: ${error.message}`;
 
-  notify(errorMessage, {
+  store.addError({
+    id: `db-${Date.now()}-${Math.random()}`,
+    timestamp: new Date(),
+    message: errorMessage,
     endpoint: `db.${context.table}`,
     method: context.operation.toUpperCase(),
     type: 'error',
@@ -97,15 +102,17 @@ export function logValidationError(
   fieldErrors: Record<string, string[]> | string,
   context?: { formName?: string; userId?: string }
 ) {
-  const { notify } = useErrorNotification();
-
+  const store = useErrorStore.getState();
   const errorMessage = typeof fieldErrors === 'string'
     ? fieldErrors
     : `Validation failed: ${Object.entries(fieldErrors)
         .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
         .join('; ')}`;
 
-  notify(errorMessage, {
+  store.addError({
+    id: `validation-${Date.now()}-${Math.random()}`,
+    timestamp: new Date(),
+    message: errorMessage,
     endpoint: context?.formName ? `form.${context.formName}` : 'validation',
     method: 'VALIDATE',
     type: 'warning',
