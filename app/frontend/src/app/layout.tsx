@@ -4,6 +4,8 @@ import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import { themeScript } from "@/lib/theme/script";
 import { SiteFooter } from "@/components/shell/SiteFooter";
+import { ErrorNotifications } from "@/components/ui/ErrorNotifications";
+import { ErrorNotificationInitializer } from "@/components/ui/ErrorNotificationInitializer";
 import "@/styles/tokens.css";
 import "./globals.css";
 
@@ -136,6 +138,8 @@ export default function RootLayout({
           <ThemeProvider>
             <div id="app-root">{children}</div>
             <SiteFooter />
+            <ErrorNotifications />
+            <ErrorNotificationInitializer />
           </ThemeProvider>
         </AuthProvider>
       </body>
