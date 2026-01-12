@@ -174,6 +174,8 @@ async fn fetch_user_state(pool: &PgPool, user_id: Uuid) -> Result<UserState, App
     let (plan_exists, completed, total) = match plan_row {
         Some((items_json,)) => {
             // Parse items from JSONB array
+            // Expected structure: [{"completed": bool, ...}, ...]
+            // Each item MUST have a "completed" boolean field to be counted in completion stats
             let items: Vec<serde_json::Value> = serde_json::from_value(items_json)
                 .unwrap_or_default();
             let total_count = items.len() as i32;
@@ -269,6 +271,8 @@ async fn fetch_plan_summary(pool: &PgPool, user_id: Uuid) -> Result<DailyPlanSum
     let (items_json, total_count, completed_count, plan_exists, has_incomplete) = match plan_row {
         Some((items_json,)) => {
             // Parse items from JSONB array
+            // Expected structure: [{"completed": bool, "id": string, "title": string, ...}, ...]
+            // Each item MUST have a "completed" boolean field to be counted in completion stats
             let items: Vec<serde_json::Value> = serde_json::from_value(items_json.clone())
                 .unwrap_or_default();
             let total = items.len() as i32;
@@ -405,11 +409,12 @@ async fn fetch_dynamic_ui(pool: &PgPool, user_id: Uuid) -> Result<DynamicUIData,
     }
     
     // Check active quests
+    // Schema: user_quest_progress has status (TEXT) not completed (boolean)
     let active_quests = sqlx::query_scalar::<_, i64>(
         r#"
         SELECT COUNT(*) FROM user_quest_progress uqp
         JOIN universal_quests uq ON uq.id = uqp.quest_id
-        WHERE uqp.user_id = $1 AND uqp.completed = false
+        WHERE uqp.user_id = $1 AND uqp.status = 'accepted'
         AND (uq.expires_at IS NULL OR uq.expires_at > NOW())
         "#
     )

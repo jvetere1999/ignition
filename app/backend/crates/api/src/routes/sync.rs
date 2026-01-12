@@ -333,6 +333,8 @@ async fn fetch_plan_status(pool: &PgPool, user_id: Uuid) -> Result<PlanStatusDat
     match plan {
         Some((items_json,)) => {
             // Parse items from JSONB array
+            // Expected structure: [{"completed": bool, ...}, ...]
+            // Each item MUST have a "completed" boolean field to be counted in completion stats
             let items: Vec<serde_json::Value> = serde_json::from_value(items_json)
                 .unwrap_or_default();
             
