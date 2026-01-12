@@ -616,8 +616,16 @@ CREATE TABLE feature_flags (
 CREATE TABLE user_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
-    key TEXT NOT NULL,
-    value JSONB NOT NULL,
+    notifications_enabled BOOLEAN NOT NULL,
+    email_notifications BOOLEAN NOT NULL,
+    push_notifications BOOLEAN NOT NULL,
+    theme TEXT NOT NULL,
+    timezone TEXT,
+    locale TEXT NOT NULL,
+    profile_public BOOLEAN NOT NULL,
+    show_activity BOOLEAN NOT NULL,
+    daily_reminder_time TEXT,
+    soft_landing_until TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

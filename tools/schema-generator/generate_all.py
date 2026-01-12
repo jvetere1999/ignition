@@ -26,7 +26,7 @@ from typing import Any
 
 SCRIPT_DIR = Path(__file__).parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
-SCHEMA_FILE = SCRIPT_DIR / 'schema.json'
+SCHEMA_FILE = SCRIPT_DIR / 'tmp-schema.json'
 
 # Default output paths
 DEFAULT_PATHS = {

@@ -659,8 +659,16 @@ export interface FeatureFlags {
 export interface UserSettings {
   id: string;
   user_id: string;
-  key: string;
-  value: Record<string, unknown>;
+  notifications_enabled: boolean;
+  email_notifications: boolean;
+  push_notifications: boolean;
+  theme: string;
+  timezone?: string;
+  locale: string;
+  profile_public: boolean;
+  show_activity: boolean;
+  daily_reminder_time?: string;
+  soft_landing_until?: string;
   created_at: string;
   updated_at: string;
 }

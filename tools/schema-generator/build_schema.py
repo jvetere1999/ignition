@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build schema.json from SCHEMA_SPEC definitions.
+Build tmp-schema.json from SCHEMA_SPEC definitions.
 Generates all 79 tables with complete field definitions.
 """
 
@@ -523,13 +523,13 @@ def main():
     # Determine output path
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.dirname(script_dir)
-    output_path = os.path.join(repo_root, "schema.json")
+    output_path = os.path.join(repo_root, "tmp-schema.json")
     
-    # Write schema.json
+    # Write tmp-schema.json
     with open(output_path, "w") as f:
         json.dump(schema, f, indent=2)
     
-    print(f"✅ Generated schema.json with {len(schema['tables'])} tables")
+    print(f"✅ Generated tmp-schema.json with {len(schema['tables'])} tables")
     print(f"   Location: {output_path}")
     
     # Print table summary by migration

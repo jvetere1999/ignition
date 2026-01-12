@@ -707,8 +707,16 @@ pub struct FeatureFlags {
 pub struct UserSettings {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub key: String,
-    pub value: serde_json::Value,
+    pub notifications_enabled: bool,
+    pub email_notifications: bool,
+    pub push_notifications: bool,
+    pub theme: String,
+    pub timezone: Option<String>,
+    pub locale: String,
+    pub profile_public: bool,
+    pub show_activity: bool,
+    pub daily_reminder_time: Option<String>,
+    pub soft_landing_until: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
