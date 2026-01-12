@@ -1499,11 +1499,13 @@ impl UserSettingsRepo {
         .await?;
 
         // Fetch theme from users table
-        let theme = sqlx::query_scalar::<_, String>("SELECT theme FROM users WHERE id = $1")
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await?
-            .unwrap_or_else(|| "light".to_string());
+        let theme = sqlx::query_scalar::<_, String>(
+            "SELECT COALESCE(theme, 'dark') FROM users WHERE id = $1"
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?
+        .unwrap_or_else(|| "dark".to_string());
 
         match settings {
             Some(s) => Ok(Self::to_response(s, theme)),
@@ -1577,11 +1579,13 @@ impl UserSettingsRepo {
         .await?;
 
         // Fetch theme from users table
-        let theme = sqlx::query_scalar::<_, String>("SELECT theme FROM users WHERE id = $1")
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await?
-            .unwrap_or_else(|| "light".to_string());
+        let theme = sqlx::query_scalar::<_, String>(
+            "SELECT COALESCE(theme, 'dark') FROM users WHERE id = $1"
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?
+        .unwrap_or_else(|| "dark".to_string());
 
         Ok(UserSettingsResponse {
             notifications_enabled,

@@ -100,6 +100,14 @@
           "unique": false,
           "foreign_key": false
         },
+        "theme": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "'dark'"
+        },
         "created_at": {
           "type": "TIMESTAMPTZ",
           "nullable": false,
