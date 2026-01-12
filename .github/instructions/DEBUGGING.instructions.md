@@ -47,7 +47,7 @@ ISSUE → DOCUMENT → EXPLORER → DECISION (if needed) → FIX → USER PUSHES
 
 ### Phase 5: FIX (Implementation)
 - **ONLY after user approves selection or approach**
-- Make changes per user's selected option
+- Make changes per user's selected option **IN THE ACTUAL CODEBASE** (app/, tools/, etc., not in debug/ folder)
 - Run validation:
   - `cargo check --bin ignition-api` (backend)
   - `npm run lint` (frontend)
@@ -57,7 +57,7 @@ ISSUE → DOCUMENT → EXPLORER → DECISION (if needed) → FIX → USER PUSHES
   - Test results (cargo check, npm lint)
   - Ready status: "Yes, ready for push"
 - **DO NOT COMMIT**
-- Onece you have deemed "Ready for Push", report to user with exact changes and validation results, move the priority to in testing once it is given the green light by user move to complete
+- Once you have deemed "Ready for Push", report to user with exact changes and validation results, move the priority to in testing once it is given the green light by user move to complete
 
 ### Phase 6: USER PUSHES
 - Agent documents what was changed
@@ -65,6 +65,18 @@ ISSUE → DOCUMENT → EXPLORER → DECISION (if needed) → FIX → USER PUSHES
 - Agent monitors deployment (if applicable)
 - Confirm fix in production (if applicable)
 - If user lists additgional issues following validation of deployment create new entries in `debug/DEBUGGING.md` and repeat process
+
+---
+
+## DEBUG FOLDER PURPOSE
+
+**CRITICAL CLARIFICATION**: The `debug/` folder is **DOCUMENTATION AND TRACKING ONLY** (paper work). It contains:
+- `DEBUGGING.md` - Active issue tracking with root cause analysis
+- `SOLUTION_SELECTION.md` - Pending decision options for unsolved issues
+- `archive/` - Historical documentation of completed work
+
+**Code changes MUST be made in the actual codebase** (app/, tools/, etc.), NOT in debug/ folder.
+The debug/ folder is for documenting, tracking, and deciding on issues—NOT for implementation.
 
 ---
 
@@ -79,6 +91,7 @@ ISSUE → DOCUMENT → EXPLORER → DECISION (if needed) → FIX → USER PUSHES
 6. **Update instructions without user request** (only user can authorize meta-changes)
 7. **Propose multiple solutions without user decision request** (Phase 4 gates implementation)
 8. **Skip "Ready for push" confirmation** (user must see exact state before pushing)
+9. **Make code changes in debug/ folder** (debug/ is documentation/tracking only—code changes go in actual codebase)
 
 ### ✅ WHAT AGENT MUST ALWAYS DO:
 1. **Document before fixing** (DEBUGGING.md first, code second)

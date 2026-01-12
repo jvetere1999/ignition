@@ -5,5 +5,3 @@
 
 pub mod market_models;
 pub mod market_repos;
-pub mod user_settings_models;
-pub mod user_settings_repos;

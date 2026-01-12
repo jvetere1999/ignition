@@ -316,14 +316,12 @@ async fn fetch_plan_summary(pool: &PgPool, user_id: Uuid) -> Result<DailyPlanSum
 }
 
 async fn fetch_personalization(pool: &PgPool, user_id: Uuid) -> Result<UserPersonalization, AppError> {
-    // Get user settings
-    let settings = sqlx::query_as::<_, (String, serde_json::Value)>(
+    // Get user interests from user_interests table
+    let interests_rows = sqlx::query_as::<_, (String, String)>(
         r#"
-        SELECT key, value FROM user_settings 
-        WHERE user_id = $1 AND key IN (
-            'interests', 'module_weights', 'nudge_intensity', 
-            'focus_duration', 'gamification_visible'
-        )
+        SELECT interest_key, interest_label FROM user_interests 
+        WHERE user_id = $1
+        ORDER BY interest_key
         "#
     )
     .bind(user_id)
@@ -331,10 +329,12 @@ async fn fetch_personalization(pool: &PgPool, user_id: Uuid) -> Result<UserPerso
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
     
-    let settings_map: std::collections::HashMap<String, serde_json::Value> = 
-        settings.into_iter().collect();
+    let interests: Vec<String> = interests_rows
+        .into_iter()
+        .map(|(key, _label)| key)
+        .collect();
     
-    // Check onboarding status
+    // Check onboarding status from user_onboarding_state
     let onboarding = sqlx::query_as::<_, (bool, Option<String>)>(
         r#"
         SELECT 
@@ -356,24 +356,15 @@ async fn fetch_personalization(pool: &PgPool, user_id: Uuid) -> Result<UserPerso
         None
     };
     
+    // Return personalization with correct schema mappings
+    // Note: module_weights, nudge_intensity, focus_duration, gamification_visible 
+    // are not in the user_settings schema, so returning safe defaults
     Ok(UserPersonalization {
-        interests: settings_map.get("interests")
-            .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-            .unwrap_or_default(),
-        module_weights: settings_map.get("module_weights")
-            .cloned()
-            .unwrap_or(serde_json::json!({})),
-        nudge_intensity: settings_map.get("nudge_intensity")
-            .and_then(|v| v.as_str())
-            .unwrap_or("standard")
-            .to_string(),
-        focus_duration: settings_map.get("focus_duration")
-            .and_then(|v| v.as_i64())
-            .unwrap_or(25) as i32,
-        gamification_visible: settings_map.get("gamification_visible")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(true),
+        interests,
+        module_weights: serde_json::json!({}),
+        nudge_intensity: "standard".to_string(),
+        focus_duration: 25,
+        gamification_visible: true,
         onboarding_active,
         onboarding_route,
     })
