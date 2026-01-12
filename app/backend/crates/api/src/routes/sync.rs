@@ -216,7 +216,7 @@ async fn get_plan_status(
 
 async fn fetch_progress(pool: &PgPool, user_id: Uuid) -> Result<ProgressData, AppError> {
     // Single query to get user progress
-    let row = sqlx::query_as::<_, (i32, i64, i32, i32)>(
+    let row = sqlx::query_as::<_, (i32, i32, i32, i32)>(
         r#"
         SELECT 
             COALESCE(up.current_level, 1) as level,
@@ -251,10 +251,10 @@ async fn fetch_progress(pool: &PgPool, user_id: Uuid) -> Result<ProgressData, Ap
     
     Ok(ProgressData {
         level,
-        current_xp: xp_in_current_level,
-        xp_to_next_level: xp_needed_for_level - xp_in_current_level,
+        current_xp: xp_in_current_level as i64,
+        xp_to_next_level: (xp_needed_for_level - xp_in_current_level) as i64,
         xp_progress_percent,
-        coins: coins.into(),
+        coins: coins as i64,
         streak_days,
     })
 }
@@ -474,9 +474,9 @@ async fn fetch_overdue_items_count(pool: &PgPool, user_id: Uuid) -> Result<i32, 
 // ============================================
 
 /// Calculate total XP needed to reach a level
-fn calculate_xp_for_level(level: i32) -> i64 {
+fn calculate_xp_for_level(level: i32) -> i32 {
     // Standard formula: 100 * level^1.5
-    (100.0 * (level as f64).powf(1.5)) as i64
+    (100.0 * (level as f64).powf(1.5)) as i32
 }
 
 /// Generate ETag from response data

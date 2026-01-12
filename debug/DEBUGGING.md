@@ -70,7 +70,33 @@ of relation "audit_log" violates not-null constraint
 - [ ] Check if id parameter is being passed or auto-generated
 - [ ] Look for other tables with this pattern (identity columns without defaults)
 
-**Status**: 🔴 **BLOCKED - awaiting investigation**
+---
+
+### Phase 3: EXPLORER (Discovery Work - COMPLETE ✅)
+
+**Findings**:
+- ✅ `audit_log` table in migration line 701: `id UUID PRIMARY KEY` (NO DEFAULT)
+- ✅ schema.json audit_log definition: missing `"default": "gen_random_uuid()"` on id field
+- ✅ Root cause: When OAuth code inserts into audit_log without explicit id, it gets NULL
+- ✅ NULL violates NOT NULL constraint on PRIMARY KEY
+
+**Solution**: Add DEFAULT to schema.json and regenerate
+
+---
+
+### Phase 5: FIX (COMPLETED ✅)
+
+**Changes Made**:
+1. **schema.json** [line 616-623]: Added `"default": "gen_random_uuid()"` to audit_log.id
+2. **Regenerated** migrations via `python3 generate_all.py`
+3. **Verified** migration line 701: `id UUID PRIMARY KEY DEFAULT gen_random_uuid()` ✅
+
+**Validation Results**:
+- ✅ cargo check: 0 errors, 218 pre-existing warnings
+- ✅ npm run lint: 0 errors, pre-existing warnings only
+- ✅ Migration now has correct DEFAULT for audit_log.id
+
+**Status**: ✅ **Ready for push**
 - ✅ Route exists and is registered in api.rs (line 69)
 - ✅ Handler is implemented
 - ❌ Database query in today.rs failing with 500
