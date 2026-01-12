@@ -1498,12 +1498,20 @@ impl UserSettingsRepo {
         .fetch_optional(pool)
         .await?;
 
+        // Fetch theme from users table
+        let theme = sqlx::query_scalar::<_, String>("SELECT theme FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await?
+            .unwrap_or_else(|| "light".to_string());
+
         match settings {
-            Some(s) => Ok(Self::to_response(s)),
+            Some(s) => Ok(Self::to_response(s, theme)),
             None => Ok(UserSettingsResponse {
                 notifications_enabled: true,
                 email_notifications: true,
                 push_notifications: false,
+                theme,
                 timezone: None,
                 locale: "en".to_string(),
                 profile_public: false,
@@ -1569,10 +1577,18 @@ impl UserSettingsRepo {
         .execute(pool)
         .await?;
 
+        // Fetch theme from users table
+        let theme = sqlx::query_scalar::<_, String>("SELECT theme FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await?
+            .unwrap_or_else(|| "light".to_string());
+
         Ok(UserSettingsResponse {
             notifications_enabled,
             email_notifications,
             push_notifications,
+            theme,
             timezone,
             locale: locale.clone(),
             profile_public,
@@ -1581,11 +1597,12 @@ impl UserSettingsRepo {
         })
     }
 
-    fn to_response(s: UserSettings) -> UserSettingsResponse {
+    fn to_response(s: UserSettings, theme: String) -> UserSettingsResponse {
         UserSettingsResponse {
             notifications_enabled: s.notifications_enabled,
             email_notifications: s.email_notifications,
             push_notifications: s.push_notifications,
+            theme,
             timezone: s.timezone,
             locale: s.locale,
             profile_public: s.profile_public,
