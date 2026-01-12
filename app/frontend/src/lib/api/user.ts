@@ -51,15 +51,15 @@ export interface ExportDataResponse {
 }
 
 interface SettingsWrapper {
-  data: UserSettings;
+  settings: UserSettings;
 }
 
 interface DeleteWrapper {
-  data: DeleteAccountResponse;
+  result: DeleteAccountResponse;
 }
 
 interface ExportWrapper {
-  data: ExportDataResponse;
+  export: ExportDataResponse;
 }
 
 // ============================================
@@ -71,7 +71,7 @@ interface ExportWrapper {
  */
 export async function getSettings(): Promise<UserSettings> {
   const response = await apiGet<SettingsWrapper>('/api/user/settings');
-  return response.data;
+  return response.settings;
 }
 
 /**
@@ -81,7 +81,7 @@ export async function updateSettings(
   settings: UpdateUserSettingsRequest
 ): Promise<UserSettings> {
   const response = await apiPut<SettingsWrapper>('/api/user/settings', settings);
-  return response.data;
+  return response.settings;
 }
 
 /**
@@ -118,7 +118,7 @@ export async function setDailyReminder(time: string | null): Promise<UserSetting
  */
 export async function deleteAccount(): Promise<DeleteAccountResponse> {
   const response = await apiDelete<DeleteWrapper>('/api/user/delete');
-  return response.data;
+  return response.result;
 }
 
 /**
@@ -126,7 +126,7 @@ export async function deleteAccount(): Promise<DeleteAccountResponse> {
  */
 export async function exportData(): Promise<ExportDataResponse> {
   const response = await apiGet<ExportWrapper>('/api/user/export');
-  return response.data;
+  return response.export;
 }
 
 /**

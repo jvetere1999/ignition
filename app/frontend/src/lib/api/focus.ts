@@ -79,8 +79,8 @@ export interface CreateFocusRequest {
  * POST /api/focus
  */
 export async function startFocusSession(req: CreateFocusRequest = {}): Promise<FocusSession> {
-  const response = await apiPost<{ data: FocusSession }>('/api/focus', req);
-  return response.data;
+  const response = await apiPost<{ session: FocusSession }>('/api/focus', req);
+  return response.session;
 }
 
 /**
@@ -88,8 +88,8 @@ export async function startFocusSession(req: CreateFocusRequest = {}): Promise<F
  * GET /api/focus/active
  */
 export async function getActiveFocusSession(): Promise<ActiveFocusResponse> {
-  const response = await apiGet<{ data: ActiveFocusResponse }>('/api/focus/active');
-  return response.data;
+  const response = await apiGet<{ session: FocusSession | null; pause_state: any }>('/api/focus/active');
+  return { session: response.session, pause_state: response.pause_state };
 }
 
 /**
@@ -97,8 +97,8 @@ export async function getActiveFocusSession(): Promise<ActiveFocusResponse> {
  * GET /api/focus
  */
 export async function listFocusSessions(page = 1, pageSize = 20): Promise<FocusSessionsList> {
-  const response = await apiGet<{ data: FocusSessionsList }>(`/api/focus?page=${page}&page_size=${pageSize}`);
-  return response.data;
+  const response = await apiGet<{ sessions: FocusSession[]; total: number; page: number; page_size: number }>(`/api/focus?page=${page}&page_size=${pageSize}`);
+  return { sessions: response.sessions, total: response.total, page: response.page, page_size: response.page_size };
 }
 
 /**
@@ -106,8 +106,8 @@ export async function listFocusSessions(page = 1, pageSize = 20): Promise<FocusS
  * GET /api/focus?stats=true&period=...
  */
 export async function getFocusStats(period: 'day' | 'week' | 'month' = 'week'): Promise<FocusStats> {
-  const response = await apiGet<{ data: FocusStats }>(`/api/focus?stats=true&period=${period}`);
-  return response.data;
+  const response = await apiGet<{ stats: FocusStats }>(`/api/focus?stats=true&period=${period}`);
+  return response.stats;
 }
 
 /**
@@ -115,8 +115,8 @@ export async function getFocusStats(period: 'day' | 'week' | 'month' = 'week'): 
  * POST /api/focus/:id/complete
  */
 export async function completeFocusSession(sessionId: string): Promise<CompleteSessionResult> {
-  const response = await apiPost<{ data: CompleteSessionResult }>(`/api/focus/${sessionId}/complete`);
-  return response.data;
+  const response = await apiPost<{ result: CompleteSessionResult }>(`/api/focus/${sessionId}/complete`);
+  return response.result;
 }
 
 /**
@@ -124,8 +124,8 @@ export async function completeFocusSession(sessionId: string): Promise<CompleteS
  * POST /api/focus/:id/abandon
  */
 export async function abandonFocusSession(sessionId: string): Promise<FocusSession> {
-  const response = await apiPost<{ data: FocusSession }>(`/api/focus/${sessionId}/abandon`);
-  return response.data;
+  const response = await apiPost<{ session: FocusSession }>(`/api/focus/${sessionId}/abandon`);
+  return response.session;
 }
 
 /**
@@ -133,8 +133,8 @@ export async function abandonFocusSession(sessionId: string): Promise<FocusSessi
  * GET /api/focus/pause
  */
 export async function getPauseState(): Promise<PauseState | null> {
-  const response = await apiGet<{ data: PauseState | null }>('/api/focus/pause');
-  return response.data;
+  const response = await apiGet<{ pause_state: PauseState | null }>('/api/focus/pause');
+  return response.pause_state;
 }
 
 /**
@@ -142,8 +142,8 @@ export async function getPauseState(): Promise<PauseState | null> {
  * POST /api/focus/pause
  */
 export async function pauseFocusSession(timeRemaining: number): Promise<PauseState> {
-  const response = await apiPost<{ data: PauseState }>('/api/focus/pause', { time_remaining_seconds: timeRemaining });
-  return response.data;
+  const response = await apiPost<{ pause_state: PauseState }>('/api/focus/pause', { time_remaining_seconds: timeRemaining });
+  return response.pause_state;
 }
 
 /**
@@ -151,8 +151,8 @@ export async function pauseFocusSession(timeRemaining: number): Promise<PauseSta
  * DELETE /api/focus/pause
  */
 export async function resumeFocusSession(): Promise<FocusSession> {
-  const response = await apiDelete<{ data: FocusSession }>('/api/focus/pause');
-  return response.data;
+  const response = await apiDelete<{ session: FocusSession }>('/api/focus/pause');
+  return response.session;
 }
 
 // ============================================

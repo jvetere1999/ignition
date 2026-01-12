@@ -59,8 +59,8 @@ export interface CompleteHabitResult {
  * GET /api/habits
  */
 export async function listHabits(): Promise<HabitsList> {
-  const response = await apiGet<{ data: HabitsList }>('/api/habits');
-  return response.data;
+  const response = await apiGet<{ habits: Habit[] }>('/api/habits');
+  return { habits: response.habits };
 }
 
 /**
@@ -68,8 +68,8 @@ export async function listHabits(): Promise<HabitsList> {
  * POST /api/habits
  */
 export async function createHabit(req: CreateHabitRequest): Promise<Habit> {
-  const response = await apiPost<{ data: Habit }>('/api/habits', req);
-  return response.data;
+  const response = await apiPost<{ habit: Habit }>('/api/habits', req);
+  return response.habit;
 }
 
 /**
@@ -77,11 +77,11 @@ export async function createHabit(req: CreateHabitRequest): Promise<Habit> {
  * POST /api/habits/:id/complete
  */
 export async function completeHabit(habitId: string, notes?: string): Promise<CompleteHabitResult> {
-  const response = await apiPost<{ data: CompleteHabitResult }>(
+  const response = await apiPost<{ result: CompleteHabitResult }>(
     `/api/habits/${habitId}/complete`,
     notes ? { notes } : undefined
   );
-  return response.data;
+  return response.result;
 }
 
 // ============================================

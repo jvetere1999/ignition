@@ -37,6 +37,7 @@ struct HabitResponseWrapper {
 #[derive(Serialize)]
 struct HabitsListWrapper {
     habits: Vec<HabitResponse>,
+    total: i64,
 }
 
 #[derive(Serialize)]
@@ -56,7 +57,7 @@ async fn list_habits(
 ) -> Result<Json<HabitsListWrapper>, AppError> {
     let result = HabitsRepo::list_active(&state.db, user.id).await?;
 
-    Ok(Json(HabitsListWrapper { habits: result.habits }))
+    Ok(Json(HabitsListWrapper { habits: result.habits, total: result.total }))
 }
 
 /// POST /habits

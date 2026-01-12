@@ -154,28 +154,20 @@ export interface CreateProgramRequest {
 }
 
 // Response wrappers
-interface DataWrapper<T> {
-  data: T;
-}
-
-interface ExercisesResponse {
+interface ExercisesWrapper {
   exercises: Exercise[];
-  total: number;
 }
 
-interface WorkoutsResponse {
+interface WorkoutsWrapper {
   workouts: Workout[];
-  total: number;
 }
 
-interface SessionsResponse {
+interface SessionsWrapper {
   sessions: WorkoutSession[];
-  total: number;
 }
 
-interface ProgramsResponse {
+interface ProgramsWrapper {
   programs: TrainingProgram[];
-  total: number;
 }
 
 interface SessionStartResult {
@@ -207,31 +199,31 @@ interface CompleteSessionResult {
 
 /** List all exercises */
 export async function listExercises(): Promise<Exercise[]> {
-  const response = await apiGet<DataWrapper<ExercisesResponse>>('/api/exercise');
-  return response.data.exercises;
+  const response = await apiGet<ExercisesWrapper>('/api/exercise');
+  return response.exercises;
 }
 
 /** Create a custom exercise */
 export async function createExercise(data: CreateExerciseRequest): Promise<Exercise> {
-  const response = await apiPost<DataWrapper<Exercise>>('/api/exercise', data);
-  return response.data;
+  const response = await apiPost<{ exercise: Exercise }>('/api/exercise', data);
+  return response.exercise;
 }
 
 /** Get exercise by ID */
 export async function getExercise(id: string): Promise<Exercise> {
-  const response = await apiGet<DataWrapper<Exercise>>(`/api/exercise/${id}`);
-  return response.data;
+  const response = await apiGet<{ exercise: Exercise }>(`/api/exercise/${id}`);
+  return response.exercise;
 }
 
 /** Delete a custom exercise */
 export async function deleteExercise(id: string): Promise<void> {
-  await apiDelete<DataWrapper<{ deleted: boolean }>>(`/api/exercise/${id}`);
+  await apiDelete<{ deleted: boolean }>(`/api/exercise/${id}`);
 }
 
 /** Seed builtin exercises (admin) */
 export async function seedExercises(): Promise<{ seeded: number }> {
-  const response = await apiPost<DataWrapper<{ seeded: number }>>('/api/exercise/seed');
-  return response.data;
+  const response = await apiPost<{ seeded: number }>('/api/exercise/seed');
+  return response;
 }
 
 // ============================================
@@ -240,25 +232,25 @@ export async function seedExercises(): Promise<{ seeded: number }> {
 
 /** List all workouts */
 export async function listWorkouts(): Promise<Workout[]> {
-  const response = await apiGet<DataWrapper<WorkoutsResponse>>('/api/exercise/workouts');
-  return response.data.workouts;
+  const response = await apiGet<WorkoutsWrapper>('/api/exercise/workouts');
+  return response.workouts;
 }
 
 /** Create a workout */
 export async function createWorkout(data: CreateWorkoutRequest): Promise<Workout> {
-  const response = await apiPost<DataWrapper<Workout>>('/api/exercise/workouts', data);
-  return response.data;
+  const response = await apiPost<{ workout: Workout }>('/api/exercise/workouts', data);
+  return response.workout;
 }
 
 /** Get workout by ID */
 export async function getWorkout(id: string): Promise<Workout> {
-  const response = await apiGet<DataWrapper<Workout>>(`/api/exercise/workouts/${id}`);
-  return response.data;
+  const response = await apiGet<{ workout: Workout }>(`/api/exercise/workouts/${id}`);
+  return response.workout;
 }
 
 /** Delete a workout */
 export async function deleteWorkout(id: string): Promise<void> {
-  await apiDelete<DataWrapper<{ deleted: boolean }>>(`/api/exercise/workouts/${id}`);
+  await apiDelete<{ deleted: boolean }>(`/api/exercise/workouts/${id}`);
 }
 
 // ============================================
@@ -267,23 +259,23 @@ export async function deleteWorkout(id: string): Promise<void> {
 
 /** List workout sessions */
 export async function listSessions(): Promise<WorkoutSession[]> {
-  const response = await apiGet<DataWrapper<SessionsResponse>>('/api/exercise/sessions');
-  return response.data.sessions;
+  const response = await apiGet<SessionsWrapper>('/api/exercise/sessions');
+  return response.sessions;
 }
 
 /** Start a workout session */
 export async function startSession(workoutId: string): Promise<SessionStartResult> {
-  const response = await apiPost<DataWrapper<SessionStartResult>>('/api/exercise/sessions/start', {
+  const response = await apiPost<{ result: SessionStartResult }>('/api/exercise/sessions/start', {
     workout_id: workoutId,
   });
-  return response.data;
+  return response.result;
 }
 
 /** Get active session */
 export async function getActiveSession(): Promise<WorkoutSession | null> {
   try {
-    const response = await apiGet<DataWrapper<WorkoutSession>>('/api/exercise/sessions/active');
-    return response.data;
+    const response = await apiGet<{ session: WorkoutSession }>('/api/exercise/sessions/active');
+    return response.session;
   } catch {
     return null;
   }
@@ -291,14 +283,14 @@ export async function getActiveSession(): Promise<WorkoutSession | null> {
 
 /** Log a set in the active session */
 export async function logSet(data: LogSetRequest): Promise<LogSetResult> {
-  const response = await apiPost<DataWrapper<LogSetResult>>('/api/exercise/sessions/log-set', data);
-  return response.data;
+  const response = await apiPost<{ result: LogSetResult }>('/api/exercise/sessions/log-set', data);
+  return response.result;
 }
 
 /** Complete the active session */
 export async function completeSession(data?: CompleteSessionRequest): Promise<CompleteSessionResult> {
-  const response = await apiPost<DataWrapper<CompleteSessionResult>>('/api/exercise/sessions/complete', data || {});
-  return response.data;
+  const response = await apiPost<{ result: CompleteSessionResult }>('/api/exercise/sessions/complete', data || {});
+  return response.result;
 }
 
 // ============================================
@@ -307,24 +299,24 @@ export async function completeSession(data?: CompleteSessionRequest): Promise<Co
 
 /** List training programs */
 export async function listPrograms(): Promise<TrainingProgram[]> {
-  const response = await apiGet<DataWrapper<ProgramsResponse>>('/api/exercise/programs');
-  return response.data.programs;
+  const response = await apiGet<ProgramsWrapper>('/api/exercise/programs');
+  return response.programs;
 }
 
 /** Create a training program */
 export async function createProgram(data: CreateProgramRequest): Promise<TrainingProgram> {
-  const response = await apiPost<DataWrapper<TrainingProgram>>('/api/exercise/programs', data);
-  return response.data;
+  const response = await apiPost<{ program: TrainingProgram }>('/api/exercise/programs', data);
+  return response.program;
 }
 
 /** Get program by ID */
 export async function getProgram(id: string): Promise<TrainingProgram> {
-  const response = await apiGet<DataWrapper<TrainingProgram>>(`/api/exercise/programs/${id}`);
-  return response.data;
+  const response = await apiGet<{ program: TrainingProgram }>(`/api/exercise/programs/${id}`);
+  return response.program;
 }
 
 /** Activate a program */
 export async function activateProgram(id: string): Promise<TrainingProgram> {
-  const response = await apiPost<DataWrapper<TrainingProgram>>(`/api/exercise/programs/${id}/activate`);
-  return response.data;
+  const response = await apiPost<{ program: TrainingProgram }>(`/api/exercise/programs/${id}/activate`);
+  return response.program;
 }

@@ -48,6 +48,7 @@ struct BookWrapper {
 #[derive(Serialize)]
 struct BooksListWrapper {
     books: Vec<BookResponse>,
+    total: i64,
 }
 
 #[derive(Serialize)]
@@ -77,7 +78,7 @@ async fn list_books(
     Query(query): Query<ListBooksQuery>,
 ) -> Result<Json<BooksListWrapper>, AppError> {
     let result = BookRepo::list(&state.db, user.id, query.status.as_deref()).await?;
-    Ok(Json(BooksListWrapper { books: result.books }))
+    Ok(Json(BooksListWrapper { books: result.books, total: result.total }))
 }
 
 /// POST /books

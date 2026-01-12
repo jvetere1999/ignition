@@ -49,6 +49,7 @@ struct QuestResponseWrapper {
 #[derive(Serialize)]
 struct QuestsListWrapper {
     quests: Vec<QuestResponse>,
+    total: i64,
 }
 
 #[derive(Serialize)]
@@ -69,7 +70,7 @@ async fn list_quests(
 ) -> Result<Json<QuestsListWrapper>, AppError> {
     let result = QuestsRepo::list(&state.db, user.id, query.status.as_deref()).await?;
 
-    Ok(Json(QuestsListWrapper { quests: result.quests }))
+    Ok(Json(QuestsListWrapper { quests: result.quests, total: result.total }))
 }
 
 /// POST /quests

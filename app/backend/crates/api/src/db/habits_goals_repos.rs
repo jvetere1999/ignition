@@ -111,9 +111,11 @@ impl HabitsRepo {
                 last_completed_at: h.last_completed_at,
                 sort_order: h.sort_order,
             })
-            .collect();
+            .collect::<Vec<_>>();
 
-        Ok(HabitsListResponse { habits: responses })
+        let total = responses.len() as i64;
+
+        Ok(HabitsListResponse { habits: responses, total })
     }
 
     /// Complete a habit for today

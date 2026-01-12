@@ -74,8 +74,8 @@ export interface CompleteMilestoneResult {
  */
 export async function listGoals(status?: string): Promise<GoalsList> {
   const query = status ? `?status=${status}` : '';
-  const response = await apiGet<{ data: GoalsList }>(`/api/goals${query}`);
-  return response.data;
+  const response = await apiGet<{ goals: Goal[]; total: number }>(`/api/goals${query}`);
+  return { goals: response.goals, total: response.total };
 }
 
 /**
@@ -83,8 +83,8 @@ export async function listGoals(status?: string): Promise<GoalsList> {
  * GET /api/goals/:id
  */
 export async function getGoal(goalId: string): Promise<Goal> {
-  const response = await apiGet<{ data: Goal }>(`/api/goals/${goalId}`);
-  return response.data;
+  const response = await apiGet<{ goal: Goal }>(`/api/goals/${goalId}`);
+  return response.goal;
 }
 
 /**
@@ -92,8 +92,8 @@ export async function getGoal(goalId: string): Promise<Goal> {
  * POST /api/goals
  */
 export async function createGoal(req: CreateGoalRequest): Promise<Goal> {
-  const response = await apiPost<{ data: Goal }>('/api/goals', req);
-  return response.data;
+  const response = await apiPost<{ goal: Goal }>('/api/goals', req);
+  return response.goal;
 }
 
 /**
@@ -101,8 +101,8 @@ export async function createGoal(req: CreateGoalRequest): Promise<Goal> {
  * POST /api/goals/:id/milestones
  */
 export async function addMilestone(goalId: string, req: CreateMilestoneRequest): Promise<GoalMilestone> {
-  const response = await apiPost<{ data: GoalMilestone }>(`/api/goals/${goalId}/milestones`, req);
-  return response.data;
+  const response = await apiPost<{ milestone: GoalMilestone }>(`/api/goals/${goalId}/milestones`, req);
+  return response.milestone;
 }
 
 /**
@@ -110,8 +110,8 @@ export async function addMilestone(goalId: string, req: CreateMilestoneRequest):
  * POST /api/goals/milestones/:id/complete
  */
 export async function completeMilestone(milestoneId: string): Promise<CompleteMilestoneResult> {
-  const response = await apiPost<{ data: CompleteMilestoneResult }>(`/api/goals/milestones/${milestoneId}/complete`);
-  return response.data;
+  const response = await apiPost<{ result: CompleteMilestoneResult }>(`/api/goals/milestones/${milestoneId}/complete`);
+  return response.result;
 }
 
 // ============================================

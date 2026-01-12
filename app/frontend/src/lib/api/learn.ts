@@ -108,34 +108,47 @@ export interface SubmitDrillRequest {
 }
 
 // Response wrappers
-interface DataWrapper<T> {
-  data: T;
+interface OverviewWrapper {
+  overview: LearnOverview;
 }
 
-interface TopicsResponse {
+interface TopicsWrapper {
   topics: LearnTopic[];
-  total: number;
 }
 
-interface LessonsResponse {
+interface LessonsWrapper {
   lessons: LearnLesson[];
-  total: number;
 }
 
-interface DrillsResponse {
+interface DrillsWrapper {
   drills: LearnDrill[];
-  total: number;
+}
+
+interface LessonContentWrapper {
+  lesson: LessonContent;
+}
+
+interface LessonProgressWrapper {
+  progress: LessonProgress;
+}
+
+interface ReviewWrapper {
+  review: ReviewItems;
+}
+
+interface ProgressWrapper {
+  progress: LearnProgressSummary;
 }
 
 interface CompleteLessonResult {
-  lesson_id: string;
-  xp_awarded: number;
-  coins_awarded: number;
-  is_first_completion: boolean;
-  quiz_score: number | null;
+  result: CompleteLessonResult;
 }
 
 interface DrillResult {
+  result: DrillResultInfo;
+}
+
+interface DrillResultInfo {
   drill_id: string;
   score: number;
   xp_awarded: number;
@@ -150,20 +163,20 @@ interface DrillResult {
 
 /** Get learning overview */
 export async function getLearnOverview(): Promise<LearnOverview> {
-  const response = await apiGet<DataWrapper<LearnOverview>>('/api/learn');
-  return response.data;
+  const response = await apiGet<OverviewWrapper>('/api/learn');
+  return response.overview;
 }
 
 /** Get learning progress summary */
 export async function getLearnProgress(): Promise<LearnProgressSummary> {
-  const response = await apiGet<DataWrapper<LearnProgressSummary>>('/api/learn/progress');
-  return response.data;
+  const response = await apiGet<ProgressWrapper>('/api/learn/progress');
+  return response.progress;
 }
 
 /** Get items due for review */
 export async function getReviewItems(): Promise<ReviewItems> {
-  const response = await apiGet<DataWrapper<ReviewItems>>('/api/learn/review');
-  return response.data;
+  const response = await apiGet<ReviewWrapper>('/api/learn/review');
+  return response.review;
 }
 
 // ============================================
@@ -172,20 +185,20 @@ export async function getReviewItems(): Promise<ReviewItems> {
 
 /** List all topics with progress */
 export async function listTopics(): Promise<LearnTopic[]> {
-  const response = await apiGet<DataWrapper<TopicsResponse>>('/api/learn/topics');
-  return response.data.topics;
+  const response = await apiGet<TopicsWrapper>('/api/learn/topics');
+  return response.topics;
 }
 
 /** List lessons for a topic */
 export async function listLessons(topicId: string): Promise<LearnLesson[]> {
-  const response = await apiGet<DataWrapper<LessonsResponse>>(`/api/learn/topics/${topicId}/lessons`);
-  return response.data.lessons;
+  const response = await apiGet<LessonsWrapper>(`/api/learn/topics/${topicId}/lessons`);
+  return response.lessons;
 }
 
 /** List drills for a topic */
 export async function listDrills(topicId: string): Promise<LearnDrill[]> {
-  const response = await apiGet<DataWrapper<DrillsResponse>>(`/api/learn/topics/${topicId}/drills`);
-  return response.data.drills;
+  const response = await apiGet<DrillsWrapper>(`/api/learn/topics/${topicId}/drills`);
+  return response.drills;
 }
 
 // ============================================
@@ -194,23 +207,23 @@ export async function listDrills(topicId: string): Promise<LearnDrill[]> {
 
 /** Get lesson content */
 export async function getLesson(id: string): Promise<LessonContent> {
-  const response = await apiGet<DataWrapper<LessonContent>>(`/api/learn/lessons/${id}`);
-  return response.data;
+  const response = await apiGet<LessonContentWrapper>(`/api/learn/lessons/${id}`);
+  return response.lesson;
 }
 
 /** Start a lesson */
 export async function startLesson(id: string): Promise<LessonProgress> {
-  const response = await apiPost<DataWrapper<LessonProgress>>(`/api/learn/lessons/${id}/start`);
-  return response.data;
+  const response = await apiPost<LessonProgressWrapper>(`/api/learn/lessons/${id}/start`);
+  return response.progress;
 }
 
 /** Complete a lesson */
 export async function completeLesson(id: string, data?: CompleteLessonRequest): Promise<CompleteLessonResult> {
-  const response = await apiPost<DataWrapper<CompleteLessonResult>>(
+  const response = await apiPost<{ result: CompleteLessonResult }>(
     `/api/learn/lessons/${id}/complete`,
     data || {}
   );
-  return response.data;
+  return response.result;
 }
 
 // ============================================
@@ -218,7 +231,7 @@ export async function completeLesson(id: string, data?: CompleteLessonRequest): 
 // ============================================
 
 /** Submit drill result */
-export async function submitDrill(id: string, data: SubmitDrillRequest): Promise<DrillResult> {
-  const response = await apiPost<DataWrapper<DrillResult>>(`/api/learn/drills/${id}/submit`, data);
-  return response.data;
+export async function submitDrill(id: string, data: SubmitDrillRequest): Promise<DrillResultInfo> {
+  const response = await apiPost<DrillResult>(`/api/learn/drills/${id}/submit`, data);
+  return response.result;
 }

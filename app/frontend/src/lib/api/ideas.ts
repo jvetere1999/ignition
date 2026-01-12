@@ -44,18 +44,16 @@ export interface UpdateIdeaRequest {
   is_pinned?: boolean;
 }
 
-interface IdeasListResponse {
-  data: {
-    ideas: Idea[];
-  };
+interface IdeasWrapper {
+  ideas: Idea[];
 }
 
-interface IdeaResponse {
-  data: Idea;
+interface IdeaWrapper {
+  idea: Idea;
 }
 
-interface DeleteResponse {
-  data: { success: boolean };
+interface DeleteResultWrapper {
+  success: boolean;
 }
 
 // ============================================
@@ -66,24 +64,24 @@ interface DeleteResponse {
  * List all ideas (sorted by pinned, then date)
  */
 export async function getIdeas(): Promise<Idea[]> {
-  const response = await apiGet<IdeasListResponse>('/api/ideas');
-  return response.data.ideas;
+  const response = await apiGet<IdeasWrapper>('/api/ideas');
+  return response.ideas;
 }
 
 /**
  * Get a single idea by ID
  */
 export async function getIdea(id: string): Promise<Idea> {
-  const response = await apiGet<IdeaResponse>(`/api/ideas/${id}`);
-  return response.data;
+  const response = await apiGet<IdeaWrapper>(`/api/ideas/${id}`);
+  return response.idea;
 }
 
 /**
  * Create a new idea
  */
 export async function createIdea(idea: CreateIdeaRequest): Promise<Idea> {
-  const response = await apiPost<IdeaResponse>('/api/ideas', idea);
-  return response.data;
+  const response = await apiPost<IdeaWrapper>('/api/ideas', idea);
+  return response.idea;
 }
 
 /**
@@ -93,16 +91,16 @@ export async function updateIdea(
   id: string,
   updates: UpdateIdeaRequest
 ): Promise<Idea> {
-  const response = await apiPut<IdeaResponse>(`/api/ideas/${id}`, updates);
-  return response.data;
+  const response = await apiPut<IdeaWrapper>(`/api/ideas/${id}`, updates);
+  return response.idea;
 }
 
 /**
  * Delete an idea
  */
 export async function deleteIdea(id: string): Promise<boolean> {
-  const response = await apiDelete<DeleteResponse>(`/api/ideas/${id}`);
-  return response.data.success;
+  const response = await apiDelete<DeleteResultWrapper>(`/api/ideas/${id}`);
+  return response.success;
 }
 
 /**

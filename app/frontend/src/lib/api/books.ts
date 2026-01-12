@@ -83,18 +83,16 @@ export interface LogReadingRequest {
 }
 
 // Response wrappers
-interface DataWrapper<T> {
-  data: T;
-}
-
-interface BooksResponse {
+interface BooksWrapper {
   books: Book[];
-  total: number;
 }
 
-interface SessionsResponse {
+interface SessionsWrapper {
   sessions: ReadingSession[];
-  total: number;
+}
+
+interface StatsWrapper {
+  stats: ReadingStats;
 }
 
 interface LogReadingResult {
@@ -113,37 +111,37 @@ interface LogReadingResult {
 /** List all books */
 export async function listBooks(status?: BookStatus): Promise<Book[]> {
   const path = status ? `/api/books?status=${status}` : '/api/books';
-  const response = await apiGet<DataWrapper<BooksResponse>>(path);
-  return response.data.books;
+  const response = await apiGet<BooksWrapper>(path);
+  return response.books;
 }
 
 /** Get book by ID */
 export async function getBook(id: string): Promise<Book> {
-  const response = await apiGet<DataWrapper<Book>>(`/api/books/${id}`);
-  return response.data;
+  const response = await apiGet<{ book: Book }>(`/api/books/${id}`);
+  return response.book;
 }
 
 /** Create a new book */
 export async function createBook(data: CreateBookRequest): Promise<Book> {
-  const response = await apiPost<DataWrapper<Book>>('/api/books', data);
-  return response.data;
+  const response = await apiPost<{ book: Book }>('/api/books', data);
+  return response.book;
 }
 
 /** Update a book */
 export async function updateBook(id: string, data: UpdateBookRequest): Promise<Book> {
-  const response = await apiPut<DataWrapper<Book>>(`/api/books/${id}`, data);
-  return response.data;
+  const response = await apiPut<{ book: Book }>(`/api/books/${id}`, data);
+  return response.book;
 }
 
 /** Delete a book */
 export async function deleteBook(id: string): Promise<void> {
-  await apiDelete<DataWrapper<{ deleted: boolean }>>(`/api/books/${id}`);
+  await apiDelete<{ deleted: boolean }>(`/api/books/${id}`);
 }
 
 /** Get reading stats */
 export async function getReadingStats(): Promise<ReadingStats> {
-  const response = await apiGet<DataWrapper<ReadingStats>>('/api/books/stats');
-  return response.data;
+  const response = await apiGet<StatsWrapper>('/api/books/stats');
+  return response.stats;
 }
 
 // ============================================
@@ -152,12 +150,12 @@ export async function getReadingStats(): Promise<ReadingStats> {
 
 /** List reading sessions for a book */
 export async function listReadingSessions(bookId: string): Promise<ReadingSession[]> {
-  const response = await apiGet<DataWrapper<SessionsResponse>>(`/api/books/${bookId}/sessions`);
-  return response.data.sessions;
+  const response = await apiGet<SessionsWrapper>(`/api/books/${bookId}/sessions`);
+  return response.sessions;
 }
 
 /** Log a reading session */
 export async function logReading(bookId: string, data: LogReadingRequest): Promise<LogReadingResult> {
-  const response = await apiPost<DataWrapper<LogReadingResult>>(`/api/books/${bookId}/sessions`, data);
-  return response.data;
+  const response = await apiPost<{ result: LogReadingResult }>(`/api/books/${bookId}/sessions`, data);
+  return response.result;
 }

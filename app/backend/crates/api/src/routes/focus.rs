@@ -89,6 +89,9 @@ struct CompleteResponse {
 #[derive(Serialize)]
 struct ListResponse {
     sessions: Vec<FocusSessionResponse>,
+    total: i64,
+    page: i64,
+    page_size: i64,
 }
 
 #[derive(Serialize)]
@@ -122,7 +125,12 @@ async fn list_sessions(
     let result =
         FocusSessionRepo::list_sessions(&state.db, user.id, query.page, query.page_size).await?;
 
-    Ok(Json(serde_json::json!({ "sessions": result })))
+    Ok(Json(serde_json::json!({
+        "sessions": result.sessions,
+        "total": result.total,
+        "page": result.page,
+        "page_size": result.page_size,
+    })))
 }
 
 /// POST /focus

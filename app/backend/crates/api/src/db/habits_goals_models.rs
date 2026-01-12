@@ -96,6 +96,7 @@ pub struct CompleteHabitResult {
 #[derive(Debug, Clone, Serialize)]
 pub struct HabitsListResponse {
     pub habits: Vec<HabitResponse>,
+    pub total: i64,
 }
 
 // ============================================================================

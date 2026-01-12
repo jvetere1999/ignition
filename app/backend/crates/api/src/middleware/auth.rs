@@ -150,12 +150,34 @@ pub async fn extract_session(
     Ok(next.run(req).await)
 }
 
-/// Require authenticated user
-pub async fn require_auth(req: Request, next: Next) -> Result<Response, AppError> {
+/// Require authenticated user and inject User extension
+pub async fn require_auth(mut req: Request, next: Next) -> Result<Response, AppError> {
     // Check if AuthContext is present in extensions
-    if req.extensions().get::<AuthContext>().is_none() {
-        return Err(AppError::Unauthorized);
-    }
+    let auth_context = req
+        .extensions()
+        .get::<AuthContext>()
+        .ok_or(AppError::Unauthorized)?
+        .clone();
+
+    // Convert AuthContext to User and inject into extensions
+    let user = crate::db::models::User {
+        id: auth_context.user_id,
+        name: auth_context.name,
+        email: auth_context.email,
+        email_verified: None,
+        image: None,
+        role: auth_context.role,
+        approved: true,
+        age_verified: true,
+        tos_accepted: true,
+        tos_accepted_at: Some(chrono::Utc::now()),
+        tos_version: Some("1.0".to_string()),
+        last_activity_at: Some(chrono::Utc::now()),
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    };
+
+    req.extensions_mut().insert(user);
 
     Ok(next.run(req).await)
 }

@@ -67,8 +67,8 @@ export interface CompleteQuestResult {
  */
 export async function listQuests(status?: QuestStatus): Promise<QuestsList> {
   const query = status ? `?status=${status}` : '';
-  const response = await apiGet<{ data: QuestsList }>(`/api/quests${query}`);
-  return response.data;
+  const response = await apiGet<{ quests: Quest[]; total: number }>(`/api/quests${query}`);
+  return { quests: response.quests, total: response.total };
 }
 
 /**
@@ -76,8 +76,8 @@ export async function listQuests(status?: QuestStatus): Promise<QuestsList> {
  * GET /api/quests/:id
  */
 export async function getQuest(questId: string): Promise<Quest> {
-  const response = await apiGet<{ data: Quest }>(`/api/quests/${questId}`);
-  return response.data;
+  const response = await apiGet<{ quest: Quest }>(`/api/quests/${questId}`);
+  return response.quest;
 }
 
 /**
@@ -85,8 +85,8 @@ export async function getQuest(questId: string): Promise<Quest> {
  * POST /api/quests
  */
 export async function createQuest(req: CreateQuestRequest): Promise<Quest> {
-  const response = await apiPost<{ data: Quest }>('/api/quests', req);
-  return response.data;
+  const response = await apiPost<{ quest: Quest }>('/api/quests', req);
+  return response.quest;
 }
 
 /**
@@ -94,8 +94,8 @@ export async function createQuest(req: CreateQuestRequest): Promise<Quest> {
  * POST /api/quests/:id/accept
  */
 export async function acceptQuest(questId: string): Promise<Quest> {
-  const response = await apiPost<{ data: Quest }>(`/api/quests/${questId}/accept`);
-  return response.data;
+  const response = await apiPost<{ quest: Quest }>(`/api/quests/${questId}/accept`);
+  return response.quest;
 }
 
 /**
@@ -103,8 +103,8 @@ export async function acceptQuest(questId: string): Promise<Quest> {
  * POST /api/quests/:id/complete
  */
 export async function completeQuest(questId: string): Promise<CompleteQuestResult> {
-  const response = await apiPost<{ data: CompleteQuestResult }>(`/api/quests/${questId}/complete`);
-  return response.data;
+  const response = await apiPost<{ result: CompleteQuestResult }>(`/api/quests/${questId}/complete`);
+  return response.result;
 }
 
 /**
@@ -112,8 +112,8 @@ export async function completeQuest(questId: string): Promise<CompleteQuestResul
  * POST /api/quests/:id/abandon
  */
 export async function abandonQuest(questId: string): Promise<Quest> {
-  const response = await apiPost<{ data: Quest }>(`/api/quests/${questId}/abandon`);
-  return response.data;
+  const response = await apiPost<{ quest: Quest }>(`/api/quests/${questId}/abandon`);
+  return response.quest;
 }
 
 // ============================================

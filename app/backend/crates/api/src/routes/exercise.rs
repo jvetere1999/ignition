@@ -80,6 +80,7 @@ struct WorkoutWrapper {
 #[derive(Serialize)]
 struct WorkoutsListWrapper {
     workouts: Vec<WorkoutResponse>,
+    total: i64,
 }
 
 #[derive(Serialize)]
@@ -213,7 +214,7 @@ async fn list_workouts(
 ) -> Result<Json<WorkoutsListWrapper>, AppError> {
     let result =
         WorkoutRepo::list(&state.db, user.id, query.templates_only.unwrap_or(false)).await?;
-    Ok(Json(WorkoutsListWrapper { workouts: result.workouts }))
+    Ok(Json(WorkoutsListWrapper { workouts: result.workouts, total: result.total }))
 }
 
 /// POST /exercise/workouts
