@@ -24,6 +24,32 @@ export interface Session {
   user: AuthUser | null;
 }
 
+interface RawAuthUser {
+  id: string;
+  email: string;
+  name: string;
+  image: string | null;
+  role: string;
+  entitlements?: string[];
+  age_verified?: boolean;
+  ageVerified?: boolean;
+  tos_accepted?: boolean;
+  tosAccepted?: boolean;
+}
+
+function normalizeAuthUser(raw: RawAuthUser): AuthUser {
+  return {
+    id: raw.id,
+    email: raw.email,
+    name: raw.name,
+    image: raw.image ?? null,
+    role: raw.role,
+    entitlements: raw.entitlements ?? [],
+    ageVerified: raw.age_verified ?? raw.ageVerified ?? false,
+    tosAccepted: raw.tos_accepted ?? raw.tosAccepted ?? false,
+  };
+}
+
 /**
  * Get session from backend API (for server components)
  * Forwards the session cookie to the backend
@@ -49,13 +75,13 @@ export async function auth(): Promise<Session | null> {
       return null;
     }
 
-    const data = await response.json() as { user: AuthUser | null };
+    const data = await response.json() as { user: RawAuthUser | null };
     
     if (!data.user) {
       return null;
     }
 
-    return { user: data.user };
+    return { user: normalizeAuthUser(data.user) };
   } catch (error) {
     console.error('Failed to get session:', error);
     return null;

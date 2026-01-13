@@ -37,6 +37,32 @@ export interface SessionResponse {
   user: AuthUser | null;
 }
 
+interface RawAuthUser {
+  id: string;
+  email: string;
+  name: string;
+  image: string | null;
+  role: string;
+  entitlements?: string[];
+  age_verified?: boolean;
+  ageVerified?: boolean;
+  tos_accepted?: boolean;
+  tosAccepted?: boolean;
+}
+
+function normalizeAuthUser(raw: RawAuthUser): AuthUser {
+  return {
+    id: raw.id,
+    email: raw.email,
+    name: raw.name,
+    image: raw.image ?? null,
+    role: raw.role,
+    entitlements: raw.entitlements ?? [],
+    ageVerified: raw.age_verified ?? raw.ageVerified ?? false,
+    tosAccepted: raw.tos_accepted ?? raw.tosAccepted ?? false,
+  };
+}
+
 /**
  * OAuth provider info
  */
@@ -76,7 +102,10 @@ export async function getSession(): Promise<SessionResponse> {
     if (!response.ok) {
       return { user: null };
     }
-    return response.json();
+    const data = await response.json() as { user: RawAuthUser | null };
+    return {
+      user: data.user ? normalizeAuthUser(data.user) : null,
+    };
   } catch {
     return { user: null };
   }
