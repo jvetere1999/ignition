@@ -38,9 +38,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SyncStateProvider>
       <AppShell>
-        {children}
-        <OnboardingProvider />
-        <AdminButton />
+        <OnboardingProvider>
+          {children}
+          <AdminButton />
+        </OnboardingProvider>
       </AppShell>
     </SyncStateProvider>
   );
