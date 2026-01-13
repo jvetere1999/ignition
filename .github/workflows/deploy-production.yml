@@ -135,7 +135,7 @@ jobs:
           retention-days: 30
 
   build-and-deploy-backend:
-    if: always()
+    if: needs.wipe-and-rebuild-neon.result == 'success'
     needs: [pre-deployment-checks, wipe-and-rebuild-neon]
     env:
       SKIP_MIGRATIONS: 'true'
