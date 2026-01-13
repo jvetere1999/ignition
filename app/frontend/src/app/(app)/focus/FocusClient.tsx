@@ -214,20 +214,24 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     try {
       const response = await fetch("/api/focus/active");
       if (response.ok) {
-        const data = await response.json() as { session?: FocusSession | null };
-        if (data.session) {
-          setCurrentSession(data.session);
-          setMode(data.session.mode);
+        const data = await response.json() as { active?: { session?: FocusSession | null; pause_state?: { mode: FocusMode; timeRemaining: number; pausedAt: string } | null } };
+        if (data.active?.session) {
+          setCurrentSession(data.active.session);
+          setMode(data.active.session.mode);
 
           // Calculate remaining time
-          const startTime = new Date(data.session.started_at).getTime();
+          const startTime = new Date(data.active.session.started_at).getTime();
           const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          const remaining = Math.max(0, data.session.duration_seconds - elapsed);
+          const remaining = Math.max(0, data.active.session.duration_seconds - elapsed);
 
           setTimeRemaining(remaining);
           if (remaining > 0) {
             setStatus("running");
           }
+        } else if (data.active?.pause_state) {
+          setMode(data.active.pause_state.mode);
+          setTimeRemaining(data.active.pause_state.timeRemaining);
+          setStatus("paused");
         }
       }
     } catch (error) {
