@@ -451,7 +451,7 @@ async fn upload_track(
     let mut filename: Option<String> = None;
     let mut mime_type: Option<String> = None;
     let mut name: Option<String> = None;
-    let mut description: Option<String> = None;
+    let mut _description: Option<String> = None;
 
     // Parse multipart form
     while let Some(field) = multipart
@@ -482,7 +482,7 @@ async fn upload_track(
                 );
             }
             "description" => {
-                description = Some(
+                _description = Some(
                     field
                         .text()
                         .await
@@ -504,7 +504,7 @@ async fn upload_track(
         ));
     }
 
-    let file_size = data.len() as i64;
+    let _file_size = data.len() as i64;
     let track_name = name.unwrap_or_else(|| filename.clone());
 
     // Upload to R2

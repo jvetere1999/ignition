@@ -668,7 +668,7 @@ impl AdminQuestRepo {
     /// Create a new universal quest
     pub async fn create_quest(
         pool: &PgPool,
-        admin_id: Uuid,
+        _admin_id: Uuid,
         request: CreateQuestRequest,
     ) -> Result<AdminQuest, AppError> {
         let id = Uuid::new_v4();

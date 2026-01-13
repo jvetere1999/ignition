@@ -110,7 +110,7 @@ impl From<AppError> for ApiError {
     fn from(err: AppError) -> Self {
         match err {
             AppError::NotFound(msg) => Self::not_found(&msg),
-            AppError::Unauthorized => Self::unauthorized(),
+            AppError::Unauthorized(_) => Self::unauthorized(),
             AppError::Forbidden => Self::forbidden(),
             AppError::CsrfViolation => Self::new("csrf_violation", "CSRF validation failed"),
             AppError::InvalidOrigin => Self::new("invalid_origin", "Invalid origin"),

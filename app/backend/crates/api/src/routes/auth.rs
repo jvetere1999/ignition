@@ -433,7 +433,7 @@ async fn verify_age(
     auth: Option<Extension<AuthContext>>,
     Json(payload): Json<VerifyAgeRequest>,
 ) -> AppResult<Response> {
-    let auth_context = auth.ok_or(AppError::Unauthorized)?.0;
+    let auth_context = auth.ok_or(AppError::Unauthorized("Authentication required".to_string()))?.0;
 
     if !payload.is_13_or_older {
         return Err(AppError::Forbidden);
@@ -496,7 +496,7 @@ async fn accept_tos(
     auth: Option<Extension<AuthContext>>,
     Json(payload): Json<AcceptTosRequest>,
 ) -> AppResult<Response> {
-    let auth_context = auth.ok_or(AppError::Unauthorized)?.0;
+    let auth_context = auth.ok_or(AppError::Unauthorized("Authentication required".to_string()))?.0;
 
     if !payload.accepted {
         return Err(AppError::BadRequest("TOS must be accepted".to_string()));

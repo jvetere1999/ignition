@@ -156,7 +156,7 @@ pub async fn require_auth(mut req: Request, next: Next) -> Result<Response, AppE
     let auth_context = req
         .extensions()
         .get::<AuthContext>()
-        .ok_or(AppError::Unauthorized)?
+        .ok_or(AppError::Unauthorized("Authentication required".to_string()))?
         .clone();
 
     // Convert AuthContext to User and inject into extensions
@@ -188,7 +188,7 @@ pub async fn require_admin(req: Request, next: Next) -> Result<Response, AppErro
     match req.extensions().get::<AuthContext>() {
         Some(auth) if auth.is_admin() => Ok(next.run(req).await),
         Some(_) => Err(AppError::Forbidden),
-        None => Err(AppError::Unauthorized),
+        None => Err(AppError::Unauthorized("Authentication required".to_string())),
     }
 }
 
@@ -209,7 +209,7 @@ pub fn require_entitlement(
             match req.extensions().get::<AuthContext>() {
                 Some(auth) if auth.has_entitlement(entitlement) => Ok(next.run(req).await),
                 Some(_) => Err(AppError::Forbidden),
-                None => Err(AppError::Unauthorized),
+                None => Err(AppError::Unauthorized("Authentication required".to_string())),
             }
         })
     }

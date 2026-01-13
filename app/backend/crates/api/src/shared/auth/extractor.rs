@@ -89,7 +89,7 @@ where
             .extensions
             .get::<AuthContext>()
             .map(Auth::from)
-            .ok_or(AppError::Unauthorized)
+            .ok_or(AppError::Unauthorized("Session token required".to_string()))
     }
 }
 

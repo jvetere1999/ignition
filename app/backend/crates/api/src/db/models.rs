@@ -24,6 +24,13 @@ pub struct User {
     pub updated_at: DateTime<Utc>,
 }
 
+impl User {
+    /// Check if user has admin role
+    pub fn is_admin(&self) -> bool {
+        self.role.eq_ignore_ascii_case("admin")
+    }
+}
+
 /// User role enum
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

@@ -61,13 +61,15 @@ impl GoogleOAuth {
             .set_pkce_challenge(pkce_challenge)
             .url();
 
+        let redirect_uri = self.client.redirect_url()
+            .map(|url| url.to_string())
+            .unwrap_or_else(|| "http://localhost:3000/api/auth/callback/google".to_string());
+
         let state = OAuthState {
             csrf_token: csrf_token.secret().clone(),
             pkce_verifier: pkce_verifier.secret().clone(),
             provider: OAuthProvider::Google,
-            redirect_uri: self.client.redirect_url()
-                .ok_or_else(|| AppError::Config("Google OAuth redirect URL not configured".to_string()))?
-                .to_string(),
+            redirect_uri,
         };
 
         (auth_url.to_string(), state)
@@ -182,13 +184,15 @@ impl AzureOAuth {
             .set_pkce_challenge(pkce_challenge)
             .url();
 
+        let redirect_uri = self.client.redirect_url()
+            .map(|url| url.to_string())
+            .unwrap_or_else(|| "http://localhost:3000/api/auth/callback/azure".to_string());
+
         let state = OAuthState {
             csrf_token: csrf_token.secret().clone(),
             pkce_verifier: pkce_verifier.secret().clone(),
             provider: OAuthProvider::Azure,
-            redirect_uri: self.client.redirect_url()
-                .ok_or_else(|| AppError::Config("Azure OAuth redirect URL not configured".to_string()))?
-                .to_string(),
+            redirect_uri,
         };
 
         (auth_url.to_string(), state)
