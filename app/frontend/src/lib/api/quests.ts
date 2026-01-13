@@ -26,6 +26,8 @@ export interface Quest {
   xp_reward: number;
   coin_reward: number;
   status: QuestStatus;
+  progress?: number;
+  target?: number;
   is_repeatable: boolean;
   streak_count: number;
   accepted_at: string | null;

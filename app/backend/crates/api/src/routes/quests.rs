@@ -25,6 +25,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/", get(list_quests).post(create_quest))
         .route("/{id}", get(get_quest))
         .route("/{id}/accept", post(accept_quest))
+        .route("/{id}/progress", post(update_progress))
         .route("/{id}/complete", post(complete_quest))
         .route("/{id}/abandon", post(abandon_quest))
 }
@@ -36,6 +37,11 @@ pub fn router() -> Router<Arc<AppState>> {
 #[derive(Debug, Deserialize)]
 pub struct ListQuestsQuery {
     pub status: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateQuestProgressRequest {
+    pub progress: i32,
 }
 
 // ============================================================================
@@ -107,6 +113,19 @@ async fn accept_quest(
     Path(id): Path<Uuid>,
 ) -> Result<Json<QuestResponseWrapper>, AppError> {
     let quest = QuestsRepo::accept_quest(&state.db, id, user.id).await?;
+
+    Ok(Json(QuestResponseWrapper { quest: quest.into() }))
+}
+
+/// POST /quests/:id/progress
+/// Update quest progress
+async fn update_progress(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+    Path(id): Path<Uuid>,
+    Json(req): Json<UpdateQuestProgressRequest>,
+) -> Result<Json<QuestResponseWrapper>, AppError> {
+    let quest = QuestsRepo::update_progress(&state.db, id, user.id, req.progress).await?;
 
     Ok(Json(QuestResponseWrapper { quest: quest.into() }))
 }

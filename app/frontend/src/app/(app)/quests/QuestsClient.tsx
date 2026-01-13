@@ -7,14 +7,14 @@
  *
  * Auto-refresh: Refetches on focus after 1 minute staleness (per SYNC.md)
  *
- * STORAGE RULE: Quest progress is stored in D1 via /api/quests API.
+ * STORAGE RULE: Quest progress is stored in Postgres via /api/quests API.
  * localStorage cache is DEPRECATED when DISABLE_MASS_LOCAL_PERSISTENCE is enabled.
  *
  * FAST LOADING: Uses SyncState for instant progress display
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { useAutoRefresh } from "@/lib/hooks";
 import { LoadingState, EmptyState } from "@/components/ui";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
@@ -35,7 +35,7 @@ interface Quest {
   skillId?: string;
 }
 
-// Storage key for local progress cache (D1 is primary)
+// Storage key for local progress cache (API is primary)
 const QUEST_PROGRESS_KEY = "passion_quest_progress_v1";
 
 export function QuestsClient() {
@@ -57,49 +57,63 @@ export function QuestsClient() {
   const polledProgress = useProgress();
   const polledBadges = useBadges();
 
-  // Fetch wallet from D1
+  const normalizeQuestType = useCallback((category?: string | null): Quest["type"] => {
+    switch ((category || "").toLowerCase()) {
+      case "daily":
+        return "daily";
+      case "weekly":
+        return "weekly";
+      case "special":
+        return "special";
+      default:
+        return "special";
+    }
+  }, []);
+
+  // Fetch wallet from backend
   const fetchWallet = useCallback(async () => {
     try {
-      const response = await fetch("/api/market");
+      const response = await safeFetch(`${API_BASE_URL}/api/market`);
       if (response.ok) {
-        const data = await response.json() as { wallet?: { coins?: number; xp?: number } };
-        if (data.wallet) {
-          setWallet({
-            coins: data.wallet.coins || 0,
-            totalXp: data.wallet.xp || 0,
-          });
-        }
+        const data = await response.json() as {
+          data?: { wallet?: { total_coins?: number } };
+        };
+        const coins = data.data?.wallet?.total_coins ?? 0;
+        setWallet((prev) => ({ ...prev, coins }));
       }
     } catch (e) {
       console.error("Failed to load wallet:", e);
     }
   }, []);
 
+  useEffect(() => {
+    if (polledProgress) {
+      setWallet((prev) => ({ ...prev, totalXp: polledProgress.current_xp ?? prev.totalXp }));
+    }
+  }, [polledProgress]);
+
   // Fetch quests function for reuse
   const fetchQuests = useCallback(async () => {
     try {
-      const response = await fetch("/api/quests");
+      const response = await safeFetch(`${API_BASE_URL}/api/quests`);
       let apiQuests: Quest[] = [];
-      let d1Progress: Record<string, { progress: number; completed: boolean }> = {};
 
       if (response.ok) {
         const data = await response.json() as {
           quests?: Record<string, unknown>[];
-          userProgress?: Record<string, { progress: number; completed: boolean }>;
         };
         apiQuests = (data.quests || []).map((q: Record<string, unknown>) => ({
           id: String(q.id || ""),
           title: String(q.title || ""),
           description: String(q.description || ""),
-          type: (q.type as Quest["type"]) || "daily",
-          xpReward: Number(q.xpReward || q.xp_reward || 10),
-          coinReward: Number(q.coinReward || q.coin_reward || 5),
+          type: normalizeQuestType(q.category as string | null | undefined),
+          xpReward: Number(q.xp_reward || 10),
+          coinReward: Number(q.coin_reward || 5),
           target: Number(q.target || 1),
-          progress: 0,
-          completed: false,
-          skillId: q.skillId as string | undefined,
+          progress: Number(q.progress || 0),
+          completed: ["completed", "claimed"].includes(String(q.status || "")),
+          expiresAt: q.expires_at ? String(q.expires_at) : undefined,
         }));
-        d1Progress = data.userProgress || {};
       }
 
       // Only use localStorage fallback if deprecation is disabled
@@ -109,11 +123,15 @@ export function QuestsClient() {
         localProgress = storedProgress ? JSON.parse(storedProgress) : {};
       }
 
-      // Merge progress - D1 takes priority, then local cache (if not deprecated)
+      // Merge progress - API takes priority, then local cache (if not deprecated)
       const questsWithProgress = apiQuests.map((q) => ({
         ...q,
-        progress: d1Progress[q.id]?.progress ?? localProgress[q.id]?.progress ?? 0,
-        completed: d1Progress[q.id]?.completed ?? localProgress[q.id]?.completed ?? false,
+        progress: Number.isFinite(q.progress)
+          ? q.progress
+          : localProgress[q.id]?.progress ?? 0,
+        completed: typeof q.completed === "boolean"
+          ? q.completed
+          : localProgress[q.id]?.completed ?? false,
       }));
 
       setQuests(questsWithProgress);
@@ -121,7 +139,7 @@ export function QuestsClient() {
       console.error("Failed to load quests:", e);
     }
     setIsLoading(false);
-  }, []);
+  }, [normalizeQuestType]);
 
   // Auto-refresh: refetch on focus after 1 minute staleness
   // Pauses on page unload, soft refreshes on reload if stale
@@ -140,8 +158,7 @@ export function QuestsClient() {
   useEffect(() => {
     fetchQuests();
     fetchWallet();
-    // Empty dependency array: fetchQuests and fetchWallet are stable (useCallback with [])
-  }, []);
+  }, [fetchQuests, fetchWallet]);
 
   // Save quest progress when it changes - only to localStorage if not deprecated
   useEffect(() => {
@@ -154,36 +171,38 @@ export function QuestsClient() {
     }
   }, [quests, isLoading]);
 
-  // Sync quest progress to D1
-  const syncProgressToD1 = useCallback(async (questId: string, progress: number) => {
+  // Sync quest progress to API
+  const syncProgressToApi = useCallback(async (questId: string, progress: number) => {
     try {
-      await fetch("/api/quests", {
+      await safeFetch(`${API_BASE_URL}/api/quests/${questId}/progress`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "progress", questId, progress }),
+        body: JSON.stringify({ progress }),
       });
     } catch (e) {
-      console.error("[quests] Failed to sync progress to D1:", e);
+      console.error("[quests] Failed to sync progress to API:", e);
     }
   }, []);
 
-  // Sync quest completion to D1
-  const syncCompletionToD1 = useCallback(async (quest: Quest) => {
+  // Sync quest completion to API
+  const syncCompletionToApi = useCallback(async (quest: Quest) => {
     try {
-      await fetch("/api/quests", {
+      const response = await safeFetch(`${API_BASE_URL}/api/quests/${quest.id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "complete",
-          questId: quest.id,
-          progress: quest.target,
-          xpReward: quest.xpReward,
-          coinReward: quest.coinReward,
-          skillId: quest.skillId,
-        }),
       });
+      if (!response.ok) return;
+      const data = await response.json() as {
+        result?: { xp_awarded?: number; coins_awarded?: number };
+      };
+      if (data.result) {
+        setWallet((prev) => ({
+          coins: prev.coins + (data.result.coins_awarded || 0),
+          totalXp: prev.totalXp + (data.result.xp_awarded || 0),
+        }));
+      }
     } catch (e) {
-      console.error("[quests] Failed to sync completion to D1:", e);
+      console.error("[quests] Failed to sync completion to API:", e);
     }
   }, []);
 
@@ -199,14 +218,9 @@ export function QuestsClient() {
       })
     );
 
-    setWallet((prev) => ({
-      coins: prev.coins + quest.coinReward,
-      totalXp: prev.totalXp + quest.xpReward,
-    }));
-
-    // Sync to D1
-    syncCompletionToD1({ ...quest, progress: quest.target, completed: true });
-  }, [quests, syncCompletionToD1]);
+    // Sync to API
+    syncCompletionToApi({ ...quest, progress: quest.target, completed: true });
+  }, [quests, syncCompletionToApi]);
 
   // Add progress to a quest
   const handleAddProgress = useCallback((questId: string) => {
@@ -217,64 +231,88 @@ export function QuestsClient() {
         const completed = newProgress >= q.target;
 
         if (completed && !q.completed) {
-          // Award rewards
-          setWallet((w) => ({
-            coins: w.coins + q.coinReward,
-            totalXp: w.totalXp + q.xpReward,
-          }));
-          // Sync completion to D1
-          syncCompletionToD1({ ...q, progress: newProgress, completed: true });
+          // Sync completion to API
+          syncCompletionToApi({ ...q, progress: newProgress, completed: true });
         } else {
           // Just sync progress
-          syncProgressToD1(q.id, newProgress);
+          syncProgressToApi(q.id, newProgress);
         }
 
         return { ...q, progress: newProgress, completed };
       })
     );
-  }, [syncProgressToD1, syncCompletionToD1]);
+  }, [syncProgressToApi, syncCompletionToApi]);
 
   // Refresh quests from server
   const handleRefreshDaily = useCallback(async () => {
     try {
-      const response = await fetch("/api/quests");
+      const response = await safeFetch(`${API_BASE_URL}/api/quests`);
       if (response.ok) {
         const data = await response.json() as { quests?: Record<string, unknown>[] };
         const apiQuests: Quest[] = (data.quests || []).map((q: Record<string, unknown>) => ({
           id: String(q.id || ""),
           title: String(q.title || ""),
           description: String(q.description || ""),
-          type: (q.type as Quest["type"]) || "daily",
-          xpReward: Number(q.xpReward || q.xp_reward || 10),
-          coinReward: Number(q.coinReward || q.coin_reward || 5),
+          type: normalizeQuestType(q.category as string | null | undefined),
+          xpReward: Number(q.xp_reward || 10),
+          coinReward: Number(q.coin_reward || 5),
           target: Number(q.target || 1),
-          progress: 0,
-          completed: false,
+          progress: Number(q.progress || 0),
+          completed: ["completed", "claimed"].includes(String(q.status || "")),
         }));
         setQuests(apiQuests);
       }
     } catch (e) {
       console.error("Failed to refresh quests:", e);
     }
-  }, []);
+  }, [normalizeQuestType]);
 
   // Add custom quest
-  const handleAddCustomQuest = useCallback(() => {
+  const handleAddCustomQuest = useCallback(async () => {
     if (!newQuest.title.trim()) return;
 
-    const quest: Quest = {
-      id: `custom-${Date.now()}`,
-      title: newQuest.title.trim(),
-      description: newQuest.description.trim(),
-      type: newQuest.type,
-      xpReward: newQuest.xpReward,
-      coinReward: newQuest.coinReward,
-      progress: 0,
-      target: newQuest.target,
-      completed: false,
-    };
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/api/quests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newQuest.title.trim(),
+          description: newQuest.description.trim() || undefined,
+          category: newQuest.type,
+          difficulty: "starter",
+          xp_reward: newQuest.xpReward,
+          coin_reward: newQuest.coinReward,
+          target: newQuest.target,
+          is_repeatable: false,
+        }),
+      });
 
-    setQuests((prev) => [quest, ...prev]);
+      if (!response.ok) {
+        console.error("Failed to create quest");
+        return;
+      }
+
+      const data = await response.json() as { quest?: Record<string, unknown> };
+      const q = data.quest || {};
+      const quest: Quest = {
+        id: String(q.id || ""),
+        title: String(q.title || ""),
+        description: String(q.description || ""),
+        type: normalizeQuestType(q.category as string | null | undefined),
+        xpReward: Number(q.xp_reward || 10),
+        coinReward: Number(q.coin_reward || 5),
+        progress: Number(q.progress || 0),
+        target: Number(q.target || 1),
+        completed: ["completed", "claimed"].includes(String(q.status || "")),
+        expiresAt: q.expires_at ? String(q.expires_at) : undefined,
+      };
+
+      setQuests((prev) => [quest, ...prev]);
+    } catch (e) {
+      console.error("Failed to create quest:", e);
+      return;
+    }
+
     setNewQuest({
       title: "",
       description: "",
@@ -284,7 +322,7 @@ export function QuestsClient() {
       target: 1,
     });
     setShowAddForm(false);
-  }, [newQuest]);
+  }, [newQuest, normalizeQuestType]);
 
   const filteredQuests = quests.filter((q) => q.type === activeTab);
 
@@ -500,4 +538,3 @@ export function QuestsClient() {
     </div>
   );
 }
-

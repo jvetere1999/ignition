@@ -8,7 +8,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { useAutoRefresh } from "@/lib/hooks";
 import styles from "./page.module.css";
 
@@ -160,7 +160,7 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
   const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/calendar");
+      const response = await safeFetch(`${API_BASE_URL}/api/calendar`);
       if (response.ok) {
         const data = await response.json() as { events: APICalendarEvent[] };
         const localEvents = (data.events || []).map(apiEventToLocal);
@@ -178,8 +178,7 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
   // Fetch events on mount
   useEffect(() => {
     fetchEvents();
-    // Empty dependency array: fetchEvents is stable (useCallback with [])
-  }, []);
+  }, [fetchEvents]);
 
   // Auto-refresh: 30s polling for multi-device sync + focus refetch (per SYNC.md)
   // Pauses on page unload and when tab is hidden to reduce CPU usage
@@ -316,7 +315,7 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
 
       if (editingEvent) {
         // Update existing event
-        const response = await fetch("/api/calendar", {
+        const response = await safeFetch(`${API_BASE_URL}/api/calendar`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: editingEvent.id, ...eventData }),
@@ -333,7 +332,7 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
         setEvents(events.map((e) => (e.id === editingEvent.id ? updatedEvent : e)));
       } else {
         // Create new event
-        const response = await fetch("/api/calendar", {
+        const response = await safeFetch(`${API_BASE_URL}/api/calendar`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(eventData),
@@ -364,7 +363,7 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/calendar/${id}`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/calendar/${id}`, {
         method: "DELETE",
       });
 
@@ -973,4 +972,3 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
     </div>
   );
 }
-

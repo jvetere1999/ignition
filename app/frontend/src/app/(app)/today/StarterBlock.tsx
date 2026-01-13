@@ -22,6 +22,7 @@ import {
   type PlanItem,
 } from "@/lib/today";
 import { isTodayNextActionResolverEnabled } from "@/lib/flags";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import styles from "./StarterBlock.module.css";
 
 /**
@@ -152,7 +153,7 @@ export function StarterBlock() {
 
   const fetchPlan = useCallback(async () => {
     try {
-      const res = await fetch("/api/daily-plan");
+      const res = await safeFetch(`${API_BASE_URL}/api/daily-plan`);
       if (res.ok) {
         const data = (await res.json()) as { plan: DailyPlan | null };
         // Safety net: validate plan structure
@@ -210,4 +211,3 @@ export function StarterBlock() {
     </section>
   );
 }
-

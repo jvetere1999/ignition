@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import styles from "./page.module.css";
 
 interface Win {
@@ -49,7 +49,7 @@ export function WinsClient({ userId: _userId }: WinsClientProps) {
     setIsLoading(true);
     try {
       // Fetch activity events that count as wins
-      const response = await fetch(`/api/focus?stats=true&period=week`);
+      const response = await safeFetch(`${API_BASE_URL}/api/focus?stats=true&period=week`);
       if (response.ok) {
         const data = await response.json() as FocusResponse;
 
@@ -85,8 +85,7 @@ export function WinsClient({ userId: _userId }: WinsClientProps) {
 
   useEffect(() => {
     fetchWins();
-    // Empty dependency array: fetchWins is stable (useCallback with [])
-  }, []);
+  }, [fetchWins]);
 
   const filteredWins = wins.filter((win) => {
     const winDate = new Date(win.timestamp);
@@ -199,4 +198,3 @@ export function WinsClient({ userId: _userId }: WinsClientProps) {
     </div>
   );
 }
-

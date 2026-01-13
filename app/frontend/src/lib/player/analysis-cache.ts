@@ -10,6 +10,7 @@
  */
 
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
+import { API_BASE_URL, safeFetch } from "@/lib/api";
 
 export interface CachedAnalysis {
   id: string;
@@ -56,7 +57,9 @@ export async function getCachedAnalysis(
 
   // Try API first (D1 is source of truth)
   try {
-    const response = await fetch(`/api/analysis?hash=${encodeURIComponent(contentHash)}`);
+    const response = await safeFetch(
+      `${API_BASE_URL}/api/analysis?hash=${encodeURIComponent(contentHash)}`
+    );
     if (response.ok) {
       const analysis = await response.json() as CachedAnalysis;
       memoryCache.set(contentHash, analysis);
@@ -98,7 +101,7 @@ export async function saveAnalysisToCache(
 
   // Save to API (non-blocking)
   try {
-    await fetch("/api/analysis", {
+    await safeFetch(`${API_BASE_URL}/api/analysis`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(analysis),
@@ -200,4 +203,3 @@ export function getCacheStats(): { memory: number; local: number } {
     local: Object.keys(localCache).length,
   };
 }
-

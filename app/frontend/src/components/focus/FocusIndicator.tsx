@@ -43,6 +43,8 @@ const MODE_COLORS: Record<string, string> = {
   long_break: "var(--accent-info, #2196f3)",
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.ecent.online";
+
 function formatTime(seconds: number): string {
   if (seconds < 0) seconds = 0;
   const mins = Math.floor(seconds / 60);
@@ -87,12 +89,17 @@ export function FocusIndicator() {
   const checkPausedState = useCallback(async () => {
     // Always check D1 first (source of truth)
     try {
-      const response = await fetch("/api/focus/pause");
+      const response = await safeFetch(`${API_BASE_URL}/api/focus/pause`);
       if (response.ok) {
-        const data = await response.json() as { pauseState: PausedState | null };
-        if (data.pauseState) {
-          setPausedState(data.pauseState);
-          setTimeRemaining(data.pauseState.timeRemaining);
+        const data = await response.json() as { pause?: { mode?: string | null; time_remaining_seconds?: number | null; paused_at?: string | null } | null };
+        if (data.pause?.mode) {
+          const mappedPause: PausedState = {
+            mode: data.pause.mode as PausedState["mode"],
+            timeRemaining: data.pause.time_remaining_seconds || 0,
+            pausedAt: data.pause.paused_at || new Date().toISOString(),
+          };
+          setPausedState(mappedPause);
+          setTimeRemaining(mappedPause.timeRemaining);
           return true;
         }
       }
@@ -131,17 +138,24 @@ export function FocusIndicator() {
   // Fetch active session
   const fetchActiveSession = useCallback(async () => {
     try {
-      const response = await fetch("/api/focus/active");
+      const response = await safeFetch(`${API_BASE_URL}/api/focus/active`);
       if (response.ok) {
-        const data = await response.json() as { session?: FocusSession | null };
-        if (data.session && data.session.status === "active") {
-          setSession(data.session);
+        const data = await response.json() as { active?: { session?: { id: string; started_at: string; duration_seconds: number; status: string; mode: string } | null; pause_state?: { mode?: string | null; time_remaining_seconds?: number | null; paused_at?: string | null } | null } };
+        if (data.active?.session && data.active.session.status === "active") {
+          const mappedSession: FocusSession = {
+            id: data.active.session.id,
+            started_at: data.active.session.started_at,
+            planned_duration: data.active.session.duration_seconds,
+            status: "active",
+            mode: data.active.session.mode as FocusSession["mode"],
+          };
+          setSession(mappedSession);
           setPausedState(null); // Clear paused state if there's an active session
 
           // Calculate remaining time
-          const startTime = new Date(data.session.started_at).getTime();
+          const startTime = new Date(mappedSession.started_at).getTime();
           const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          const remaining = Math.max(0, data.session.planned_duration - elapsed);
+          const remaining = Math.max(0, mappedSession.planned_duration - elapsed);
           setTimeRemaining(remaining);
         } else {
           setSession(null);
@@ -213,7 +227,7 @@ export function FocusIndicator() {
   const handleAbandon = useCallback(async () => {
     if (session) {
       try {
-        const response = await fetch(`/api/focus/${session.id}/abandon`, {
+        const response = await safeFetch(`${API_BASE_URL}/api/focus/${session.id}/abandon`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -238,11 +252,9 @@ export function FocusIndicator() {
 
     // Clear from D1 (source of truth)
     try {
-      await fetch("/api/focus/pause", {
-        method: "POST",
+      await safeFetch(`${API_BASE_URL}/api/focus/pause`, {
+        method: "DELETE",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "clear" }),
       });
     } catch (e) {
       console.error("Failed to clear pause state from D1:", e);
@@ -381,4 +393,3 @@ export function FocusIndicator() {
     </div>
   );
 }
-

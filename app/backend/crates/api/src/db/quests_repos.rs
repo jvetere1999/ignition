@@ -196,7 +196,8 @@ impl QuestsRepo {
         let query = format!(
             r#"UPDATE user_quests
                SET status = 'completed', completed_at = NOW(),
-                   last_completed_date = $1::date, streak_count = $2
+                   last_completed_date = $1::date, streak_count = $2,
+                   progress = target
                WHERE id = $3 AND user_id = $4
                RETURNING {}"#,
             QUEST_COLUMNS
@@ -235,6 +236,49 @@ impl QuestsRepo {
             leveled_up: award_result.leveled_up.unwrap_or(false),
             new_level: award_result.new_level,
         })
+    }
+
+    /// Update quest progress
+    pub async fn update_progress(
+        pool: &PgPool,
+        quest_id: Uuid,
+        user_id: Uuid,
+        progress: i32,
+    ) -> Result<Quest, AppError> {
+        let quest = Self::get_by_id(pool, quest_id, user_id).await?;
+        let quest = quest.ok_or_else(|| AppError::NotFound("Quest not found".to_string()))?;
+
+        if quest.status == "completed" || quest.status == "abandoned" || quest.status == "expired" {
+            return Err(AppError::BadRequest(format!(
+                "Quest progress cannot be updated (status: {})",
+                quest.status
+            )));
+        }
+
+        let clamped_progress = progress.clamp(0, quest.target);
+        let next_status = if quest.status == "active" {
+            "accepted"
+        } else {
+            quest.status.as_str()
+        };
+
+        let query = format!(
+            r#"UPDATE user_quests
+               SET progress = $1, status = $2
+               WHERE id = $3 AND user_id = $4
+               RETURNING {}"#,
+            QUEST_COLUMNS
+        );
+
+        let updated = sqlx::query_as::<_, Quest>(&query)
+            .bind(clamped_progress)
+            .bind(next_status)
+            .bind(quest_id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
+
+        Ok(updated)
     }
 
     /// Abandon a quest

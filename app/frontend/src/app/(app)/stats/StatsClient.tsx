@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import styles from "./page.module.css";
 
 interface Stats {
@@ -49,9 +49,7 @@ export function StatsClient({ userId: _userId }: StatsClientProps) {
     setIsLoading(true);
     try {
       // Fetch focus stats
-      const focusResponse = await fetch(`/api/focus?stats=true&period=${period}`, {
-        credentials: "include",
-      });
+      const focusResponse = await safeFetch(`${API_BASE_URL}/api/focus?stats=true&period=${period}`);
       if (focusResponse.ok) {
         const focusData = await focusResponse.json() as FocusStatsResponse;
         setStats((prev) => ({
@@ -177,4 +175,3 @@ export function StatsClient({ userId: _userId }: StatsClientProps) {
     </div>
   );
 }
-

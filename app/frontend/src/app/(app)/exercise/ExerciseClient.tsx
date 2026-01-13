@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import styles from "./ExerciseClient.module.css";
 
 // Types
@@ -156,11 +156,14 @@ export function ExerciseClient() {
     const abortController = new AbortController();
     try {
       const [exercisesRes, workoutsRes, sessionsRes, recordsRes, statsRes] = await Promise.all([
-        fetch(`/api/exercise?type=exercises&category=${categoryFilter}&search=${searchTerm}`, { signal: abortController.signal }),
-        fetch("/api/exercise?type=workouts", { signal: abortController.signal }),
-        fetch("/api/exercise?type=sessions&limit=10", { signal: abortController.signal }),
-        fetch("/api/exercise?type=records", { signal: abortController.signal }),
-        fetch("/api/exercise?type=stats", { signal: abortController.signal }),
+        safeFetch(
+          `${API_BASE_URL}/api/exercise?type=exercises&category=${categoryFilter}&search=${searchTerm}`,
+          { signal: abortController.signal }
+        ),
+        safeFetch(`${API_BASE_URL}/api/exercise?type=workouts`, { signal: abortController.signal }),
+        safeFetch(`${API_BASE_URL}/api/exercise?type=sessions&limit=10`, { signal: abortController.signal }),
+        safeFetch(`${API_BASE_URL}/api/exercise?type=records`, { signal: abortController.signal }),
+        safeFetch(`${API_BASE_URL}/api/exercise?type=stats`, { signal: abortController.signal }),
       ]);
 
       if (exercisesRes.ok) {
@@ -220,7 +223,7 @@ export function ExerciseClient() {
   // Create exercise
   const handleCreateExercise = async () => {
     try {
-      const res = await fetch("/api/exercise", {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "exercise", ...newExercise }),
@@ -238,7 +241,7 @@ export function ExerciseClient() {
   // Create workout
   const handleCreateWorkout = async () => {
     try {
-      const res = await fetch("/api/exercise", {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "workout", ...newWorkout }),
@@ -264,7 +267,7 @@ export function ExerciseClient() {
   // Start workout session
   const handleStartWorkout = async (workoutId?: string) => {
     try {
-      const res = await fetch("/api/exercise", {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "session", workout_id: workoutId }),
@@ -286,7 +289,7 @@ export function ExerciseClient() {
     if (!activeSession) return;
     try {
       const setNumber = activeSession.sets.filter((s) => s.exercise_id === exerciseId).length + 1;
-      const res = await fetch("/api/exercise", {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -335,7 +338,7 @@ export function ExerciseClient() {
   const handleCompleteSession = async (rating?: number, notes?: string) => {
     if (!activeSession) return;
     try {
-      await fetch("/api/exercise", {
+      await safeFetch(`${API_BASE_URL}/api/exercise`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -357,7 +360,7 @@ export function ExerciseClient() {
   const handleLinkToPlanner = async () => {
     if (!selectedWorkout) return;
     try {
-      const res = await fetch("/api/exercise", {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -379,7 +382,7 @@ export function ExerciseClient() {
   // Link to quest
   const handleLinkToQuest = async (workout: Workout, isRepeatable: boolean, repeatFrequency?: string) => {
     try {
-      const res = await fetch("/api/exercise", {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -406,7 +409,7 @@ export function ExerciseClient() {
       const parsed = JSON.parse(importText);
       const exercisesToImport = Array.isArray(parsed) ? parsed : [parsed];
 
-      const res = await fetch("/api/exercise", {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "import_exercises", exercises: exercisesToImport }),
@@ -504,7 +507,7 @@ export function ExerciseClient() {
   const handleDeleteWorkout = async (id: string) => {
     if (!confirm("Delete this workout?")) return;
     try {
-      await fetch(`/api/exercise?type=workout&id=${id}`, { method: "DELETE" });
+      await safeFetch(`${API_BASE_URL}/api/exercise?type=workout&id=${id}`, { method: "DELETE" });
       loadData();
     } catch (error) {
       console.error("Failed to delete workout:", error);
@@ -1241,4 +1244,3 @@ function ActiveSessionPanel({
 }
 
 export default ExerciseClient;
-

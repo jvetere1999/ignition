@@ -6,12 +6,12 @@
  * Syncs with D1 database for cross-device persistence
  * Supports quick mode via ?quick=1 query param
  *
- * STORAGE RULE: Infobase entries are stored in D1 via /api/infobase API.
+ * STORAGE RULE: Infobase entries are stored in the backend via /api/infobase API.
  * localStorage cache is DEPRECATED when DISABLE_MASS_LOCAL_PERSISTENCE is enabled.
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { QuickModeHeader } from "@/components/ui/QuickModeHeader";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
@@ -72,7 +72,9 @@ export function InfobaseClient() {
   // Fetch entries from API
   const fetchEntries = useCallback(async () => {
     try {
-      const res = await fetch(`/api/infobase?category=${selectedCategory === "All Entries" ? "" : selectedCategory}&search=${searchQuery}`);
+      const res = await safeFetch(
+        `${API_BASE_URL}/api/infobase?category=${selectedCategory === "All Entries" ? "" : selectedCategory}&search=${searchQuery}`
+      );
       if (res.ok) {
         const data = await res.json() as { entries?: Array<{ id: string; title: string; content: string; category: string; tags: string[] | string; created_at: string; updated_at: string }> };
         if (data.entries && data.entries.length > 0) {
@@ -124,7 +126,7 @@ export function InfobaseClient() {
   // Sync entries to D1
   const syncEntriesToD1 = async (entriesToSync: InfoEntry[]) => {
     try {
-      await fetch("/api/infobase", {
+      await safeFetch(`${API_BASE_URL}/api/infobase`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "sync", entries: entriesToSync }),
@@ -217,7 +219,7 @@ export function InfobaseClient() {
 
       // Save to D1
       try {
-        await fetch("/api/infobase", {
+        await safeFetch(`${API_BASE_URL}/api/infobase`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "create", ...newEntry, tags }),
@@ -241,7 +243,7 @@ export function InfobaseClient() {
 
       // Update in D1
       try {
-        await fetch("/api/infobase", {
+        await safeFetch(`${API_BASE_URL}/api/infobase`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -271,7 +273,7 @@ export function InfobaseClient() {
 
         // Delete from D1
         try {
-          await fetch("/api/infobase", {
+          await safeFetch(`${API_BASE_URL}/api/infobase`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "delete", id }),
@@ -530,4 +532,3 @@ export function InfobaseClient() {
 }
 
 export default InfobaseClient;
-

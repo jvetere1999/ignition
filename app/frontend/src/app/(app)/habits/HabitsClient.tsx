@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { useAutoRefresh } from "@/lib/hooks";
 import { LoadingState } from "@/components/ui";
 import { useBadges } from "@/lib/sync/SyncStateContext";
@@ -72,7 +72,7 @@ export function HabitsClient() {
 
   const fetchHabits = useCallback(async () => {
     try {
-      const res = await fetch("/api/habits");
+      const res = await safeFetch(`${API_BASE_URL}/api/habits`);
       if (res.ok) {
         const data = await res.json() as { habits?: Habit[]; todayLogs?: HabitLog[]; streaks?: Streaks };
         setHabits(data.habits || []);
@@ -106,7 +106,7 @@ export function HabitsClient() {
   const handleCreateHabit = async () => {
     if (!newHabit.title.trim()) return;
     try {
-      const res = await fetch("/api/habits", {
+      const res = await safeFetch(`${API_BASE_URL}/api/habits`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create", ...newHabit }),
@@ -123,7 +123,7 @@ export function HabitsClient() {
 
   const handleLogHabit = async (habitId: string) => {
     try {
-      const res = await fetch("/api/habits", {
+      const res = await safeFetch(`${API_BASE_URL}/api/habits`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "log", habit_id: habitId }),
@@ -137,7 +137,7 @@ export function HabitsClient() {
   const handleDeleteHabit = async (habitId: string) => {
     if (!confirm("Delete this habit?")) return;
     try {
-      await fetch("/api/habits", {
+      await safeFetch(`${API_BASE_URL}/api/habits`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete", id: habitId }),

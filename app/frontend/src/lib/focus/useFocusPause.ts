@@ -1,10 +1,11 @@
 /**
  * useFocusPause Hook
- * Centralized focus pause state management using D1 API
+ * Centralized focus pause state management using backend API
  * Replaces localStorage-based pause state
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { API_BASE_URL, safeFetch } from "@/lib/api";
 
 interface PauseState {
   mode: string;
@@ -29,10 +30,20 @@ export function useFocusPause(): UseFocusPauseResult {
   // Fetch pause state from API
   const refreshPause = useCallback(async () => {
     try {
-      const response = await fetch("/api/focus/pause");
+      const response = await safeFetch(`${API_BASE_URL}/api/focus/pause`);
       if (response.ok) {
-        const data = await response.json() as { pauseState: PauseState | null };
-        setPauseState(data.pauseState);
+        const data = await response.json() as {
+          pause?: { mode: string; time_remaining_seconds: number; paused_at: string };
+        };
+        if (data.pause) {
+          setPauseState({
+            mode: data.pause.mode,
+            timeRemaining: data.pause.time_remaining_seconds,
+            pausedAt: data.pause.paused_at,
+          });
+        } else {
+          setPauseState(null);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch pause state:", error);
@@ -44,14 +55,8 @@ export function useFocusPause(): UseFocusPauseResult {
   // Save pause state to API
   const savePause = useCallback(async (mode: string, timeRemaining: number) => {
     try {
-      const response = await fetch("/api/focus/pause", {
+      const response = await safeFetch(`${API_BASE_URL}/api/focus/pause`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "save",
-          mode,
-          timeRemaining,
-        }),
       });
 
       if (response.ok) {
@@ -69,10 +74,8 @@ export function useFocusPause(): UseFocusPauseResult {
   // Clear pause state via API
   const clearPause = useCallback(async () => {
     try {
-      const response = await fetch("/api/focus/pause", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "clear" }),
+      const response = await safeFetch(`${API_BASE_URL}/api/focus/pause`, {
+        method: "DELETE",
       });
 
       if (response.ok) {
@@ -100,4 +103,3 @@ export function useFocusPause(): UseFocusPauseResult {
     refreshPause,
   };
 }
-

@@ -8,13 +8,14 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { LoadingState } from "@/components/ui";
 import { useProgress } from "@/lib/sync/SyncStateContext";
 import styles from "./page.module.css";
 
 interface MarketItem {
   id: string;
+  key: string;
   name: string;
   description: string;
   cost: number;
@@ -134,6 +135,16 @@ export function MarketClient() {
   // FAST LOADING: Get polled progress for instant wallet display
   const polledProgress = useProgress();
 
+  useEffect(() => {
+    if (polledProgress) {
+      setWallet((prev) => ({
+        ...prev,
+        xp: polledProgress.current_xp ?? prev.xp,
+        level: polledProgress.level ?? prev.level,
+      }));
+    }
+  }, [polledProgress]);
+
   // Purchase confirmation state
   const [confirmingItem, setConfirmingItem] = useState<MarketItem | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -144,15 +155,53 @@ export function MarketClient() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch("/api/market");
-      if (!response.ok) {
+      const [walletRes, itemsRes, historyRes] = await Promise.all([
+        safeFetch(`${API_BASE_URL}/api/market/wallet`),
+        safeFetch(`${API_BASE_URL}/api/market/items`),
+        safeFetch(`${API_BASE_URL}/api/market/history`),
+      ]);
+
+      if (!walletRes.ok || !itemsRes.ok || !historyRes.ok) {
         throw new Error("Failed to load market data");
       }
 
-      const data: MarketData = await response.json();
-      setWallet(data.wallet);
-      setItems(data.items);
-      setPurchases(data.purchases);
+      const walletJson = await walletRes.json() as {
+        data?: { coins?: number };
+      };
+      const itemsJson = await itemsRes.json() as {
+        data?: { items?: Array<Record<string, unknown>> };
+      };
+      const historyJson = await historyRes.json() as {
+        data?: { purchases?: Array<Record<string, unknown>> };
+      };
+
+      const mappedItems: MarketItem[] = (itemsJson.data?.items || []).map((item) => ({
+        id: String(item.id || ""),
+        key: String(item.key || ""),
+        name: String(item.name || ""),
+        description: String(item.description || ""),
+        cost: Number(item.cost_coins || 0),
+        category: String(item.category || "custom"),
+        icon: (item.icon as string | null) || null,
+        is_global: 0,
+      }));
+
+      const mappedPurchases: Purchase[] = (historyJson.data?.purchases || []).map((purchase) => ({
+        id: String(purchase.id || ""),
+        item_id: String(purchase.item_key || ""),
+        item_name: String(purchase.item_name || ""),
+        item_cost: Number(purchase.cost_coins || 0),
+        purchased_at: String(purchase.purchased_at || ""),
+        is_redeemed: String(purchase.status || "") === "redeemed" ? 1 : 0,
+        redeemed_at: null,
+      }));
+
+      setWallet((prev) => ({
+        ...prev,
+        coins: Number(walletJson.data?.coins || 0),
+      }));
+      setItems(mappedItems);
+      setPurchases(mappedPurchases);
     } catch (e) {
       console.error("Failed to load market data:", e);
       setError("Failed to load market. Please try again.");
@@ -179,10 +228,10 @@ export function MarketClient() {
 
     setIsPurchasing(true);
     try {
-      const response = await fetch("/api/market/purchase", {
+      const response = await safeFetch(`${API_BASE_URL}/api/market/purchase`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: confirmingItem.id }),
+        body: JSON.stringify({ item_key: confirmingItem.key }),
       });
 
       if (!response.ok) {
@@ -208,10 +257,10 @@ export function MarketClient() {
   // Redeem a purchase
   const handleRedeem = useCallback(async (purchaseId: string) => {
     try {
-      const response = await fetch("/api/market/redeem", {
+      const response = await safeFetch(`${API_BASE_URL}/api/market/redeem`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purchaseId }),
+        body: JSON.stringify({ purchase_id: purchaseId }),
       });
 
       if (!response.ok) {
@@ -426,4 +475,3 @@ export function MarketClient() {
     </div>
   );
 }
-

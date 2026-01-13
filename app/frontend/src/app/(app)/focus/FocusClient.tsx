@@ -68,6 +68,8 @@ const MODE_LABELS: Record<FocusMode, string> = {
   long_break: "Long Break",
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.ecent.online";
+
 // Format seconds to MM:SS
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -185,7 +187,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
   // Single consolidated sync call (replaces 3 separate API calls)
   const syncFocusData = useCallback(async () => {
     try {
-      const response = await safeFetch("/api/sync/poll", {
+      const response = await safeFetch(`${API_BASE_URL}/api/sync/poll`, {
         credentials: "include",
       });
       if (response.ok) {
@@ -223,7 +225,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
   // Legacy fallback for fetching stats (kept for historical data)
   const fetchStats = useCallback(async () => {
     try {
-      const response = await safeFetch("/api/focus?stats=true&period=day", {
+      const response = await safeFetch(`${API_BASE_URL}/api/focus?stats=true&period=day`, {
         credentials: "include",
       });
       if (response.ok) {
@@ -248,9 +250,9 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
   // Check for active session on mount (DEPRECATED - use syncFocusData)
   const checkActiveSession = useCallback(async () => {
     try {
-      const response = await safeFetch("/api/focus/active", {
-        credentials: "include",
-      });
+        const response = await safeFetch(`${API_BASE_URL}/api/focus/active`, {
+          credentials: "include",
+        });
       if (response.ok) {
         const data = await response.json() as { active?: { session?: FocusSession | null; pause_state?: { mode: FocusMode; timeRemaining: number; pausedAt: string } | null } };
         if (data.active?.session) {
@@ -281,12 +283,12 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const response = await safeFetch("/api/focus?pageSize=50", {
+      const response = await safeFetch(`${API_BASE_URL}/api/focus?page=1&page_size=50`, {
         credentials: "include",
       });
       if (response.ok) {
-        const data = await response.json() as { items?: FocusSession[] };
-        const sessions = data.items || [];
+        const data = await response.json() as { sessions?: FocusSession[] };
+        const sessions = data.sessions || [];
         setSessionHistory(sessions);
         setWeeklyData(generateWeeklyData(sessions));
       }
@@ -312,15 +314,15 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     }
 
     // Load paused state from D1 (source of truth)
-    safeFetch("/api/focus/pause", {
+    safeFetch(`${API_BASE_URL}/api/focus/pause`, {
       credentials: "include",
     })
       .then((res) => res.json())
       .then((data) => {
-        const typedData = data as { pauseState?: { mode: FocusMode; timeRemaining: number; pausedAt: string } | null };
-        if (typedData.pauseState) {
-          setMode(typedData.pauseState.mode);
-          setTimeRemaining(typedData.pauseState.timeRemaining);
+        const typedData = data as { pause?: { mode?: FocusMode | null; time_remaining_seconds?: number | null; paused_at?: string | null } | null };
+        if (typedData.pause?.mode) {
+          setMode(typedData.pause.mode as FocusMode);
+          setTimeRemaining(typedData.pause.time_remaining_seconds || 0);
           setStatus("paused");
         } else if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
           // Only check localStorage if deprecation is disabled
@@ -369,15 +371,9 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       }
 
       // Sync to D1 for cross-device and refresh persistence
-      safeFetch("/api/focus/pause", {
+      safeFetch(`${API_BASE_URL}/api/focus/pause`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "save",
-          mode,
-          timeRemaining,
-        }),
       }).catch((err) => {
         // Pause state save is best-effort; app continues with in-memory state
         console.debug("Pause state save failed (non-critical):", err);
@@ -389,11 +385,9 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       }
 
       // Also clear from D1
-      safeFetch("/api/focus/pause", {
-        method: "POST",
+      safeFetch(`${API_BASE_URL}/api/focus/pause`, {
+        method: "DELETE",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "clear" }),
       }).catch((err) => {
         // Pause state clear is best-effort; app continues with in-memory state
         console.debug("Pause state clear failed (non-critical):", err);
@@ -443,7 +437,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     // Note: XP and coins are awarded server-side via activity events
     if (currentSession) {
       try {
-        await safeFetch(`/api/focus/${currentSession.id}/complete`, {
+        await safeFetch(`${API_BASE_URL}/api/focus/${currentSession.id}/complete`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -555,7 +549,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
 
     // Create session in database
     try {
-      const response = await safeFetch("/api/focus", {
+      const response = await safeFetch(`${API_BASE_URL}/api/focus`, {
         method: "POST",
         credentials: "include", // Required for session cookie auth
         headers: { "Content-Type": "application/json" },
@@ -592,7 +586,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     // Abandon session if active
     if (currentSession) {
       try {
-        await safeFetch(`/api/focus/${currentSession.id}/abandon`, {
+        await safeFetch(`${API_BASE_URL}/api/focus/${currentSession.id}/abandon`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -615,7 +609,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     // Abandon current session
     if (currentSession) {
       try {
-        await safeFetch(`/api/focus/${currentSession.id}/abandon`, {
+        await safeFetch(`${API_BASE_URL}/api/focus/${currentSession.id}/abandon`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -998,4 +992,3 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     </div>
   );
 }
-

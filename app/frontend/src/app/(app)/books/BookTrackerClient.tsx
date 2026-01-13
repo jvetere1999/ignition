@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { useAutoRefresh } from "@/lib/hooks";
 import styles from "./page.module.css";
 
@@ -96,7 +96,7 @@ export function BookTrackerClient() {
   // Load data
   const loadData = useCallback(async () => {
     try {
-      const res = await fetch("/api/books");
+      const res = await safeFetch(`${API_BASE_URL}/api/books`);
       if (res.ok) {
         const data = await res.json() as { books: Book[]; sessions: ReadingSession[]; stats: ReadingStats };
         setBooks(data.books || []);
@@ -131,7 +131,7 @@ export function BookTrackerClient() {
     if (!newBook.title.trim()) return;
 
     try {
-      const res = await fetch("/api/books", {
+      const res = await safeFetch(`${API_BASE_URL}/api/books`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -154,7 +154,7 @@ export function BookTrackerClient() {
   // Start reading a book
   const handleStartReading = async (bookId: string) => {
     try {
-      await fetch("/api/books", {
+      await safeFetch(`${API_BASE_URL}/api/books`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -173,7 +173,7 @@ export function BookTrackerClient() {
     if (!sessionLog.bookId || sessionLog.pagesRead <= 0) return;
 
     try {
-      const res = await fetch("/api/books", {
+      const res = await safeFetch(`${API_BASE_URL}/api/books`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -195,7 +195,7 @@ export function BookTrackerClient() {
   // Mark book as completed
   const handleCompleteBook = async (bookId: string, rating: number) => {
     try {
-      await fetch("/api/books", {
+      await safeFetch(`${API_BASE_URL}/api/books`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -215,7 +215,7 @@ export function BookTrackerClient() {
     if (!confirm("Delete this book?")) return;
 
     try {
-      await fetch("/api/books", {
+      await safeFetch(`${API_BASE_URL}/api/books`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bookId }),
@@ -515,4 +515,3 @@ export function BookTrackerClient() {
     </div>
   );
 }
-

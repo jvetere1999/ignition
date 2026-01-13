@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAutoRefresh } from "@/lib/hooks";
 import { usePlanStatus } from "@/lib/sync/SyncStateContext";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import styles from "./DailyPlan.module.css";
 
 const COLLAPSE_STATE_KEY = "today_dailyplan_collapsed";
@@ -96,7 +97,7 @@ export function DailyPlanWidget({ forceCollapsed = false, onExpand }: DailyPlanW
 
   const fetchPlan = useCallback(async () => {
     try {
-      const res = await fetch("/api/daily-plan");
+      const res = await safeFetch(`${API_BASE_URL}/api/daily-plan`);
       if (res.ok) {
         const data = await res.json() as { plan: DailyPlan | null };
         setPlan(data.plan);
@@ -127,7 +128,7 @@ export function DailyPlanWidget({ forceCollapsed = false, onExpand }: DailyPlanW
   const handleGeneratePlan = async () => {
     setIsGenerating(true);
     try {
-      const res = await fetch("/api/daily-plan", {
+      const res = await safeFetch(`${API_BASE_URL}/api/daily-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "generate" }),
@@ -156,7 +157,7 @@ export function DailyPlanWidget({ forceCollapsed = false, onExpand }: DailyPlanW
     });
 
     try {
-      await fetch("/api/daily-plan", {
+      await safeFetch(`${API_BASE_URL}/api/daily-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "complete_item", item_id: itemId }),
@@ -375,4 +376,3 @@ export function DailyPlanWidget({ forceCollapsed = false, onExpand }: DailyPlanW
     </div>
   );
 }
-

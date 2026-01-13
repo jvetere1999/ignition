@@ -4,12 +4,12 @@
  * Goals Client Component
  * Long-term goals with milestones
  *
- * STORAGE RULE: Goals data should be stored in D1 via /api/goals API.
+ * STORAGE RULE: Goals data should be stored in the backend via /api/goals API.
  * localStorage is DEPRECATED when DISABLE_MASS_LOCAL_PERSISTENCE is enabled.
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { LoadingState } from "@/components/ui";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
@@ -66,7 +66,7 @@ export function GoalsClient() {
     async function loadGoals() {
       // Try to fetch from D1 first
       try {
-        const response = await fetch("/api/goals");
+        const response = await safeFetch(`${API_BASE_URL}/api/goals`);
         if (response.ok) {
           const data = await response.json() as { goals?: Goal[] };
           if (data.goals && data.goals.length > 0) {
@@ -140,7 +140,7 @@ export function GoalsClient() {
       );
 
       // Sync to D1
-      fetch("/api/goals", {
+      safeFetch(`${API_BASE_URL}/api/goals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update", ...updated }),
@@ -163,7 +163,7 @@ export function GoalsClient() {
       // Sync updated goal to D1
       const updatedGoal = newGoals.find(g => g.id === goalId);
       if (updatedGoal) {
-        fetch("/api/goals", {
+        safeFetch(`${API_BASE_URL}/api/goals`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "update", ...updatedGoal }),
@@ -179,7 +179,7 @@ export function GoalsClient() {
     setGoals((prev) => prev.filter((g) => g.id !== goalId));
 
     // Sync to D1
-    fetch("/api/goals", {
+    safeFetch(`${API_BASE_URL}/api/goals`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete", id: goalId }),
@@ -407,4 +407,3 @@ function GoalCard({ goal, progress, categoryColor, onAddMilestone, onToggleMiles
     </div>
   );
 }
-

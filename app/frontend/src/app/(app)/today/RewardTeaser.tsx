@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import styles from "./RewardTeaser.module.css";
 
 interface AchievementTeaser {
@@ -30,7 +31,7 @@ export function RewardTeaser() {
   useEffect(() => {
     async function fetchTeaser() {
       try {
-        const response = await fetch("/api/gamification/teaser");
+        const response = await safeFetch(`${API_BASE_URL}/api/gamification/teaser`);
         if (response.ok) {
           const data = await response.json() as { teaser: AchievementTeaser | null };
           setTeaser(data.teaser);
@@ -74,4 +75,3 @@ export function RewardTeaser() {
     </Link>
   );
 }
-

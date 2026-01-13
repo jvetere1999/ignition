@@ -6,7 +6,7 @@
 "use client";
 
 import { useState } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { signOut } from "@/lib/auth/api-auth";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -33,7 +33,7 @@ export function SettingsClient({ user: propUser }: SettingsClientProps = {}) {
   const handleExportData = async () => {
     setIsExporting(true);
     try {
-      const response = await fetch("/api/user/export");
+      const response = await safeFetch(`${API_BASE_URL}/api/user/export`);
       if (response.ok) {
         const data = await response.json();
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -62,7 +62,7 @@ export function SettingsClient({ user: propUser }: SettingsClientProps = {}) {
 
     setIsDeleting(true);
     try {
-      const response = await fetch("/api/user/delete", {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/delete`, {
         method: "DELETE",
       });
 
@@ -260,4 +260,3 @@ export function SettingsClient({ user: propUser }: SettingsClientProps = {}) {
     </div>
   );
 }
-

@@ -10,12 +10,12 @@
  * Compact floating player with visualizer and focus timer
  * Shows on desktop when both focus and audio are active
  *
- * STORAGE RULE: Focus pause state is fetched from D1 via /api/focus/pause API.
+ * STORAGE RULE: Focus pause state is fetched from the backend via /api/focus/pause API.
  * localStorage is DEPRECATED for focus_paused_state (behavior-affecting data).
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import {
   useCurrentTrack,
   usePlayerVisible,
@@ -93,12 +93,19 @@ export function MiniPlayer() {
   const checkPausedState = useCallback(async () => {
     // Always check D1 first (source of truth)
     try {
-      const response = await fetch("/api/focus/pause");
+      const response = await safeFetch(`${API_BASE_URL}/api/focus/pause`);
       if (response.ok) {
-        const data = await response.json() as { pauseState: PausedState | null };
-        if (data.pauseState) {
-          setPausedState(data.pauseState);
-          setFocusTimeRemaining(data.pauseState.timeRemaining);
+        const data = await response.json() as {
+          pause?: { mode: PausedState["mode"]; time_remaining_seconds: number; paused_at: string };
+        };
+        if (data.pause) {
+          const mappedPause: PausedState = {
+            mode: data.pause.mode,
+            timeRemaining: data.pause.time_remaining_seconds,
+            pausedAt: data.pause.paused_at,
+          };
+          setPausedState(mappedPause);
+          setFocusTimeRemaining(mappedPause.timeRemaining);
           return true;
         }
       }
@@ -134,15 +141,33 @@ export function MiniPlayer() {
   // Fetch active focus session
   const fetchFocusSession = useCallback(async () => {
     try {
-      const response = await fetch("/api/focus/active");
+      const response = await safeFetch(`${API_BASE_URL}/api/focus/active`);
       if (response.ok) {
-        const data = await response.json() as { session?: FocusSession | null };
-        if (data.session && data.session.status === "active") {
-          setFocusSession(data.session);
+        const data = await response.json() as {
+          active?: {
+            session?: {
+              id: string;
+              started_at: string;
+              duration_seconds: number;
+              status: FocusSession["status"];
+              mode: FocusSession["mode"];
+            };
+          };
+        };
+        const session = data.active?.session;
+        if (session && session.status === "active") {
+          const mappedSession: FocusSession = {
+            id: session.id,
+            started_at: session.started_at,
+            planned_duration: session.duration_seconds,
+            status: session.status,
+            mode: session.mode,
+          };
+          setFocusSession(mappedSession);
           setPausedState(null);
-          const startTime = new Date(data.session.started_at).getTime();
+          const startTime = new Date(mappedSession.started_at).getTime();
           const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          const remaining = Math.max(0, data.session.planned_duration - elapsed);
+          const remaining = Math.max(0, mappedSession.planned_duration - elapsed);
           setFocusTimeRemaining(remaining);
         } else {
           setFocusSession(null);

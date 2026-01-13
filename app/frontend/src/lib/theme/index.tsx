@@ -27,6 +27,7 @@ import {
   applyTheme,
   applyWaveformMode,
 } from "../themes";
+import { API_BASE_URL, safeFetch } from "@/lib/api";
 
 // Simple theme type for backward compatibility
 export type Theme = "light" | "dark" | "system";
@@ -37,10 +38,9 @@ export type Theme = "light" | "dark" | "system";
  */
 async function sendThemeToBackend(themeId: string): Promise<void> {
   try {
-    const response = await fetch("/api/settings", {
+    const response = await safeFetch(`${API_BASE_URL}/api/settings`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify({ theme: themeId }),
     });
     if (!response.ok) {
@@ -257,5 +257,4 @@ export function useIsDarkMode(): boolean {
   const { isDark } = useTheme();
   return isDark;
 }
-
 

@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { SkillWheel, DEFAULT_SKILLS, type Skill } from "@/components/progress";
 import { useAutoRefresh } from "@/lib/hooks";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
@@ -46,7 +46,7 @@ export function ProgressClient() {
     async function loadSkills() {
       // Try to fetch from D1 first
       try {
-        const response = await fetch("/api/user/skills");
+        const response = await safeFetch(`${API_BASE_URL}/api/user/skills`);
         if (response.ok) {
           const data = await response.json() as { skills?: Skill[] };
           if (data.skills && data.skills.length > 0) {
@@ -92,7 +92,7 @@ export function ProgressClient() {
   const fetchStats = useCallback(async () => {
     try {
       // Fetch focus stats
-      const focusRes = await fetch("/api/focus?stats=true&period=week");
+      const focusRes = await safeFetch(`${API_BASE_URL}/api/focus?stats=true&period=week`);
       if (focusRes.ok) {
         const focusData = await focusRes.json() as { totalFocusTime?: number; completedSessions?: number };
         setStats((prev) => ({
@@ -265,4 +265,3 @@ export function ProgressClient() {
     </div>
   );
 }
-

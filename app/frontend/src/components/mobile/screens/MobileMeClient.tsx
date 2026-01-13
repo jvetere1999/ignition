@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signOut } from "@/lib/auth/api-auth";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { safeFetch } from "@/lib/api/client";
+import { safeFetch, API_BASE_URL } from "@/lib/api/client";
 import styles from "./MobileMe.module.css";
 
 interface MobileMeClientProps {
@@ -32,7 +32,7 @@ export function MobileMeClient({ user: propUser, isAdmin: propIsAdmin }: MobileM
     if (propIsAdmin === undefined && authUser?.id) {
       const checkAdminStatus = async () => {
         try {
-          const response = await safeFetch('/api/user/admin-status');
+          const response = await safeFetch(`${API_BASE_URL}/api/user/admin-status`);
           if (response.ok) {
             const data = await response.json() as { is_admin: boolean };
             setIsAdmin(data.is_admin);
@@ -109,7 +109,7 @@ export function MobileMeClient({ user: propUser, isAdmin: propIsAdmin }: MobileM
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Your Data</h2>
         <div className={styles.menuList}>
-          <Link href="/api/user/export" className={styles.menuItem}>
+          <Link href={`${API_BASE_URL}/api/user/export`} className={styles.menuItem}>
             <div className={styles.menuIcon}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -202,4 +202,3 @@ export function MobileMeClient({ user: propUser, isAdmin: propIsAdmin }: MobileM
     </div>
   );
 }
-

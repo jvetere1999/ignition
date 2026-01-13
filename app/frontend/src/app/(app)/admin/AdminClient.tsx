@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import styles from "./page.module.css";
 
 type AdminTab = "users" | "quests" | "feedback" | "skills" | "content" | "stats" | "database";
@@ -120,7 +120,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/admin/${activeTab}`);
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/${activeTab}`);
       if (response.ok) {
         const data = await response.json() as { users?: User[]; quests?: Quest[]; feedback?: Feedback[]; skills?: SkillDefinition[] };
         switch (activeTab) {
@@ -183,7 +183,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
     setDeleteModal((prev) => ({ ...prev, isDeleting: true, error: "" }));
 
     try {
-      const response = await fetch(`/api/admin/users?userId=${deleteModal.userId}`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/users?userId=${deleteModal.userId}`, {
         method: "DELETE",
       });
       if (response.ok) {
@@ -210,7 +210,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
   // Quest actions
   const handleCreateQuest = async () => {
     try {
-      const response = await fetch("/api/admin/quests", {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/quests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newQuest),
@@ -235,7 +235,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
 
   const handleToggleQuest = async (questId: string, isActive: boolean) => {
     try {
-      const response = await fetch("/api/admin/quests", {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/quests`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questId, isActive: !isActive }),
@@ -251,7 +251,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
   // Feedback actions
   const handleUpdateFeedbackStatus = async (feedbackId: string, status: string) => {
     try {
-      const response = await fetch("/api/admin/feedback", {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/feedback`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ feedbackId, status }),
@@ -267,7 +267,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
   // Skill actions
   const handleSaveSkill = async () => {
     try {
-      const response = await fetch("/api/admin/skills", {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/skills`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newSkill),
@@ -293,7 +293,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
   const handleUpdateSkill = async () => {
     if (!editingSkill) return;
     try {
-      const response = await fetch("/api/admin/skills", {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/skills`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -320,7 +320,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
 
   const handleToggleSkill = async (skillId: string, isActive: boolean) => {
     try {
-      const response = await fetch("/api/admin/skills", {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/skills`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: skillId, isActive: !isActive }),
@@ -340,7 +340,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
       return;
     }
     try {
-      const response = await fetch(`/api/admin/skills?id=${skillId}`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/skills?id=${skillId}`, {
         method: "DELETE",
       });
       if (response.ok) {
@@ -860,7 +860,7 @@ function DatabaseTab() {
   const [restoreResult, setRestoreResult] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/backup")
+    safeFetch(`${API_BASE_URL}/api/admin/backup`)
       .then((res) => res.json() as Promise<{ currentVersion: number; currentVersionName: string }>)
       .then((data) => setDbInfo(data))
       .catch(console.error);
@@ -869,7 +869,7 @@ function DatabaseTab() {
   const handleBackup = async () => {
     setIsBackingUp(true);
     try {
-      const response = await fetch("/api/admin/backup", { method: "POST" });
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/backup`, { method: "POST" });
       if (response.ok) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
@@ -907,7 +907,7 @@ function DatabaseTab() {
       const text = await restoreFile.text();
       const data = JSON.parse(text);
 
-      const response = await fetch("/api/admin/restore", {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/restore`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -1074,7 +1074,7 @@ function ContentTab() {
     const fetchContent = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/admin/content?type=${contentType}`);
+        const res = await safeFetch(`${API_BASE_URL}/api/admin/content?type=${contentType}`);
         const json: Record<string, ContentItem[]> = await res.json();
         setContent(json[contentType] || []);
       } catch (error) {
@@ -1171,7 +1171,7 @@ function StatsTab({ users, quests, feedback, skills }: StatsTabProps) {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch("/api/admin/stats");
+        const res = await safeFetch(`${API_BASE_URL}/api/admin/stats`);
         const data = await res.json() as StatsData;
         setStats(data);
       } catch (error) {
@@ -1320,4 +1320,3 @@ function StatsTab({ users, quests, feedback, skills }: StatsTabProps) {
     </div>
   );
 }
-

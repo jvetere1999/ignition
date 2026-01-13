@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import styles from "./OnboardingModal.module.css";
 
@@ -101,7 +101,7 @@ export function OnboardingModal({ initialState, flow, userId }: OnboardingModalP
 
   const startOnboarding = useCallback(async () => {
     try {
-      await fetch("/api/onboarding/start", {
+      await safeFetch(`${API_BASE_URL}/api/onboarding/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ flowId: flow?.id }),
@@ -149,7 +149,7 @@ export function OnboardingModal({ initialState, flow, userId }: OnboardingModalP
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/onboarding/step", {
+      const response = await safeFetch(`${API_BASE_URL}/api/onboarding/step`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -183,7 +183,7 @@ export function OnboardingModal({ initialState, flow, userId }: OnboardingModalP
   const skipOnboarding = useCallback(async () => {
     setIsLoading(true);
     try {
-      await fetch("/api/onboarding/skip", {
+      await safeFetch(`${API_BASE_URL}/api/onboarding/skip`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ softLandingHours: 24 }),
@@ -530,4 +530,3 @@ export function OnboardingModal({ initialState, flow, userId }: OnboardingModalP
     </div>
   );
 }
-

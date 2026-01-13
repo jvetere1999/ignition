@@ -14,12 +14,12 @@
  * - Quick entry
  * - No overwhelming options
  *
- * STORAGE RULE: Ideas are stored in D1 via /api/ideas API.
+ * STORAGE RULE: Ideas are stored in the backend via /api/ideas API.
  * localStorage fallback is DEPRECATED when DISABLE_MASS_LOCAL_PERSISTENCE is enabled.
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { safeFetch } from "@/lib/api";
+import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
 
@@ -63,7 +63,7 @@ export function IdeasClient({}: IdeasClientProps = {}) {
   useEffect(() => {
     async function fetchIdeas() {
       try {
-        const response = await fetch("/api/ideas");
+        const response = await safeFetch(`${API_BASE_URL}/api/ideas`);
         if (response.ok) {
           const data = await response.json() as { ideas: Array<{
             id: string;
@@ -108,7 +108,7 @@ export function IdeasClient({}: IdeasClientProps = {}) {
   // Save idea to D1
   const saveIdea = useCallback(async (idea: Idea) => {
     try {
-      const response = await fetch("/api/ideas", {
+      const response = await safeFetch(`${API_BASE_URL}/api/ideas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -209,7 +209,7 @@ export function IdeasClient({}: IdeasClientProps = {}) {
     setIdeas(prev => prev.filter(idea => idea.id !== id));
     // Delete from D1
     try {
-      await fetch(`/api/ideas?id=${id}`, { method: "DELETE" });
+      await safeFetch(`${API_BASE_URL}/api/ideas?id=${id}`, { method: "DELETE" });
     } catch (error) {
       console.error("Failed to delete idea:", error);
     }
@@ -415,4 +415,3 @@ export function IdeasClient({}: IdeasClientProps = {}) {
     </div>
   );
 }
-
