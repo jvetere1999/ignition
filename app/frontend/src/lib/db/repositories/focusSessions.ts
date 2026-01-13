@@ -124,23 +124,20 @@ export async function completeFocusSession(
   if (!existing || existing.status !== "active") return null;
 
   const endedAt = now();
-  const startTime = new Date(existing.started_at).getTime();
-  const endTime = new Date(endedAt).getTime();
-  const actualDuration = Math.floor((endTime - startTime) / 1000);
 
   await db
     .prepare(
       `UPDATE focus_sessions SET
-        ended_at = ?, actual_duration = ?, status = ?
+        completed_at = ?, status = ?
       WHERE id = ? AND user_id = ?`
     )
-    .bind(endedAt, actualDuration, "completed", id, userId)
+    .bind(endedAt, "completed", id, userId)
     .run();
 
   return {
     ...existing,
-    ended_at: endedAt,
-    actual_duration: actualDuration,
+    completed_at: endedAt,
+    abandoned_at: null,
     status: "completed",
   };
 }
@@ -157,23 +154,20 @@ export async function abandonFocusSession(
   if (!existing || existing.status !== "active") return null;
 
   const endedAt = now();
-  const startTime = new Date(existing.started_at).getTime();
-  const endTime = new Date(endedAt).getTime();
-  const actualDuration = Math.floor((endTime - startTime) / 1000);
 
   await db
     .prepare(
       `UPDATE focus_sessions SET
-        ended_at = ?, actual_duration = ?, status = ?
+        abandoned_at = ?, status = ?
       WHERE id = ? AND user_id = ?`
     )
-    .bind(endedAt, actualDuration, "abandoned", id, userId)
+    .bind(endedAt, "abandoned", id, userId)
     .run();
 
   return {
     ...existing,
-    ended_at: endedAt,
-    actual_duration: actualDuration,
+    completed_at: null,
+    abandoned_at: endedAt,
     status: "abandoned",
   };
 }
@@ -287,7 +281,7 @@ export async function getFocusStats(
         COUNT(*) as total_sessions,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_sessions,
         SUM(CASE WHEN status = 'abandoned' THEN 1 ELSE 0 END) as abandoned_sessions,
-        SUM(CASE WHEN status = 'completed' AND mode = 'focus' THEN actual_duration ELSE 0 END) as total_focus_time
+        SUM(CASE WHEN status = 'completed' AND mode = 'focus' THEN duration_seconds ELSE 0 END) as total_focus_time
       FROM focus_sessions WHERE ${whereClause}`
     )
     .bind(...params)

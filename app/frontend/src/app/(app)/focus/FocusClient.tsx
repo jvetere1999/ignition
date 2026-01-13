@@ -22,9 +22,9 @@ type ViewMode = "timer" | "history" | "settings";
 interface FocusSession {
   id: string;
   started_at: string;
-  ended_at: string | null;
-  planned_duration: number;
-  actual_duration: number | null;
+  completed_at: string | null;
+  abandoned_at: string | null;
+  duration_seconds: number;
   status: "active" | "completed" | "abandoned";
   mode: FocusMode;
 }
@@ -125,7 +125,7 @@ function generateWeeklyData(sessions: FocusSession[]): WeeklyData[] {
     });
 
     const totalMinutes = daySessions.reduce((sum, s) => {
-      return sum + Math.floor((s.actual_duration || 0) / 60);
+      return sum + Math.floor((s.duration_seconds || 0) / 60);
     }, 0);
 
     weekData.push({
@@ -222,7 +222,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
           // Calculate remaining time
           const startTime = new Date(data.session.started_at).getTime();
           const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          const remaining = Math.max(0, data.session.planned_duration - elapsed);
+          const remaining = Math.max(0, data.session.duration_seconds - elapsed);
 
           setTimeRemaining(remaining);
           if (remaining > 0) {
@@ -488,7 +488,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode,
-          planned_duration: durations[mode],
+          duration_seconds: durations[mode],
         }),
       });
 
@@ -828,7 +828,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
                       {session.status === "completed" ? "Completed" : session.status === "abandoned" ? "Abandoned" : "Active"}
                     </span>
                     <span className={styles.historyDuration}>
-                      {session.actual_duration ? formatDuration(session.actual_duration) : formatDuration(session.planned_duration)}
+                      {formatDuration(session.duration_seconds)}
                     </span>
                   </div>
                 </div>

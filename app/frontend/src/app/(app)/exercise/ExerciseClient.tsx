@@ -30,7 +30,7 @@ interface WorkoutSession {
   workout_id: string | null;
   workout_name: string | null;
   started_at: string;
-  ended_at: string | null;
+  completed_at: string | null;
   status: string;
   notes: string | null;
   rating: number | null;

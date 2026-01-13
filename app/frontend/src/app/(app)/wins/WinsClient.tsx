@@ -30,8 +30,9 @@ interface WinsClientProps {
 interface FocusItem {
   id: string;
   status: string;
-  ended_at: string;
-  actual_duration: number;
+  completed_at: string | null;
+  abandoned_at: string | null;
+  duration_seconds: number;
 }
 
 interface FocusResponse {
@@ -58,13 +59,14 @@ export function WinsClient({ userId: _userId }: WinsClientProps) {
             .filter((item) => item.status === "completed")
             .slice(0, 20)
             .forEach((item) => {
+              const timestamp = item.completed_at || new Date().toISOString();
               focusWins.push({
                 id: item.id,
                 type: "focus_complete",
                 title: "Focus session completed",
-                description: `${Math.round((item.actual_duration || 0) / 60)} minutes of focused work`,
-                timestamp: item.ended_at,
-                date: new Date(item.ended_at).toLocaleDateString(),
+                description: `${Math.round((item.duration_seconds || 0) / 60)} minutes of focused work`,
+                timestamp: timestamp,
+                date: new Date(timestamp).toLocaleDateString(),
               });
             });
         }

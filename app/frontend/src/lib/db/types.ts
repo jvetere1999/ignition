@@ -364,7 +364,7 @@ export type UpdateQuestInput = Partial<
 
 export type CreateFocusSessionInput = Omit<
   FocusSession,
-  "id" | "ended_at" | "actual_duration" | "created_at"
+  "id" | "completed_at" | "abandoned_at" | "created_at" | "xp_awarded" | "coins_awarded"
 >;
 
 export type CreateProjectInput = Omit<
@@ -418,7 +418,7 @@ export type UpdateWorkoutInput = Partial<
 // Workout Session inputs
 export type CreateWorkoutSessionInput = Omit<
   WorkoutSession,
-  "id" | "ended_at" | "created_at"
+  "id" | "completed_at" | "created_at"
 >;
 
 // Exercise Set inputs
