@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import { useAutoRefresh } from "@/lib/hooks";
 import { LoadingState, EmptyState } from "@/components/ui";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
@@ -139,7 +140,8 @@ export function QuestsClient() {
   useEffect(() => {
     fetchQuests();
     fetchWallet();
-  }, [fetchQuests, fetchWallet]);
+    // Empty dependency array: fetchQuests and fetchWallet are stable (useCallback with [])
+  }, []);
 
   // Save quest progress when it changes - only to localStorage if not deprecated
   useEffect(() => {

@@ -19,6 +19,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { safeFetch } from "@/lib/api";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
 
@@ -94,7 +95,9 @@ export function IdeasClient({}: IdeasClientProps = {}) {
             if (stored) {
               setIdeas(JSON.parse(stored));
             }
-          } catch { /* ignore */ }
+          } catch (error) {
+            console.warn("Failed to load ideas from localStorage:", error);
+          }
         }
       }
       setIsLoading(false);

@@ -8,6 +8,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import { useAutoRefresh } from "@/lib/hooks";
 import styles from "./page.module.css";
 
@@ -177,7 +178,8 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
   // Fetch events on mount
   useEffect(() => {
     fetchEvents();
-  }, [fetchEvents]);
+    // Empty dependency array: fetchEvents is stable (useCallback with [])
+  }, []);
 
   // Auto-refresh: 30s polling for multi-device sync + focus refetch (per SYNC.md)
   // Pauses on page unload and when tab is hidden to reduce CPU usage

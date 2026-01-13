@@ -6,7 +6,8 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import Link from "next/link";
 import { useSyncState } from "@/lib/sync/SyncStateContext";
 import styles from "./TOSModal.module.css";

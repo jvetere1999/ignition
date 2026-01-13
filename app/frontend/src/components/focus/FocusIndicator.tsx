@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { safeFetch } from "@/lib/api";
 import Link from "next/link";
 import { usePlayerVisible } from "@/lib/player";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";

@@ -149,6 +149,7 @@ export function IntervalGame() {
       // Play both notes together
       playNote(baseFreq, now, noteDuration);
       playNote(targetFreq, now, noteDuration);
+      // Timer to set isPlaying false after notes finish
       setTimeout(() => {
         setGameState(prev => ({ ...prev, isPlaying: false }));
       }, noteDuration * 1000);
@@ -167,7 +168,7 @@ export function IntervalGame() {
         setGameState(prev => ({ ...prev, isPlaying: false }));
       }, (noteDuration * 2 + gap) * 1000);
     }
-  }, [gameState, getAudioContext, midiToFreq, playNote]);
+  }, [gameState.baseNote, gameState.currentInterval, gameState.direction, getAudioContext, midiToFreq, playNote]);
 
   // Generate a new question
   const generateQuestion = useCallback(() => {
@@ -210,12 +211,7 @@ export function IntervalGame() {
       streak: isCorrect ? prev.streak + 1 : 0,
       totalQuestions: prev.totalQuestions + 1,
     }));
-
-    // Auto-advance after feedback
-    setTimeout(() => {
-      generateQuestion();
-    }, 1500);
-  }, [gameState, generateQuestion]);
+  }, [gameState.currentInterval]);
 
   // Start game
   const startGame = useCallback(() => {
@@ -232,6 +228,16 @@ export function IntervalGame() {
     });
     generateQuestion();
   }, [generateQuestion]);
+
+  // Auto-advance after answer
+  useEffect(() => {
+    if (gameState.answeredCorrect !== null) {
+      const timer = setTimeout(() => {
+        generateQuestion();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.answeredCorrect, generateQuestion]);
 
   // Auto-play when new question generated
   useEffect(() => {

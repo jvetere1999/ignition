@@ -2,6 +2,11 @@
 
 /**
  * BottomBar Component
+ * 
+ * ⚠️  DEPRECATED: Use UnifiedBottomBar instead
+ * This component is no longer used in production.
+ * It is kept for backward compatibility but will be removed in a future release.
+ * 
  * Focus timer bar that appears at the bottom
  * Audio is handled by TrueMiniPlayer separately
  *
@@ -10,6 +15,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { safeFetch } from "@/lib/api";
 import Link from "next/link";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./BottomBar.module.css";
@@ -159,7 +165,10 @@ export function BottomBar() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "clear" }),
       });
-    } catch { /* ignore */ }
+    } catch (error) {
+      console.error("Failed to clear pause state:", error);
+      // Pause state cleared locally even if API call fails
+    }
   }, []);
 
   // Computed state

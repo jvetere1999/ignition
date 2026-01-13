@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import styles from "./page.module.css";
 
 interface Stats {
@@ -68,6 +69,7 @@ export function StatsClient({ userId: _userId }: StatsClientProps) {
 
   useEffect(() => {
     fetchStats();
+    // When period changes, fetchStats is recreated, so effect runs
   }, [fetchStats]);
 
   const formatDuration = (seconds: number): string => {

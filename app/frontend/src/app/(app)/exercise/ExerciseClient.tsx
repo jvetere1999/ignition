@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { safeFetch } from "@/lib/api";
 import styles from "./ExerciseClient.module.css";
 
 // Types
@@ -152,13 +153,14 @@ export function ExerciseClient() {
   // Load data
   const loadData = useCallback(async () => {
     setLoading(true);
+    const abortController = new AbortController();
     try {
       const [exercisesRes, workoutsRes, sessionsRes, recordsRes, statsRes] = await Promise.all([
-        fetch(`/api/exercise?type=exercises&category=${categoryFilter}&search=${searchTerm}`),
-        fetch("/api/exercise?type=workouts"),
-        fetch("/api/exercise?type=sessions&limit=10"),
-        fetch("/api/exercise?type=records"),
-        fetch("/api/exercise?type=stats"),
+        fetch(`/api/exercise?type=exercises&category=${categoryFilter}&search=${searchTerm}`, { signal: abortController.signal }),
+        fetch("/api/exercise?type=workouts", { signal: abortController.signal }),
+        fetch("/api/exercise?type=sessions&limit=10", { signal: abortController.signal }),
+        fetch("/api/exercise?type=records", { signal: abortController.signal }),
+        fetch("/api/exercise?type=stats", { signal: abortController.signal }),
       ]);
 
       if (exercisesRes.ok) {
@@ -187,6 +189,9 @@ export function ExerciseClient() {
         setStats(data.stats || { workouts: 0, sets: 0, prs: 0 });
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return; // Request was aborted, don't update state
+      }
       console.error("Failed to load exercise data:", error);
     }
     setLoading(false);

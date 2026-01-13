@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import { useAutoRefresh } from "@/lib/hooks";
 import { LoadingState } from "@/components/ui";
 import { useBadges } from "@/lib/sync/SyncStateContext";

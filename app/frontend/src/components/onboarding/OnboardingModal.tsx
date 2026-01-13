@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import styles from "./OnboardingModal.module.css";
 

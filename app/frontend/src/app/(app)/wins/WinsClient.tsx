@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import styles from "./page.module.css";
 
 interface Win {
@@ -84,7 +85,8 @@ export function WinsClient({ userId: _userId }: WinsClientProps) {
 
   useEffect(() => {
     fetchWins();
-  }, [fetchWins]);
+    // Empty dependency array: fetchWins is stable (useCallback with [])
+  }, []);
 
   const filteredWins = wins.filter((win) => {
     const winDate = new Date(win.timestamp);

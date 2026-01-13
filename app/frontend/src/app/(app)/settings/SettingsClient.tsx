@@ -6,6 +6,7 @@
 "use client";
 
 import { useState } from "react";
+import { safeFetch } from "@/lib/api";
 import { signOut } from "@/lib/auth/api-auth";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { useAuth } from "@/lib/hooks/useAuth";

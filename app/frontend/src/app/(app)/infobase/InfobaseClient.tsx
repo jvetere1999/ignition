@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { safeFetch } from "@/lib/api";
 import { QuickModeHeader } from "@/components/ui/QuickModeHeader";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";

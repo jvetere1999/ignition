@@ -163,11 +163,7 @@ export function NoteGame() {
       streak: isCorrect ? prev.streak + 1 : 0,
       totalQuestions: prev.totalQuestions + 1,
     }));
-
-    setTimeout(() => {
-      generateQuestion();
-    }, 1500);
-  }, [gameState, generateQuestion]);
+  }, [gameState]);
 
   const handleOctaveAnswer = useCallback((octave: number) => {
     if (gameState.answeredCorrect !== null) return;
@@ -182,11 +178,7 @@ export function NoteGame() {
       streak: isCorrect ? prev.streak + 1 : 0,
       totalQuestions: prev.totalQuestions + 1,
     }));
-
-    setTimeout(() => {
-      generateQuestion();
-    }, 1500);
-  }, [gameState, generateQuestion]);
+  }, [gameState]);
 
   const startGame = useCallback(() => {
     setGameState({
@@ -201,6 +193,17 @@ export function NoteGame() {
     generateQuestion();
   }, [generateQuestion]);
 
+  // Auto-advance after answer
+  useEffect(() => {
+    if (gameState.answeredCorrect !== null) {
+      const timer = setTimeout(() => {
+        generateQuestion();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.answeredCorrect, generateQuestion]);
+
+  // Auto-play when new question generated
   useEffect(() => {
     if (gameState.gameStarted && gameState.answeredCorrect === null) {
       const timer = setTimeout(() => {

@@ -12,6 +12,8 @@ import { markMomentumShown } from "@/lib/today/momentum";
 import { activateSoftLanding } from "@/lib/today/softLanding";
 import { isTodaySoftLandingEnabled } from "@/lib/flags";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
+import { safeFetch } from "@/lib/api";
+import type { PollResponse, FocusSession as SyncFocusSession } from "@/lib/api/sync";
 import styles from "./page.module.css";
 
 // Types
@@ -19,15 +21,8 @@ type FocusMode = "focus" | "break" | "long_break";
 type TimerStatus = "idle" | "running" | "paused";
 type ViewMode = "timer" | "history" | "settings";
 
-interface FocusSession {
-  id: string;
-  started_at: string;
-  completed_at: string | null;
-  abandoned_at: string | null;
-  duration_seconds: number;
-  status: "active" | "completed" | "abandoned";
-  mode: FocusMode;
-}
+// Use the type from sync API which matches backend structure
+type FocusSession = SyncFocusSession;
 
 interface FocusStats {
   totalSessions: number;
@@ -187,10 +182,48 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
   const circumference = 2 * Math.PI * 90; // r=90
   const strokeDashoffset = circumference * (1 - progress);
 
-  // Fetch stats on mount
+  // Single consolidated sync call (replaces 3 separate API calls)
+  const syncFocusData = useCallback(async () => {
+    try {
+      const response = await safeFetch("/api/sync/poll", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const syncData = await response.json() as PollResponse;
+        
+        // Extract focus data from sync response
+        if (syncData.focus) {
+          const { active_session, pause_state } = syncData.focus;
+          
+          if (active_session) {
+            setCurrentSession(active_session);
+            setMode(active_session.mode);
+            
+            // Calculate remaining time
+            const startTime = new Date(active_session.started_at).getTime();
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = Math.max(0, active_session.duration_seconds - elapsed);
+            
+            setTimeRemaining(remaining);
+            if (remaining > 0) {
+              setStatus("running");
+            }
+          } else if (pause_state) {
+            setMode(pause_state.mode || "focus");
+            setTimeRemaining(pause_state.time_remaining_seconds || 0);
+            setStatus("paused");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to sync focus data:", error);
+    }
+  }, []);
+
+  // Legacy fallback for fetching stats (kept for historical data)
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch("/api/focus?stats=true&period=day", {
+      const response = await safeFetch("/api/focus?stats=true&period=day", {
         credentials: "include",
       });
       if (response.ok) {
@@ -211,10 +244,10 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     }
   }, []);
 
-  // Check for active session on mount
+  // Check for active session on mount (DEPRECATED - use syncFocusData)
   const checkActiveSession = useCallback(async () => {
     try {
-      const response = await fetch("/api/focus/active", {
+      const response = await safeFetch("/api/focus/active", {
         credentials: "include",
       });
       if (response.ok) {
@@ -247,7 +280,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const response = await fetch("/api/focus?pageSize=50", {
+      const response = await safeFetch("/api/focus?pageSize=50", {
         credentials: "include",
       });
       if (response.ok) {
@@ -278,7 +311,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     }
 
     // Load paused state from D1 (source of truth)
-    fetch("/api/focus/pause", {
+    safeFetch("/api/focus/pause", {
       credentials: "include",
     })
       .then((res) => res.json())
@@ -331,7 +364,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       }
 
       // Sync to D1 for cross-device and refresh persistence
-      fetch("/api/focus/pause", {
+      safeFetch("/api/focus/pause", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -348,7 +381,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       }
 
       // Also clear from D1
-      fetch("/api/focus/pause", {
+      safeFetch("/api/focus/pause", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -358,10 +391,12 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
   }, [status, mode, timeRemaining]);
 
   useEffect(() => {
+    // On mount: call consolidated sync endpoint instead of 3 separate calls
+    syncFocusData();
     fetchStats();
-    checkActiveSession();
     fetchHistory();
-  }, [fetchStats, checkActiveSession, fetchHistory]);
+    // Empty dependency array ensures this runs only on mount
+  }, []);
 
   // Handle timer completion
   const handleTimerComplete = useCallback(async () => {
@@ -387,7 +422,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     // Note: XP and coins are awarded server-side via activity events
     if (currentSession) {
       try {
-        await fetch(`/api/focus/${currentSession.id}/complete`, {
+        await safeFetch(`/api/focus/${currentSession.id}/complete`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -437,7 +472,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
 
     // Refresh history
     fetchHistory();
-  }, [mode, currentSession, stats.completedSessions, fetchStats, fetchHistory, settings, getDurations]);
+  }, [mode, currentSession, stats.completedSessions, settings, getDurations]);
 
   // Timer tick effect
   useEffect(() => {
@@ -499,7 +534,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
 
     // Create session in database
     try {
-      const response = await fetch("/api/focus", {
+      const response = await safeFetch("/api/focus", {
         method: "POST",
         credentials: "include", // Required for session cookie auth
         headers: { "Content-Type": "application/json" },
@@ -536,7 +571,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     // Abandon session if active
     if (currentSession) {
       try {
-        await fetch(`/api/focus/${currentSession.id}/abandon`, {
+        await safeFetch(`/api/focus/${currentSession.id}/abandon`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -559,7 +594,7 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
     // Abandon current session
     if (currentSession) {
       try {
-        await fetch(`/api/focus/${currentSession.id}/abandon`, {
+        await safeFetch(`/api/focus/${currentSession.id}/abandon`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import styles from "./page.module.css";
 
 type AdminTab = "users" | "quests" | "feedback" | "skills" | "content" | "stats" | "database";

@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import { useAutoRefresh } from "@/lib/hooks";
 import styles from "./page.module.css";
 

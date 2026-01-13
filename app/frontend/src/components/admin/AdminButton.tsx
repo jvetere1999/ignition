@@ -8,6 +8,7 @@
 
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useState, useEffect } from "react";
+import { safeFetch } from "@/lib/api";
 import styles from "./AdminButton.module.css";
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.ecent.online';
@@ -27,7 +28,7 @@ export function AdminButton() {
 
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.ecent.online';
-        const response = await fetch(`${API_BASE}/auth/session`, {
+        const response = await safeFetch(`${API_BASE}/auth/session`, {
           credentials: 'include',
         });
         

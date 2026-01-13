@@ -2,6 +2,11 @@
 
 /**
  * MiniPlayer Component
+ * 
+ * ⚠️  DEPRECATED: Use UnifiedBottomBar instead
+ * This component is no longer used in production.
+ * It is kept for backward compatibility but will be removed in a future release.
+ *
  * Compact floating player with visualizer and focus timer
  * Shows on desktop when both focus and audio are active
  *
@@ -10,6 +15,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import {
   useCurrentTrack,
   usePlayerVisible,

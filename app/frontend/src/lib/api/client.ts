@@ -330,6 +330,43 @@ export async function apiDelete<T>(path: string, options?: ApiRequestOptions): P
 }
 
 // ============================================
+// Safe Fetch Wrapper
+// ============================================
+
+/**
+ * Safe wrapper for raw fetch() calls that checks for 401 responses
+ * 
+ * CRITICAL: Use this wrapper for all fetch() calls that aren't going through
+ * the standard apiGet/apiPost/etc functions. This ensures session termination
+ * works globally, not just for centralized API calls.
+ * 
+ * Usage:
+ *   const response = await safeFetch('/api/focus');
+ *   const response = await safeFetch('/api/books', { method: 'POST', body: ... });
+ */
+export async function safeFetch(
+  input: string | Request,
+  init?: RequestInit & { credentials?: 'include' | 'omit' }
+): Promise<Response> {
+  // Ensure credentials are always included for auth
+  const fetchOptions = {
+    ...init,
+    credentials: init?.credentials ?? 'include',
+  } as RequestInit;
+
+  const response = await fetch(input, fetchOptions);
+
+  // Handle 401 Unauthorized - Session expired or invalid
+  if (response.status === 401) {
+    await handle401();
+    // Return error response so caller can handle it if needed
+    return response;
+  }
+
+  return response;
+}
+
+// ============================================
 // Convenience Exports
 // ============================================
 

@@ -9,7 +9,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   usePlayerStore,
   formatTime,
@@ -89,6 +89,17 @@ export function ReferenceLibrary() {
   const [isQuickMode, setIsQuickMode] = useState(false);
 
   const playerStore = usePlayerStore();
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Abort any ongoing file analysis
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Detect quick mode from URL
   useEffect(() => {
@@ -198,9 +209,19 @@ export function ReferenceLibrary() {
     setProcessingCount(audioFiles.length);
     setShowImportOptions(false);
 
+    // Create new abort controller for this import session
+    abortControllerRef.current = new AbortController();
+    const abortSignal = abortControllerRef.current.signal;
+
     const newTracks: ReferenceTrack[] = [];
 
     for (const file of audioFiles) {
+      // Check if import was cancelled
+      if (abortSignal.aborted) {
+        console.log("File import cancelled");
+        break;
+      }
+
       const trackId = generateId();
       const storageId = `audio_${trackId}`;
 
@@ -227,12 +248,18 @@ export function ReferenceLibrary() {
 
       newTracks.push(track);
 
-      // Analyze track in background with caching
+      // Analyze track in background with caching and abort support
       try {
         const arrayBuffer = await file.arrayBuffer();
 
+        // Check abort again after async operation
+        if (abortSignal.aborted) break;
+
         // Generate content hash for cache lookup
         const contentHash = await generateContentHash(arrayBuffer);
+
+        // Check abort again
+        if (abortSignal.aborted) break;
 
         // Check cache first
         const cachedAnalysis = await getCachedAnalysis(contentHash);
@@ -246,8 +273,12 @@ export function ReferenceLibrary() {
           } as AudioAnalysis;
           track.durationMs = cachedAnalysis.durationMs;
         } else {
-          // Compute analysis
-          const analysis = await analyzeAudio(arrayBuffer);
+          // Compute analysis - pass abort signal
+          const analysis = await analyzeAudio(arrayBuffer, undefined, abortSignal);
+
+          // Check if analysis was aborted
+          if (abortSignal.aborted) break;
+
           track.analysis = analysis || undefined;
 
           // Get duration from audio context

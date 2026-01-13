@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import { LoadingState } from "@/components/ui";
 import { useProgress } from "@/lib/sync/SyncStateContext";
 import styles from "./page.module.css";

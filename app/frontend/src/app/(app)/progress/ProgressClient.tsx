@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { safeFetch } from "@/lib/api";
 import { SkillWheel, DEFAULT_SKILLS, type Skill } from "@/components/progress";
 import { useAutoRefresh } from "@/lib/hooks";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";

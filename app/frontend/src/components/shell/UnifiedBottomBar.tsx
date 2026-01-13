@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { safeFetch } from "@/lib/api";
 import {
   usePlayerStore,
   useCurrentTrack,
@@ -485,7 +486,7 @@ function AnalysisPopup({ track, onClose }: AnalysisPopupProps) {
   useEffect(() => {
     const fetchAnalysis = async () => {
       try {
-        const response = await fetch(`/api/analysis?trackId=${track.id}`);
+        const response = await safeFetch(`/api/analysis?trackId=${track.id}`);
         if (response.ok) {
           const data = await response.json() as {
             bpm?: number;
@@ -617,7 +618,7 @@ export function UnifiedBottomBar() {
   const checkPausedState = useCallback(async () => {
     // Always check D1 first (source of truth)
     try {
-      const response = await fetch("/api/focus/pause");
+      const response = await safeFetch("/api/focus/pause");
       if (response.ok) {
         const data = await response.json() as { pauseState: PausedState | null };
         if (data.pauseState) {
@@ -658,7 +659,7 @@ export function UnifiedBottomBar() {
   // Focus: Fetch active session
   const fetchFocusSession = useCallback(async () => {
     try {
-      const response = await fetch("/api/focus/active");
+      const response = await safeFetch("/api/focus/active");
       if (response.ok) {
         const data = await response.json() as { session?: FocusSession | null };
         if (data.session && data.session.status === "active") {
@@ -686,7 +687,8 @@ export function UnifiedBottomBar() {
     fetchFocusSession();
     const pollInterval = setInterval(fetchFocusSession, 30000);
     return () => clearInterval(pollInterval);
-  }, [fetchFocusSession, checkPausedState]);
+    // Empty dependency array: both callbacks are stable (useCallback with [])
+  }, []);
 
   // Focus: Timer countdown
   useEffect(() => {
@@ -762,13 +764,16 @@ export function UnifiedBottomBar() {
     setPausedState(null);
     // Clear from D1 (source of truth)
     try {
-      await fetch("/api/focus/pause", {
+      await safeFetch("/api/focus/pause", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "clear" }),
       });
-    } catch { /* ignore */ }
+    } catch (error) {
+      console.error("Failed to clear pause state:", error);
+      // Pause state cleared locally even if API call fails
+    }
   }, []);
 
   // Computed state

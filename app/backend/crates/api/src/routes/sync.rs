@@ -100,13 +100,11 @@ pub struct BadgeData {
     pub overdue_items: i32,
 }
 
-/// Focus session status
+/// Focus session status with full session data
 #[derive(Serialize)]
 pub struct FocusStatusData {
-    pub has_active_session: bool,
-    pub mode: Option<String>,
-    pub time_remaining_seconds: Option<i32>,
-    pub expires_at: Option<String>,
+    pub active_session: Option<serde_json::Value>, // Full FocusSession if active
+    pub pause_state: Option<serde_json::Value>,    // Pause state if paused
 }
 
 /// Daily plan completion status
@@ -279,40 +277,19 @@ async fn fetch_badges(pool: &PgPool, user_id: Uuid) -> Result<BadgeData, AppErro
 }
 
 async fn fetch_focus_status(pool: &PgPool, user_id: Uuid) -> Result<FocusStatusData, AppError> {
-    // Check for active focus session
-    let session = sqlx::query_as::<_, (String, Option<String>, Option<i32>)>(
-        r#"
-        SELECT 
-            mode,
-            expires_at::text,
-            EXTRACT(EPOCH FROM (expires_at - NOW()))::int as time_remaining
-        FROM focus_sessions
-        WHERE user_id = $1 
-          AND status = 'active'
-          AND (expires_at IS NULL OR expires_at > NOW())
-        ORDER BY started_at DESC
-        LIMIT 1
-        "#
-    )
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| AppError::Database(e.to_string()))?;
+    // Use the crate::db imports (FocusSessionRepo and FocusPauseRepo)
+    use crate::db::focus_repos::{FocusSessionRepo, FocusPauseRepo};
     
-    match session {
-        Some((mode, expires_at, time_remaining)) => Ok(FocusStatusData {
-            has_active_session: true,
-            mode: Some(mode),
-            time_remaining_seconds: time_remaining,
-            expires_at,
-        }),
-        None => Ok(FocusStatusData {
-            has_active_session: false,
-            mode: None,
-            time_remaining_seconds: None,
-            expires_at: None,
-        }),
-    }
+    // Get active session and pause state
+    let (active_session, pause_state) = tokio::try_join!(
+        FocusSessionRepo::get_active_session(pool, user_id),
+        FocusPauseRepo::get_pause_state(pool, user_id),
+    )?;
+    
+    Ok(FocusStatusData {
+        active_session: active_session.map(|s| serde_json::to_value(s).unwrap_or(serde_json::Value::Null)),
+        pause_state: pause_state.map(|p| serde_json::to_value(p).unwrap_or(serde_json::Value::Null)),
+    })
 }
 
 async fn fetch_plan_status(pool: &PgPool, user_id: Uuid) -> Result<PlanStatusData, AppError> {
@@ -501,7 +478,9 @@ fn generate_etag(
     badges.unread_inbox.hash(&mut hasher);
     badges.active_quests.hash(&mut hasher);
     badges.pending_habits.hash(&mut hasher);
-    focus.has_active_session.hash(&mut hasher);
+    // Hash whether there's an active focus session (not the full session data)
+    focus.active_session.is_some().hash(&mut hasher);
+    focus.pause_state.is_some().hash(&mut hasher);
     plan.completed.hash(&mut hasher);
     plan.total.hash(&mut hasher);
     

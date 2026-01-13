@@ -66,21 +66,25 @@ export function FocusStateProvider({ children }: { children: ReactNode }) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Convert sync focus data to our session format
-  const session = syncState.focus && syncState.focus.has_active_session
+  const session = syncState.focus && syncState.focus.active_session
     ? {
-        id: "sync-focus", // Placeholder ID from sync data
-        started_at: new Date().toISOString(), // Not provided by sync
-        planned_duration: (syncState.focus.time_remaining_seconds || 0) + Math.floor(Date.now() / 1000),
+        id: syncState.focus.active_session.id,
+        started_at: syncState.focus.active_session.started_at,
+        planned_duration: syncState.focus.active_session.duration_seconds,
         status: "active" as const,
-        mode: (syncState.focus.mode as "focus" | "break" | "long_break") || "focus",
-        expires_at: syncState.focus.expires_at,
+        mode: syncState.focus.active_session.mode,
+        expires_at: syncState.focus.active_session.expires_at,
       }
     : null;
 
   // Update time remaining when sync focus data changes
   useEffect(() => {
-    if (syncState.focus?.has_active_session && syncState.focus.time_remaining_seconds) {
-      setTimeRemaining(syncState.focus.time_remaining_seconds);
+    if (syncState.focus?.active_session) {
+      const activeSession = syncState.focus.active_session;
+      const startTime = new Date(activeSession.started_at).getTime();
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const remaining = Math.max(0, activeSession.duration_seconds - elapsed);
+      setTimeRemaining(remaining);
     } else {
       setTimeRemaining(0);
     }

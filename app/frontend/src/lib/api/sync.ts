@@ -33,11 +33,45 @@ export interface BadgeData {
   overdue_items: number;
 }
 
-export interface FocusStatusData {
-  has_active_session: boolean;
-  mode: string | null;
-  time_remaining_seconds: number | null;
+// ============================================
+// Focus Session Types (from backend)
+// ============================================
+
+export interface FocusSession {
+  id: string;
+  user_id: string;
+  mode: "focus" | "break" | "long_break";
+  duration_seconds: number;
+  started_at: string; // ISO 8601 datetime
+  completed_at: string | null;
+  abandoned_at: string | null;
   expires_at: string | null;
+  paused_at: string | null;
+  paused_remaining_seconds: number | null;
+  status: "active" | "paused" | "completed" | "abandoned" | "expired";
+  xp_awarded: number;
+  coins_awarded: number;
+  task_id: string | null;
+  task_title: string | null;
+  created_at: string; // ISO 8601 datetime
+}
+
+export interface FocusPauseState {
+  id: string;
+  user_id: string;
+  session_id: string;
+  mode: "focus" | "break" | "long_break" | null;
+  is_paused: boolean;
+  time_remaining_seconds: number | null;
+  paused_at: string | null; // ISO 8601 datetime
+  resumed_at: string | null; // ISO 8601 datetime
+  created_at: string; // ISO 8601 datetime
+  updated_at: string; // ISO 8601 datetime
+}
+
+export interface FocusStatusData {
+  active_session: FocusSession | null;  // Full FocusSession if active
+  pause_state: FocusPauseState | null;  // Pause state if paused
 }
 
 export interface PlanStatusData {
