@@ -11,7 +11,6 @@ export {
   getProviders,
   getSignInUrl,
   signOut,
-  verifyAge,
   acceptTos,
   type AuthUser,
   type SessionResponse,

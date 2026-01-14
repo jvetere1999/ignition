@@ -18,7 +18,6 @@ const PUBLIC_ROUTES = new Set([
   "/help",
   "/auth/signin",
   "/auth/error",
-  "/age-verification",
   "/pending-approval",
 ]);
 
@@ -42,13 +41,11 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPublic = isPublicRoute(pathname);
 
-  // Redirect authenticated users away from signin/age-verification pages
+  // Redirect authenticated users away from signin page
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
-      if (pathname === "/auth/signin" || pathname === "/age-verification") {
+      if (pathname === "/auth/signin") {
         router.replace("/today");
-      } else if (!user.ageVerified) {
-        router.replace("/age-verification");
       }
     }
   }, [isLoading, isAuthenticated, user, pathname, router]);
@@ -68,11 +65,6 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated || !user) {
     // Not authenticated - redirect to signin
     // The redirect will happen on next page load, for now show nothing
-    return null;
-  }
-
-  if (!user.ageVerified) {
-    // Redirect handled by useEffect above
     return null;
   }
 

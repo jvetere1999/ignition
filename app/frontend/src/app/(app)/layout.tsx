@@ -35,11 +35,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading || !isAuthenticated || !user) return;
 
-    if (!user.ageVerified) {
-      router.replace("/age-verification");
-      return;
-    }
-
     if (!user.approved) {
       router.replace("/pending-approval");
     }

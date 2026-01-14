@@ -14,7 +14,6 @@ Disallow: /api/
 # Block auth pages from indexing
 Disallow: /auth/error
 Disallow: /pending-approval
-Disallow: /age-verification
 
 # Block admin pages
 Disallow: /admin

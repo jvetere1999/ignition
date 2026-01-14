@@ -35,11 +35,6 @@ export default function SignInPage() {
             </ul>
           </div>
 
-          <p className={styles.newUser}>
-            First time here?{" "}
-            <Link href="/age-verification">Verify your age first</Link>
-          </p>
-
           <p className={styles.terms}>
             By signing in, you agree to our{" "}
             <Link href="/terms">Terms of Service</Link> and{" "}
@@ -54,4 +49,3 @@ export default function SignInPage() {
     </main>
   );
 }
-

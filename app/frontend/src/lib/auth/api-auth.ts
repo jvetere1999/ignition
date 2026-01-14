@@ -193,23 +193,6 @@ export async function signOut(redirect: boolean = true): Promise<void> {
 }
 
 /**
- * Verify age (COPPA compliance)
- */
-export async function verifyAge(is13OrOlder: boolean): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/verify-age`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_13_or_older: is13OrOlder }),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Accept Terms of Service
  */
 export async function acceptTos(version: string = '1.0'): Promise<boolean> {
