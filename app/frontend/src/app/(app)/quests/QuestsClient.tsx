@@ -73,12 +73,12 @@ export function QuestsClient() {
   // Fetch wallet from backend
   const fetchWallet = useCallback(async () => {
     try {
-      const response = await safeFetch(`${API_BASE_URL}/api/market`);
+      const response = await safeFetch(`${API_BASE_URL}/api/market/wallet`);
       if (response.ok) {
         const data = await response.json() as {
-          data?: { wallet?: { total_coins?: number } };
+          data?: { coins?: number };
         };
-        const coins = data.data?.wallet?.total_coins ?? 0;
+        const coins = data.data?.coins ?? 0;
         setWallet((prev) => ({ ...prev, coins }));
       }
     } catch (e) {

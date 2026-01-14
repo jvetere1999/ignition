@@ -8,102 +8,30 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import styles from "./page.module.css";
-
-interface ReviewCard {
-  id: string;
-  front: string;
-  back: string;
-  conceptId: string | null;
-  cardType: "definition" | "identification" | "application";
-  dueAt: string;
-  intervalDays: number;
-  ease: number;
-  lapses: number;
-}
+import { getReviewItems, submitReview, type ReviewCard } from "@/lib/api/learn";
 
 interface ReviewSession {
   cards: ReviewCard[];
-  newCardsToday: number;
   reviewCardsToday: number;
   estimatedMinutes: number;
 }
 
-// SM-2 algorithm implementation
-function calculateNextReview(card: ReviewCard, grade: number) {
-  let newEase = card.ease;
-  let newInterval = card.intervalDays;
-  let newLapses = card.lapses;
+function estimateInterval(card: ReviewCard, grade: number) {
+  let interval = card.intervalDays;
+  let ease = card.easeFactor;
 
   if (grade === 0) {
-    // Again - reset interval
-    newInterval = 1;
-    newLapses = card.lapses + 1;
-    newEase = Math.max(1.3, card.ease - 0.2);
+    interval = 1;
   } else if (grade === 1) {
-    // Hard
-    newInterval = Math.max(1, card.intervalDays * 1.2);
-    newEase = Math.max(1.3, card.ease - 0.15);
+    interval = Math.max(1, interval * 1.2);
   } else if (grade === 2) {
-    // Good
-    if (card.intervalDays < 1) {
-      newInterval = 1;
-    } else {
-      newInterval = card.intervalDays * card.ease;
-    }
+    interval = interval < 1 ? 1 : interval * ease;
   } else {
-    // Easy
-    newInterval = card.intervalDays * card.ease * 1.3;
-    newEase = card.ease + 0.15;
+    interval = interval * ease * 1.3;
   }
 
-  const dueAt = new Date();
-  dueAt.setDate(dueAt.getDate() + Math.round(newInterval));
-
-  return {
-    ...card,
-    intervalDays: newInterval,
-    ease: newEase,
-    lapses: newLapses,
-    dueAt: dueAt.toISOString(),
-  };
+  return Math.round(interval);
 }
-
-// Mock cards for development
-const MOCK_CARDS: ReviewCard[] = [
-  {
-    id: "1",
-    front: "What is a wavetable?",
-    back: "A wavetable is a collection of single-cycle waveforms that can be morphed between. Each position in the wavetable represents a different timbre.",
-    conceptId: "wavetable",
-    cardType: "definition",
-    dueAt: new Date().toISOString(),
-    intervalDays: 1,
-    ease: 2.5,
-    lapses: 0,
-  },
-  {
-    id: "2",
-    front: "What happens when you increase the resonance of a low-pass filter?",
-    back: "Increasing resonance boosts frequencies near the cutoff point, creating a peak in the frequency response. At high resonance values, the filter can self-oscillate.",
-    conceptId: "resonance",
-    cardType: "application",
-    dueAt: new Date().toISOString(),
-    intervalDays: 2,
-    ease: 2.3,
-    lapses: 1,
-  },
-  {
-    id: "3",
-    front: "Identify: In Serum, where is the unison control located?",
-    back: "The unison control is located in the oscillator section, below the wavetable display. It includes Voice count, Detune, Blend, and Width parameters.",
-    conceptId: "unison",
-    cardType: "identification",
-    dueAt: new Date().toISOString(),
-    intervalDays: 1,
-    ease: 2.5,
-    lapses: 0,
-  },
-];
 
 interface ReviewClientProps {
   userId?: string; // Optional - will use useAuth() if not provided
@@ -116,6 +44,7 @@ export function ReviewClient({ userId }: ReviewClientProps = {}) {
   const [showAnswer, setShowAnswer] = useState(false);
   const [reviewed, setReviewed] = useState(0);
   const [sessionComplete, setSessionComplete] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [sessionStats, setSessionStats] = useState({
     again: 0,
     hard: 0,
@@ -124,29 +53,53 @@ export function ReviewClient({ userId }: ReviewClientProps = {}) {
   });
 
   useEffect(() => {
-    // Load review session
-    const mockSession: ReviewSession = {
-      cards: MOCK_CARDS,
-      newCardsToday: 5,
-      reviewCardsToday: MOCK_CARDS.length,
-      estimatedMinutes: Math.ceil(MOCK_CARDS.length * 0.5),
+    let isMounted = true;
+
+    const loadSession = async () => {
+      try {
+        const review = await getReviewItems();
+        if (!isMounted) return;
+
+        const estimatedMinutes = Math.ceil(review.cards.length * 0.5);
+        setSession({
+          cards: review.cards,
+          reviewCardsToday: review.cards.length,
+          estimatedMinutes,
+        });
+      } catch {
+        if (isMounted) {
+          setSession({ cards: [], reviewCardsToday: 0, estimatedMinutes: 0 });
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     };
-    setSession(mockSession);
-    setLoading(false);
+
+    loadSession();
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
 
   const currentCard = session?.cards[currentIndex];
 
   const handleGrade = useCallback(
-    (grade: number) => {
-      if (!currentCard) return;
+    async (grade: number) => {
+      if (!currentCard || submitting) return;
+      setSubmitting(true);
 
       // Update stats
       const statKey = ["again", "hard", "good", "easy"][grade] as keyof typeof sessionStats;
       setSessionStats((prev) => ({ ...prev, [statKey]: prev[statKey] + 1 }));
 
-      // Calculate next review (would save to DB in real implementation)
-      const _updated = calculateNextReview(currentCard, grade);
+      try {
+        await submitReview(currentCard.id, grade);
+      } catch {
+        setSubmitting(false);
+        return;
+      }
 
       // Move to next card
       setReviewed((prev) => prev + 1);
@@ -157,8 +110,9 @@ export function ReviewClient({ userId }: ReviewClientProps = {}) {
       } else {
         setSessionComplete(true);
       }
+      setSubmitting(false);
     },
-    [currentCard, currentIndex, session?.cards.length]
+    [currentCard, currentIndex, session?.cards.length, submitting]
   );
 
   const handleKeyDown = useCallback(
@@ -302,37 +256,29 @@ export function ReviewClient({ userId }: ReviewClientProps = {}) {
 
         {showAnswer && (
           <div className={styles.gradeButtons}>
-            <button className={`${styles.gradeBtn} ${styles.again}`} onClick={() => handleGrade(0)}>
+            <button className={`${styles.gradeBtn} ${styles.again}`} onClick={() => handleGrade(0)} disabled={submitting}>
               <span className={styles.gradeLabel}>Again</span>
               <span className={styles.gradeInterval}>1d</span>
               <span className={styles.gradeKey}>1</span>
             </button>
-            <button className={`${styles.gradeBtn} ${styles.hard}`} onClick={() => handleGrade(1)}>
+            <button className={`${styles.gradeBtn} ${styles.hard}`} onClick={() => handleGrade(1)} disabled={submitting}>
               <span className={styles.gradeLabel}>Hard</span>
               <span className={styles.gradeInterval}>
-                {Math.round(currentCard?.intervalDays ? currentCard.intervalDays * 1.2 : 1)}d
+                {currentCard ? estimateInterval(currentCard, 1) : 1}d
               </span>
               <span className={styles.gradeKey}>2</span>
             </button>
-            <button className={`${styles.gradeBtn} ${styles.good}`} onClick={() => handleGrade(2)}>
+            <button className={`${styles.gradeBtn} ${styles.good}`} onClick={() => handleGrade(2)} disabled={submitting}>
               <span className={styles.gradeLabel}>Good</span>
               <span className={styles.gradeInterval}>
-                {Math.round(
-                  currentCard?.intervalDays
-                    ? currentCard.intervalDays * currentCard.ease
-                    : 1
-                )}d
+                {currentCard ? estimateInterval(currentCard, 2) : 1}d
               </span>
               <span className={styles.gradeKey}>3</span>
             </button>
-            <button className={`${styles.gradeBtn} ${styles.easy}`} onClick={() => handleGrade(3)}>
+            <button className={`${styles.gradeBtn} ${styles.easy}`} onClick={() => handleGrade(3)} disabled={submitting}>
               <span className={styles.gradeLabel}>Easy</span>
               <span className={styles.gradeInterval}>
-                {Math.round(
-                  currentCard?.intervalDays
-                    ? currentCard.intervalDays * currentCard.ease * 1.3
-                    : 4
-                )}d
+                {currentCard ? estimateInterval(currentCard, 3) : 4}d
               </span>
               <span className={styles.gradeKey}>4</span>
             </button>
@@ -344,4 +290,3 @@ export function ReviewClient({ userId }: ReviewClientProps = {}) {
 }
 
 export default ReviewClient;
-

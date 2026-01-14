@@ -15,61 +15,33 @@ import styles from "./page.module.css";
 interface Book {
   id: string;
   title: string;
-  author: string;
-  totalPages: number;
-  currentPage: number;
-  status: "reading" | "completed" | "want-to-read" | "dnf";
+  author: string | null;
+  total_pages: number | null;
+  current_page: number;
+  progress_percent: number | null;
+  status: "reading" | "completed" | "want_to_read" | "abandoned";
   rating: number | null;
-  startedAt: string | null;
-  finishedAt: string | null;
-  notes: string;
-  coverUrl: string | null;
-  genre: string;
-  createdAt: string;
-}
-
-interface ReadingSession {
-  id: string;
-  bookId: string;
-  pagesRead: number;
-  duration: number; // minutes
-  notes: string;
-  date: string;
+  started_at: string | null;
+  completed_at: string | null;
+  notes: string | null;
 }
 
 interface ReadingStats {
-  booksThisYear: number;
-  pagesThisMonth: number;
-  currentStreak: number;
-  averageRating: number;
+  books_completed: number;
+  books_reading: number;
+  total_books: number;
+  total_pages_read: number;
+  total_reading_time_minutes: number;
 }
-
-const GENRES = [
-  "Fiction",
-  "Non-Fiction",
-  "Fantasy",
-  "Sci-Fi",
-  "Mystery",
-  "Romance",
-  "Thriller",
-  "Biography",
-  "Self-Help",
-  "Business",
-  "History",
-  "Science",
-  "Philosophy",
-  "Poetry",
-  "Other",
-];
 
 export function BookTrackerClient() {
   const [books, setBooks] = useState<Book[]>([]);
-  const [_sessions, setSessions] = useState<ReadingSession[]>([]);
   const [stats, setStats] = useState<ReadingStats>({
-    booksThisYear: 0,
-    pagesThisMonth: 0,
-    currentStreak: 0,
-    averageRating: 0,
+    books_completed: 0,
+    books_reading: 0,
+    total_books: 0,
+    total_pages_read: 0,
+    total_reading_time_minutes: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"reading" | "completed" | "all" | "want">("reading");
@@ -82,7 +54,6 @@ export function BookTrackerClient() {
     title: "",
     author: "",
     totalPages: 0,
-    genre: "Fiction",
     notes: "",
   });
 
@@ -96,12 +67,27 @@ export function BookTrackerClient() {
   // Load data
   const loadData = useCallback(async () => {
     try {
-      const res = await safeFetch(`${API_BASE_URL}/api/books`);
-      if (res.ok) {
-        const data = await res.json() as { books: Book[]; sessions: ReadingSession[]; stats: ReadingStats };
+      const [booksRes, statsRes] = await Promise.all([
+        safeFetch(`${API_BASE_URL}/api/books`),
+        safeFetch(`${API_BASE_URL}/api/books/stats`),
+      ]);
+
+      if (booksRes.ok) {
+        const data = await booksRes.json() as { books?: Book[] };
         setBooks(data.books || []);
-        setSessions(data.sessions || []);
-        setStats(data.stats || { booksThisYear: 0, pagesThisMonth: 0, currentStreak: 0, averageRating: 0 });
+      }
+
+      if (statsRes.ok) {
+        const data = await statsRes.json() as { stats?: ReadingStats };
+        setStats(
+          data.stats || {
+            books_completed: 0,
+            books_reading: 0,
+            total_books: 0,
+            total_pages_read: 0,
+            total_reading_time_minutes: 0,
+          }
+        );
       }
     } catch (error) {
       console.error("Failed to load books:", error);
@@ -113,6 +99,13 @@ export function BookTrackerClient() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const formatReadingTime = (minutes: number) => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const remaining = minutes % 60;
+    return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
+  };
 
   // Auto-refresh: refetch on focus after 2 minute staleness (per SYNC.md)
   // Pauses on page unload, soft refreshes on reload if stale
@@ -135,15 +128,24 @@ export function BookTrackerClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "add_book",
-          ...newBook,
-          status: "want-to-read",
+          title: newBook.title.trim(),
+          author: newBook.author.trim() || undefined,
+          total_pages: newBook.totalPages > 0 ? newBook.totalPages : undefined,
+          status: "want_to_read",
         }),
       });
 
       if (res.ok) {
+        const data = await res.json() as { book?: Book };
+        if (data.book?.id && newBook.notes.trim()) {
+          await safeFetch(`${API_BASE_URL}/api/books/${data.book.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notes: newBook.notes.trim() }),
+          });
+        }
         setShowAddBook(false);
-        setNewBook({ title: "", author: "", totalPages: 0, genre: "Fiction", notes: "" });
+        setNewBook({ title: "", author: "", totalPages: 0, notes: "" });
         loadData();
       }
     } catch (error) {
@@ -154,12 +156,11 @@ export function BookTrackerClient() {
   // Start reading a book
   const handleStartReading = async (bookId: string) => {
     try {
-      await safeFetch(`${API_BASE_URL}/api/books`, {
-        method: "POST",
+      await safeFetch(`${API_BASE_URL}/api/books/${bookId}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "start_reading",
-          bookId,
+          status: "reading",
         }),
       });
       loadData();
@@ -173,12 +174,13 @@ export function BookTrackerClient() {
     if (!sessionLog.bookId || sessionLog.pagesRead <= 0) return;
 
     try {
-      const res = await safeFetch(`${API_BASE_URL}/api/books`, {
+      const res = await safeFetch(`${API_BASE_URL}/api/books/${sessionLog.bookId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "log_session",
-          ...sessionLog,
+          pages_read: sessionLog.pagesRead,
+          duration_minutes: sessionLog.duration > 0 ? sessionLog.duration : undefined,
+          notes: sessionLog.notes.trim() || undefined,
         }),
       });
 
@@ -195,12 +197,11 @@ export function BookTrackerClient() {
   // Mark book as completed
   const handleCompleteBook = async (bookId: string, rating: number) => {
     try {
-      await safeFetch(`${API_BASE_URL}/api/books`, {
-        method: "POST",
+      await safeFetch(`${API_BASE_URL}/api/books/${bookId}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "complete_book",
-          bookId,
+          status: "completed",
           rating,
         }),
       });
@@ -215,11 +216,7 @@ export function BookTrackerClient() {
     if (!confirm("Delete this book?")) return;
 
     try {
-      await safeFetch(`${API_BASE_URL}/api/books`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookId }),
-      });
+      await safeFetch(`${API_BASE_URL}/api/books/${bookId}`, { method: "DELETE" });
       loadData();
     } catch (error) {
       console.error("Failed to delete book:", error);
@@ -234,7 +231,7 @@ export function BookTrackerClient() {
       case "completed":
         return book.status === "completed";
       case "want":
-        return book.status === "want-to-read";
+        return book.status === "want_to_read";
       default:
         return true;
     }
@@ -252,20 +249,20 @@ export function BookTrackerClient() {
       {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <span className={styles.statValue}>{stats.booksThisYear}</span>
-          <span className={styles.statLabel}>Books This Year</span>
+          <span className={styles.statValue}>{stats.books_completed}</span>
+          <span className={styles.statLabel}>Books Completed</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statValue}>{stats.pagesThisMonth}</span>
-          <span className={styles.statLabel}>Pages This Month</span>
+          <span className={styles.statValue}>{stats.books_reading}</span>
+          <span className={styles.statLabel}>Currently Reading</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statValue}>{stats.currentStreak}</span>
-          <span className={styles.statLabel}>Day Streak</span>
+          <span className={styles.statValue}>{stats.total_pages_read}</span>
+          <span className={styles.statLabel}>Pages Read</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statValue}>{stats.averageRating > 0 ? stats.averageRating.toFixed(1) : "-"}</span>
-          <span className={styles.statLabel}>Avg Rating</span>
+          <span className={styles.statValue}>{formatReadingTime(stats.total_reading_time_minutes)}</span>
+          <span className={styles.statLabel}>Reading Time</span>
         </div>
       </div>
 
@@ -299,7 +296,7 @@ export function BookTrackerClient() {
           className={`${styles.tab} ${activeTab === "want" ? styles.active : ""}`}
           onClick={() => setActiveTab("want")}
         >
-          Want to Read ({books.filter((b) => b.status === "want-to-read").length})
+          Want to Read ({books.filter((b) => b.status === "want_to_read").length})
         </button>
         <button
           className={`${styles.tab} ${activeTab === "all" ? styles.active : ""}`}
@@ -314,29 +311,26 @@ export function BookTrackerClient() {
         {filteredBooks.map((book) => (
           <div key={book.id} className={styles.bookCard}>
             <div className={styles.bookCover}>
-              {book.coverUrl ? (
-                <img src={book.coverUrl} alt={book.title} />
-              ) : (
-                <div className={styles.placeholderCover}>
-                  <span>{book.title.charAt(0)}</span>
-                </div>
-              )}
+              <div className={styles.placeholderCover}>
+                <span>{book.title.charAt(0)}</span>
+              </div>
             </div>
             <div className={styles.bookInfo}>
               <h3 className={styles.bookTitle}>{book.title}</h3>
-              <p className={styles.bookAuthor}>{book.author}</p>
-              <span className={styles.bookGenre}>{book.genre}</span>
+              <p className={styles.bookAuthor}>{book.author || "Unknown author"}</p>
 
               {book.status === "reading" && (
                 <div className={styles.progressSection}>
                   <div className={styles.progressBar}>
                     <div
                       className={styles.progressFill}
-                      style={{ width: `${(book.currentPage / book.totalPages) * 100}%` }}
+                      style={{
+                        width: `${book.total_pages ? (book.current_page / book.total_pages) * 100 : 0}%`,
+                      }}
                     />
                   </div>
                   <span className={styles.progressText}>
-                    {book.currentPage} / {book.totalPages} pages
+                    {book.current_page} / {book.total_pages ?? 0} pages
                   </span>
                 </div>
               )}
@@ -348,7 +342,7 @@ export function BookTrackerClient() {
               )}
 
               <div className={styles.bookActions}>
-                {book.status === "want-to-read" && (
+                {book.status === "want_to_read" && (
                   <button
                     className={styles.smallButton}
                     onClick={() => handleStartReading(book.id)}
@@ -418,14 +412,6 @@ export function BookTrackerClient() {
                 value={newBook.totalPages || ""}
                 onChange={(e) => setNewBook({ ...newBook, totalPages: parseInt(e.target.value) || 0 })}
               />
-              <select
-                value={newBook.genre}
-                onChange={(e) => setNewBook({ ...newBook, genre: e.target.value })}
-              >
-                {GENRES.map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </select>
               <textarea
                 placeholder="Notes (optional)"
                 value={newBook.notes}

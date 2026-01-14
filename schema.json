@@ -4513,6 +4513,496 @@
       "rust_type": "UserDrillStats",
       "ts_type": "UserDrillStats"
     },
+    "learn_flashcards": {
+      "fields": {
+        "id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": true,
+          "unique": false,
+          "foreign_key": false,
+          "default": "gen_random_uuid()"
+        },
+        "topic_id": {
+          "type": "UUID",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true
+        },
+        "lesson_id": {
+          "type": "UUID",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true
+        },
+        "front": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "back": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "card_type": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "concept_id": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "tags": {
+          "type": "TEXT[]",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "is_active": {
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "TRUE"
+        },
+        "created_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        },
+        "updated_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        }
+      },
+      "rust_type": "LearnFlashcards",
+      "ts_type": "LearnFlashcards"
+    },
+    "user_flashcard_progress": {
+      "fields": {
+        "id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": true,
+          "unique": false,
+          "foreign_key": false,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true
+        },
+        "flashcard_id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true
+        },
+        "due_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "interval_days": {
+          "type": "REAL",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "ease_factor": {
+          "type": "REAL",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "lapses": {
+          "type": "INTEGER",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "last_reviewed_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "created_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        },
+        "updated_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        }
+      },
+      "rust_type": "UserFlashcardProgress",
+      "ts_type": "UserFlashcardProgress"
+    },
+    "user_flashcard_reviews": {
+      "fields": {
+        "id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": true,
+          "unique": false,
+          "foreign_key": false,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true
+        },
+        "flashcard_id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true
+        },
+        "grade": {
+          "type": "INTEGER",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "interval_days": {
+          "type": "REAL",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "ease_factor": {
+          "type": "REAL",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "lapses": {
+          "type": "INTEGER",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "reviewed_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        }
+      },
+      "rust_type": "UserFlashcardReviews",
+      "ts_type": "UserFlashcardReviews"
+    },
+    "glossary_entries": {
+      "fields": {
+        "id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": true,
+          "unique": false,
+          "foreign_key": false,
+          "default": "gen_random_uuid()"
+        },
+        "term": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": true,
+          "foreign_key": false
+        },
+        "definition": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "category": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "aliases": {
+          "type": "TEXT[]",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "related_concepts": {
+          "type": "TEXT[]",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "is_active": {
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "TRUE"
+        },
+        "sort_order": {
+          "type": "INTEGER",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "0"
+        },
+        "created_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        },
+        "updated_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        }
+      },
+      "rust_type": "GlossaryEntries",
+      "ts_type": "GlossaryEntries"
+    },
+    "recipe_templates": {
+      "fields": {
+        "id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": true,
+          "unique": false,
+          "foreign_key": false,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true
+        },
+        "title": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "synth": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "target_type": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "descriptors": {
+          "type": "TEXT[]",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "mono": {
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "cpu_budget": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "macro_count": {
+          "type": "INTEGER",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "recipe_json": {
+          "type": "JSONB",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "created_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        },
+        "updated_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        }
+      },
+      "rust_type": "RecipeTemplates",
+      "ts_type": "RecipeTemplates"
+    },
+    "journal_entries": {
+      "fields": {
+        "id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": true,
+          "unique": false,
+          "foreign_key": false,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true
+        },
+        "synth": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "patch_name": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "tags": {
+          "type": "TEXT[]",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "notes": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "what_learned": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "what_broke": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "preset_reference": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "created_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        },
+        "updated_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        }
+      },
+      "rust_type": "JournalEntries",
+      "ts_type": "JournalEntries"
+    },
     "reference_tracks": {
       "fields": {
         "id": {

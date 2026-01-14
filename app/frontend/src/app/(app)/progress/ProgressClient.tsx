@@ -19,7 +19,7 @@ import styles from "./page.module.css";
 
 interface ProgressStats {
   totalXp: number;
-  questsCompleted: number;
+  focusSessions: number;
   focusHours: number;
   currentStreak: number;
   level: number;
@@ -33,7 +33,7 @@ export function ProgressClient() {
   const [skills, setSkills] = useState<Skill[]>(DEFAULT_SKILLS);
   const [stats, setStats] = useState<ProgressStats>({
     totalXp: 0,
-    questsCompleted: 0,
+    focusSessions: 0,
     focusHours: 0,
     currentStreak: 0,
     level: 1,
@@ -41,24 +41,9 @@ export function ProgressClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [recentActivities, _setRecentActivities] = useState<{ label: string; xp: number; skill: string }[]>([]);
 
-  // Load skills from D1 or localStorage
+  // Load skills from localStorage (backend endpoint not available)
   useEffect(() => {
     async function loadSkills() {
-      // Try to fetch from D1 first
-      try {
-        const response = await safeFetch(`${API_BASE_URL}/api/user/skills`);
-        if (response.ok) {
-          const data = await response.json() as { skills?: Skill[] };
-          if (data.skills && data.skills.length > 0) {
-            setSkills(data.skills);
-            setIsLoading(false);
-            return;
-          }
-        }
-      } catch (e) {
-        console.error("Failed to fetch skills from D1:", e);
-      }
-
       // Only fall back to localStorage if deprecation is disabled
       if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
         try {
@@ -91,14 +76,32 @@ export function ProgressClient() {
   // Fetch stats from API
   const fetchStats = useCallback(async () => {
     try {
-      // Fetch focus stats
-      const focusRes = await safeFetch(`${API_BASE_URL}/api/focus?stats=true&period=week`);
-      if (focusRes.ok) {
-        const focusData = await focusRes.json() as { totalFocusTime?: number; completedSessions?: number };
+      const [summaryRes, focusRes] = await Promise.all([
+        safeFetch(`${API_BASE_URL}/api/gamification/summary`),
+        safeFetch(`${API_BASE_URL}/api/focus/stats?period=week`),
+      ]);
+
+      if (summaryRes.ok) {
+        const summaryData = await summaryRes.json() as {
+          data?: { total_xp?: number; current_level?: number; current_streak?: number };
+        };
         setStats((prev) => ({
           ...prev,
-          focusHours: Math.round((focusData.totalFocusTime || 0) / 3600),
-          questsCompleted: focusData.completedSessions || 0,
+          totalXp: summaryData.data?.total_xp ?? 0,
+          level: summaryData.data?.current_level ?? 1,
+          currentStreak: summaryData.data?.current_streak ?? 0,
+        }));
+      }
+
+      if (focusRes.ok) {
+        const focusData = await focusRes.json() as {
+          stats?: { total_focus_seconds?: number; completed_sessions?: number };
+        };
+        const totalFocusSeconds = focusData.stats?.total_focus_seconds ?? 0;
+        setStats((prev) => ({
+          ...prev,
+          focusHours: Math.round(totalFocusSeconds / 3600),
+          focusSessions: focusData.stats?.completed_sessions ?? 0,
         }));
       }
     } catch (e) {
@@ -121,13 +124,6 @@ export function ProgressClient() {
     refetchOnVisible: true,
     enabled: !isLoading,
   });
-
-  // Calculate total XP and level
-  useEffect(() => {
-    const totalXp = skills.reduce((sum, s) => sum + s.xp + (s.level - 1) * 100, 0);
-    const level = Math.floor(totalXp / 500) + 1;
-    setStats((prev) => ({ ...prev, totalXp, level }));
-  }, [skills]);
 
   if (isLoading) {
     return (
@@ -192,8 +188,8 @@ export function ProgressClient() {
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
           </div>
-          <span className={styles.statValue}>{stats.questsCompleted}</span>
-          <span className={styles.statChange}>{stats.questsCompleted === 0 ? "Complete quests" : "This week"}</span>
+          <span className={styles.statValue}>{stats.focusSessions}</span>
+          <span className={styles.statChange}>{stats.focusSessions === 0 ? "Complete sessions" : "This week"}</span>
         </div>
 
         <div className={styles.statCard}>

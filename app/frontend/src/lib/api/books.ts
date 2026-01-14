@@ -20,17 +20,14 @@ export interface Book {
   id: string;
   title: string;
   author: string | null;
-  isbn: string | null;
-  cover_url: string | null;
   total_pages: number | null;
   current_page: number;
+  progress_percent: number | null;
   status: BookStatus;
   started_at: string | null;
-  finished_at: string | null;
+  completed_at: string | null;
   rating: number | null;
   notes: string | null;
-  tags: string[];
-  created_at: string;
 }
 
 export interface ReadingSession {
@@ -38,42 +35,36 @@ export interface ReadingSession {
   book_id: string;
   pages_read: number;
   duration_minutes: number | null;
+  started_at: string;
   notes: string | null;
-  logged_at: string;
+  xp_awarded: number;
+  coins_awarded: number;
 }
 
 export interface ReadingStats {
-  total_books: number;
   books_completed: number;
   books_reading: number;
+  total_books: number;
   total_pages_read: number;
-  reading_sessions: number;
-  total_reading_minutes: number;
-  current_streak_days: number;
+  total_reading_time_minutes: number;
 }
 
 // Request types
 export interface CreateBookRequest {
   title: string;
   author?: string;
-  isbn?: string;
-  cover_url?: string;
   total_pages?: number;
   status?: BookStatus;
-  tags?: string[];
 }
 
 export interface UpdateBookRequest {
   title?: string;
   author?: string;
-  isbn?: string;
-  cover_url?: string;
   total_pages?: number;
   current_page?: number;
   status?: BookStatus;
   rating?: number;
   notes?: string;
-  tags?: string[];
 }
 
 export interface LogReadingRequest {
@@ -85,6 +76,7 @@ export interface LogReadingRequest {
 // Response wrappers
 interface BooksWrapper {
   books: Book[];
+  total: number;
 }
 
 interface SessionsWrapper {
@@ -96,12 +88,11 @@ interface StatsWrapper {
 }
 
 interface LogReadingResult {
-  session_id: string;
-  pages_read: number;
-  new_page: number;
-  book_completed: boolean;
+  session: ReadingSession;
+  book: Book;
   xp_awarded: number;
   coins_awarded: number;
+  is_completed: boolean;
 }
 
 // ============================================

@@ -10,10 +10,10 @@ interface Exercise {
   name: string;
   description: string | null;
   category: string;
-  muscle_groups: string | null;
-  equipment: string | null;
+  muscle_groups: string[];
+  equipment: string[];
   instructions: string | null;
-  is_builtin: number;
+  is_builtin: boolean;
   force?: string;
   level?: string;
 }
@@ -24,6 +24,7 @@ interface Workout {
   description: string | null;
   workout_type: string;
   estimated_duration: number | null;
+  is_template?: boolean;
 }
 
 interface WorkoutSession {
@@ -32,9 +33,12 @@ interface WorkoutSession {
   workout_name: string | null;
   started_at: string;
   completed_at: string | null;
-  status: string;
+  duration_minutes?: number | null;
+  sets_logged?: number;
   notes: string | null;
   rating: number | null;
+  xp_awarded?: number;
+  coins_awarded?: number;
 }
 
 interface ExerciseSet {
@@ -44,8 +48,8 @@ interface ExerciseSet {
   reps: number | null;
   weight: number | null;
   rpe: number | null;
-  is_warmup: number;
-  is_failure: number;
+  is_warmup?: boolean;
+  is_failure?: boolean;
 }
 
 interface PersonalRecord {
@@ -155,15 +159,11 @@ export function ExerciseClient() {
     setLoading(true);
     const abortController = new AbortController();
     try {
-      const [exercisesRes, workoutsRes, sessionsRes, recordsRes, statsRes] = await Promise.all([
-        safeFetch(
-          `${API_BASE_URL}/api/exercise?type=exercises&category=${categoryFilter}&search=${searchTerm}`,
-          { signal: abortController.signal }
-        ),
-        safeFetch(`${API_BASE_URL}/api/exercise?type=workouts`, { signal: abortController.signal }),
-        safeFetch(`${API_BASE_URL}/api/exercise?type=sessions&limit=10`, { signal: abortController.signal }),
-        safeFetch(`${API_BASE_URL}/api/exercise?type=records`, { signal: abortController.signal }),
-        safeFetch(`${API_BASE_URL}/api/exercise?type=stats`, { signal: abortController.signal }),
+      const categoryQuery = categoryFilter ? `?category=${encodeURIComponent(categoryFilter)}` : "";
+      const [exercisesRes, workoutsRes, sessionsRes] = await Promise.all([
+        safeFetch(`${API_BASE_URL}/api/exercise/exercises${categoryQuery}`, { signal: abortController.signal }),
+        safeFetch(`${API_BASE_URL}/api/exercise/workouts`, { signal: abortController.signal }),
+        safeFetch(`${API_BASE_URL}/api/exercise/sessions?limit=10`, { signal: abortController.signal }),
       ]);
 
       if (exercisesRes.ok) {
@@ -174,23 +174,21 @@ export function ExerciseClient() {
       if (workoutsRes.ok) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any = await workoutsRes.json();
-        setWorkouts(data.workouts || []);
+        const mapped = (data.workouts || []).map((workout: Workout) => ({
+          ...workout,
+          workout_type: workout.workout_type || "strength",
+        }));
+        setWorkouts(mapped);
       }
       if (sessionsRes.ok) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any = await sessionsRes.json();
-        setSessions(data.sessions || []);
+        const sessionsData = data.sessions || [];
+        setSessions(sessionsData);
+        const totalSets = sessionsData.reduce((sum: number, session: WorkoutSession) => sum + (session.sets_logged || 0), 0);
+        setStats({ workouts: sessionsData.length, sets: totalSets, prs: 0 });
       }
-      if (recordsRes.ok) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data: any = await recordsRes.json();
-        setRecords(data.records || []);
-      }
-      if (statsRes.ok) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data: any = await statsRes.json();
-        setStats(data.stats || { workouts: 0, sets: 0, prs: 0 });
-      }
+      setRecords([]);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         return; // Request was aborted, don't update state
@@ -198,7 +196,7 @@ export function ExerciseClient() {
       console.error("Failed to load exercise data:", error);
     }
     setLoading(false);
-  }, [categoryFilter, searchTerm]);
+  }, [categoryFilter]);
 
   useEffect(() => {
     loadData();
@@ -208,25 +206,31 @@ export function ExerciseClient() {
   const filteredExercises = useMemo(() => {
     let result = exercises;
     if (muscleFilter) {
-      result = result.filter((ex) => {
-        try {
-          const muscles = ex.muscle_groups ? JSON.parse(ex.muscle_groups) : [];
-          return muscles.includes(muscleFilter);
-        } catch {
-          return false;
-        }
-      });
+      result = result.filter((ex) => ex.muscle_groups?.includes(muscleFilter));
+    }
+    if (searchTerm.trim()) {
+      const query = searchTerm.toLowerCase();
+      result = result.filter((ex) =>
+        ex.name.toLowerCase().includes(query) ||
+        (ex.description || "").toLowerCase().includes(query)
+      );
     }
     return result;
-  }, [exercises, muscleFilter]);
+  }, [exercises, muscleFilter, searchTerm]);
 
   // Create exercise
   const handleCreateExercise = async () => {
     try {
-      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise/exercises`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "exercise", ...newExercise }),
+        body: JSON.stringify({
+          name: newExercise.name,
+          description: newExercise.description || undefined,
+          category: newExercise.category,
+          muscle_groups: newExercise.muscle_groups,
+          equipment: newExercise.equipment,
+        }),
       });
       if (res.ok) {
         setShowCreateExercise(false);
@@ -241,10 +245,15 @@ export function ExerciseClient() {
   // Create workout
   const handleCreateWorkout = async () => {
     try {
-      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise/workouts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "workout", ...newWorkout }),
+        body: JSON.stringify({
+          name: newWorkout.name,
+          description: newWorkout.description || undefined,
+          estimated_duration: newWorkout.estimated_duration,
+          is_template: false,
+        }),
       });
       if (res.ok) {
         setShowCreateWorkout(false);
@@ -267,17 +276,18 @@ export function ExerciseClient() {
   // Start workout session
   const handleStartWorkout = async (workoutId?: string) => {
     try {
-      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "session", workout_id: workoutId }),
+        body: JSON.stringify({ workout_id: workoutId }),
       });
       if (res.ok) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data: any = await res.json();
-        setActiveSession({ id: data.id, sets: [] });
-        setShowActiveSession(true);
-        loadData();
+        const data = await res.json() as { session?: { id: string } };
+        if (data.session?.id) {
+          setActiveSession({ id: data.session.id, sets: [] });
+          setShowActiveSession(true);
+          loadData();
+        }
       }
     } catch (error) {
       console.error("Failed to start workout:", error);
@@ -289,12 +299,10 @@ export function ExerciseClient() {
     if (!activeSession) return;
     try {
       const setNumber = activeSession.sets.filter((s) => s.exercise_id === exerciseId).length + 1;
-      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
+      const res = await safeFetch(`${API_BASE_URL}/api/exercise/sessions/${activeSession.id}/sets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "set",
-          workout_session_id: activeSession.id,
           exercise_id: exerciseId,
           set_number: setNumber,
           reps,
@@ -303,31 +311,17 @@ export function ExerciseClient() {
         }),
       });
       if (res.ok) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data: any = await res.json();
+        const data = await res.json() as { set?: { id: string; set_number: number; reps?: number | null; weight?: number | null } };
         const newSet: ExerciseSet = {
-          id: data.id,
+          id: data.set?.id || crypto.randomUUID(),
           exercise_id: exerciseId,
-          set_number: setNumber,
-          reps,
-          weight,
+          set_number: data.set?.set_number ?? setNumber,
+          reps: data.set?.reps ?? reps,
+          weight: data.set?.weight ?? weight,
           rpe: rpe || null,
-          is_warmup: 0,
-          is_failure: 0,
         };
         setActiveSession((prev) => prev ? { ...prev, sets: [...prev.sets, newSet] } : null);
-        if (data.newPR) {
-          // Show notification for new personal record instead of alert()
-          if ("Notification" in window && Notification.permission === "granted") {
-            new Notification("New Personal Record!", {
-              body: `${weight} lbs for ${reps} reps!`,
-              icon: "/icon-192.png",
-            });
-          } else {
-            console.info(`New Personal Record! ${weight} lbs for ${reps} reps!`);
-          }
-          loadData();
-        }
+        loadData();
       }
     } catch (error) {
       console.error("Failed to log set:", error);
@@ -338,15 +332,10 @@ export function ExerciseClient() {
   const handleCompleteSession = async (rating?: number, notes?: string) => {
     if (!activeSession) return;
     try {
-      await safeFetch(`${API_BASE_URL}/api/exercise`, {
+      await safeFetch(`${API_BASE_URL}/api/exercise/sessions/${activeSession.id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "complete_session",
-          session_id: activeSession.id,
-          rating,
-          notes,
-        }),
+        body: JSON.stringify({ rating, notes }),
       });
       setActiveSession(null);
       setShowActiveSession(false);
@@ -360,13 +349,18 @@ export function ExerciseClient() {
   const handleLinkToPlanner = async () => {
     if (!selectedWorkout) return;
     try {
-      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
+      const res = await safeFetch(`${API_BASE_URL}/api/calendar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "link_to_planner",
+          title: plannerLink.title || selectedWorkout.name,
+          description: selectedWorkout.description || undefined,
+          event_type: "workout",
+          start_time: plannerLink.start_time,
+          end_time: plannerLink.end_time || undefined,
+          all_day: false,
           workout_id: selectedWorkout.id,
-          ...plannerLink,
+          recurrence_rule: plannerLink.recurrence_rule || undefined,
         }),
       });
       if (res.ok) {
@@ -382,15 +376,17 @@ export function ExerciseClient() {
   // Link to quest
   const handleLinkToQuest = async (workout: Workout, isRepeatable: boolean, repeatFrequency?: string) => {
     try {
-      const res = await safeFetch(`${API_BASE_URL}/api/exercise`, {
+      const res = await safeFetch(`${API_BASE_URL}/api/quests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "link_to_quest",
-          workout_id: workout.id,
           title: `Complete: ${workout.name}`,
           description: workout.description || `Complete the ${workout.name} workout`,
-          xp_value: 50,
+          category: "exercise",
+          difficulty: "starter",
+          xp_reward: 50,
+          coin_reward: 10,
+          target: 1,
           is_repeatable: isRepeatable,
           repeat_frequency: repeatFrequency,
         }),
@@ -507,7 +503,7 @@ export function ExerciseClient() {
   const handleDeleteWorkout = async (id: string) => {
     if (!confirm("Delete this workout?")) return;
     try {
-      await safeFetch(`${API_BASE_URL}/api/exercise?type=workout&id=${id}`, { method: "DELETE" });
+      await safeFetch(`${API_BASE_URL}/api/exercise/workouts/${id}`, { method: "DELETE" });
       loadData();
     } catch (error) {
       console.error("Failed to delete workout:", error);
@@ -680,9 +676,14 @@ export function ExerciseClient() {
                 <div className={styles.sessionInfo}>
                   <h3>{session.workout_name || "Quick Workout"}</h3>
                   <p>{new Date(session.started_at).toLocaleDateString()}</p>
-                  <span className={`${styles.statusBadge} ${styles[session.status]}`}>
-                    {session.status}
-                  </span>
+                  {(() => {
+                    const status = session.completed_at ? "completed" : "in-progress";
+                    return (
+                      <span className={`${styles.statusBadge} ${styles[status]}`}>
+                        {status.replace("-", " ")}
+                      </span>
+                    );
+                  })()}
                 </div>
                 {session.rating && (
                   <div className={styles.rating}>
@@ -1058,8 +1059,8 @@ function ExerciseCard({ exercise, onAddToWorkout, showAddButton }: {
   showAddButton: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const muscles = exercise.muscle_groups ? JSON.parse(exercise.muscle_groups) : [];
-  const equipment = exercise.equipment ? JSON.parse(exercise.equipment) : [];
+  const muscles = exercise.muscle_groups || [];
+  const equipment = exercise.equipment || [];
 
   return (
     <div className={styles.exerciseCard}>
@@ -1234,6 +1235,12 @@ function ActiveSessionPanel({
           placeholder="Workout notes..."
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onComplete(rating, notes);
+            }
+          }}
         />
         <button onClick={() => onComplete(rating, notes)} className={styles.completeButton}>
           Complete Workout

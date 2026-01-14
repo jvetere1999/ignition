@@ -135,6 +135,40 @@ impl AdminUserRepo {
         Ok(row.map(|r| r.into()))
     }
 
+    /// Update a user's approval status
+    pub async fn update_approval(
+        pool: &PgPool,
+        user_id: Uuid,
+        approved: bool,
+    ) -> Result<AdminUserWithStats, AppError> {
+        let row = sqlx::query_as::<_, AdminUserRow>(
+            r#"
+            UPDATE users
+            SET approved = $2
+            WHERE id = $1
+            RETURNING
+                id,
+                email,
+                name,
+                image,
+                role,
+                approved,
+                tos_accepted,
+                last_activity_at,
+                created_at,
+                NULL::integer as level,
+                NULL::bigint as total_xp
+            "#,
+        )
+        .bind(user_id)
+        .bind(approved)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to update approval: {}", e)))?;
+
+        Ok(row.into())
+    }
+
     /// Delete a user and all their data
     pub async fn delete_user(pool: &PgPool, user_id: Uuid) -> Result<DeleteUserResponse, AppError> {
         let mut tables_cleaned = 0;

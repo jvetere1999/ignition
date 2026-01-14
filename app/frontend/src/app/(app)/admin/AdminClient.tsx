@@ -20,6 +20,7 @@ interface User {
   createdAt: string;
   level?: number;
   totalXp?: number;
+  approved?: boolean;
   tosAccepted?: boolean;
 }
 
@@ -204,6 +205,24 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
         isDeleting: false,
         error: "Network error. Please try again."
       }));
+    }
+  };
+
+  const handleApproval = async (userId: string, approved: boolean) => {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/api/admin/users/${userId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approved }),
+      });
+      if (response.ok) {
+        const updated = await response.json() as User;
+        setUsers((prev) =>
+          prev.map((user) => (user.id === userId ? { ...user, approved: updated.approved } : user))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to update approval:", error);
     }
   };
 
@@ -397,6 +416,21 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
                         <span className={`${styles.roleBadge} ${styles[user.role]}`}>
                           {user.role}
                         </span>
+                        {user.approved ? (
+                          <button
+                            className={styles.denyButton}
+                            onClick={() => handleApproval(user.id, false)}
+                          >
+                            Revoke
+                          </button>
+                        ) : (
+                          <button
+                            className={styles.approveButton}
+                            onClick={() => handleApproval(user.id, true)}
+                          >
+                            Approve
+                          </button>
+                        )}
                         <button
                           className={styles.deleteButton}
                           onClick={() => openDeleteModal(user.id, user.email)}

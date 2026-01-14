@@ -5,8 +5,9 @@
  * Generate synthesis recipes based on parameters
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import styles from "./page.module.css";
+import { createRecipe, listRecipes, type RecipeTemplate } from "@/lib/api/learn";
 
 type Synth = "serum" | "vital";
 type TargetType = "bass" | "lead" | "pad" | "pluck" | "fx" | "arp";
@@ -61,6 +62,15 @@ interface GeneratedRecipe {
   variations: { name: string; change: string }[];
 }
 
+interface SavedRecipe {
+  id: string;
+  createdAt: string;
+  title: string;
+  synth: Synth;
+  targetType: TargetType;
+  recipe: GeneratedRecipe;
+}
+
 const TARGET_DESCRIPTIONS: Record<TargetType, string> = {
   bass: "Low-frequency foundation sounds",
   lead: "Melodic, prominent sounds",
@@ -87,8 +97,34 @@ export function RecipeClient({ userId }: RecipeClientProps = {}) {
   });
   const [generating, setGenerating] = useState(false);
   const [recipe, setRecipe] = useState<GeneratedRecipe | null>(null);
-  const [savedRecipes, setSavedRecipes] = useState<GeneratedRecipe[]>([]);
+  const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
   const [showSaved, setShowSaved] = useState(false);
+  const [loadingSaved, setLoadingSaved] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSaved = async () => {
+      try {
+        const recipes = await listRecipes();
+        if (!isMounted) return;
+        setSavedRecipes(recipes.map(mapSavedRecipe));
+      } catch {
+        if (isMounted) {
+          setSavedRecipes([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingSaved(false);
+        }
+      }
+    };
+
+    loadSaved();
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
 
   const toggleDescriptor = (desc: Descriptor) => {
     setSettings((prev) => ({
@@ -110,11 +146,24 @@ export function RecipeClient({ userId }: RecipeClientProps = {}) {
     }, 1500);
   }, [settings]);
 
-  const saveRecipe = useCallback(() => {
-    if (recipe) {
-      setSavedRecipes((prev) => [recipe, ...prev]);
+  const saveRecipe = useCallback(async () => {
+    if (!recipe) return;
+    try {
+      const saved = await createRecipe({
+        title: recipe.title,
+        synth: recipe.synth,
+        targetType: recipe.targetType,
+        descriptors: settings.descriptors,
+        mono: settings.mono,
+        cpuBudget: settings.cpuBudget,
+        macroCount: settings.macroCount,
+        recipeJson: recipe,
+      });
+      setSavedRecipes((prev) => [mapSavedRecipe(saved), ...prev]);
+    } catch {
+      // noop - surface errors via global notifications if needed
     }
-  }, [recipe]);
+  }, [recipe, settings]);
 
   return (
     <div className={styles.page}>
@@ -142,19 +191,24 @@ export function RecipeClient({ userId }: RecipeClientProps = {}) {
             <h2>Saved Recipes</h2>
             <button onClick={() => setShowSaved(false)}>Back to Generator</button>
           </div>
-          {savedRecipes.length === 0 ? (
+          {loadingSaved ? (
+            <div className={styles.emptyState}>
+              <p>Loading saved recipes...</p>
+              <span>Fetching your recipe library</span>
+            </div>
+          ) : savedRecipes.length === 0 ? (
             <div className={styles.emptyState}>
               <p>No saved recipes yet</p>
               <span>Generate and save recipes to see them here</span>
             </div>
           ) : (
             <div className={styles.savedGrid}>
-              {savedRecipes.map((r, i) => (
+              {savedRecipes.map((r) => (
                 <button
-                  key={i}
+                  key={r.id}
                   className={styles.savedCard}
                   onClick={() => {
-                    setRecipe(r);
+                    setRecipe(r.recipe);
                     setShowSaved(false);
                   }}
                 >
@@ -454,6 +508,48 @@ export function RecipeClient({ userId }: RecipeClientProps = {}) {
   );
 }
 
+function mapSavedRecipe(recipe: RecipeTemplate): SavedRecipe {
+  const recipeJson = recipe.recipeJson as GeneratedRecipe | null;
+  return {
+    id: recipe.id,
+    createdAt: recipe.createdAt,
+    title: recipe.title,
+    synth: recipe.synth as Synth,
+    targetType: recipe.targetType as TargetType,
+    recipe: recipeJson || {
+      title: recipe.title,
+      synth: recipe.synth as Synth,
+      targetType: recipe.targetType as TargetType,
+      oscillators: {
+        oscA: {
+          wavetable: "Init",
+          position: "0%",
+          warp: { type: "None", amount: "0%" },
+          unison: { voices: 1, detune: "0", blend: "100%", width: "0%" },
+        },
+      },
+      filter: {
+        type: "None",
+        cutoff: "0",
+        resonance: "0",
+        keytrack: "0",
+        envAmount: "0",
+      },
+      envelopes: {
+        amp: { attack: "0", decay: "0", sustain: "0", release: "0" },
+        filter: { attack: "0", decay: "0", sustain: "0", release: "0" },
+      },
+      lfos: {
+        lfo1: { shape: "Sine", rate: "1/4", destination: "None", amount: "0" },
+      },
+      macros: [],
+      explanation: "Recipe details stored in database.",
+      troubleshooting: [],
+      variations: [],
+    },
+  };
+}
+
 // Mock recipe generator
 function generateMockRecipe(settings: RecipeSettings): GeneratedRecipe {
   const { synth, targetType, descriptors } = settings;
@@ -732,4 +828,3 @@ function generateMockRecipe(settings: RecipeSettings): GeneratedRecipe {
 }
 
 export default RecipeClient;
-

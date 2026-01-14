@@ -896,6 +896,21 @@ pub struct FocusLibraryTracks {
     pub added_at: chrono::DateTime<chrono::Utc>,
 }
 
+/// Database model for `glossary_entries` table
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct GlossaryEntries {
+    pub id: Uuid,
+    pub term: String,
+    pub definition: String,
+    pub category: String,
+    pub aliases: Option<Vec<String>>,
+    pub related_concepts: Option<Vec<String>>,
+    pub is_active: bool,
+    pub sort_order: i32,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
 /// Database model for `infobase_entries` table
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct InfobaseEntries {
@@ -906,6 +921,22 @@ pub struct InfobaseEntries {
     pub category: Option<String>,
     pub tags: Option<Vec<String>>,
     pub is_pinned: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Database model for `journal_entries` table
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct JournalEntries {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub synth: String,
+    pub patch_name: String,
+    pub tags: Option<Vec<String>>,
+    pub notes: Option<String>,
+    pub what_learned: Option<String>,
+    pub what_broke: Option<String>,
+    pub preset_reference: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -926,6 +957,22 @@ pub struct LearnDrills {
     pub sort_order: i32,
     pub is_active: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Database model for `learn_flashcards` table
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LearnFlashcards {
+    pub id: Uuid,
+    pub topic_id: Option<Uuid>,
+    pub lesson_id: Option<Uuid>,
+    pub front: String,
+    pub back: String,
+    pub card_type: String,
+    pub concept_id: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub is_active: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// Database model for `listening_prompt_presets` table
@@ -1048,6 +1095,23 @@ pub struct ProgramWorkouts {
     pub intensity_modifier: f32,
 }
 
+/// Database model for `recipe_templates` table
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct RecipeTemplates {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub title: String,
+    pub synth: String,
+    pub target_type: String,
+    pub descriptors: Option<Vec<String>>,
+    pub mono: bool,
+    pub cpu_budget: String,
+    pub macro_count: i32,
+    pub recipe_json: serde_json::Value,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
 /// Database model for `reference_tracks` table
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct ReferenceTracks {
@@ -1154,6 +1218,34 @@ pub struct UserDrillStats {
     pub best_streak: i32,
     pub last_attempt_at: Option<chrono::DateTime<chrono::Utc>>,
     pub total_time_seconds: i32,
+}
+
+/// Database model for `user_flashcard_progress` table
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct UserFlashcardProgress {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub flashcard_id: Uuid,
+    pub due_at: chrono::DateTime<chrono::Utc>,
+    pub interval_days: f32,
+    pub ease_factor: f32,
+    pub lapses: i32,
+    pub last_reviewed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Database model for `user_flashcard_reviews` table
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct UserFlashcardReviews {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub flashcard_id: Uuid,
+    pub grade: i32,
+    pub interval_days: f32,
+    pub ease_factor: f32,
+    pub lapses: i32,
+    pub reviewed_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// Database model for `user_interests` table
@@ -1299,6 +1391,7 @@ pub type FeatureFlag = FeatureFlags;
 pub type FocusLibrary = FocusLibraries;
 pub type FocusLibraryTrack = FocusLibraryTracks;
 pub type FocusSession = FocusSessions;
+pub type GlossaryEntry = GlossaryEntries;
 pub type GoalMileston = GoalMilestones;
 pub type Goal = Goals;
 pub type HabitCompletion = HabitCompletions;
@@ -1306,7 +1399,9 @@ pub type Habit = Habits;
 pub type Idea = Ideas;
 pub type InboxItem = InboxItems;
 pub type InfobaseEntry = InfobaseEntries;
+pub type JournalEntry = JournalEntries;
 pub type LearnDrill = LearnDrills;
+pub type LearnFlashcard = LearnFlashcards;
 pub type LearnLesson = LearnLessons;
 pub type LearnTopic = LearnTopics;
 pub type ListeningPromptPreset = ListeningPromptPresets;
@@ -1322,6 +1417,7 @@ pub type PlanTemplat = PlanTemplates;
 pub type ProgramWeek = ProgramWeeks;
 pub type ProgramWorkout = ProgramWorkouts;
 pub type ReadingSession = ReadingSessions;
+pub type RecipeTemplat = RecipeTemplates;
 pub type ReferenceTrack = ReferenceTracks;
 pub type RoleEntitlement = RoleEntitlements;
 pub type Rol = Roles;
@@ -1334,6 +1430,7 @@ pub type TrainingProgram = TrainingPrograms;
 pub type UniversalQuest = UniversalQuests;
 pub type UserAchievement = UserAchievements;
 pub type UserDrillStat = UserDrillStats;
+pub type UserFlashcardReview = UserFlashcardReviews;
 pub type UserInterest = UserInterests;
 pub type UserOnboardingResponse = UserOnboardingResponses;
 pub type UserPurchase = UserPurchases;

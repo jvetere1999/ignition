@@ -26,6 +26,7 @@ export interface AuthUser {
   image: string | null;
   role: string;
   entitlements: string[];
+  approved: boolean;
   ageVerified: boolean;
   tosAccepted: boolean;
 }
@@ -44,6 +45,7 @@ interface RawAuthUser {
   image: string | null;
   role: string;
   entitlements?: string[];
+  approved?: boolean;
   age_verified?: boolean;
   ageVerified?: boolean;
   tos_accepted?: boolean;
@@ -58,6 +60,7 @@ function normalizeAuthUser(raw: RawAuthUser): AuthUser {
     image: raw.image ?? null,
     role: raw.role,
     entitlements: raw.entitlements ?? [],
+    approved: raw.approved ?? false,
     ageVerified: raw.age_verified ?? raw.ageVerified ?? false,
     tosAccepted: raw.tos_accepted ?? raw.tosAccepted ?? false,
   };

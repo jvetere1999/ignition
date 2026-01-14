@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { safeFetch, API_BASE_URL } from "@/lib/api";
+import { getMemoryCache, setMemoryCache } from "@/lib/cache/memory";
 import { LoadingState } from "@/components/ui";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
@@ -31,8 +32,33 @@ interface Goal {
   completed: boolean;
 }
 
+interface MilestoneApiResponse {
+  id: string;
+  title: string;
+  description?: string | null;
+  is_completed: boolean;
+  completed_at?: string | null;
+}
+
+interface GoalApiResponse {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  target_date: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  status: string;
+  progress: number;
+  priority: number;
+  milestones: MilestoneApiResponse[];
+  total_milestones: number;
+  completed_milestones: number;
+}
+
 // Storage key
 const GOALS_KEY = "passion_goals_v1";
+const GOALS_CACHE_KEY = "goals";
 
 const CATEGORY_COLORS: Record<string, string> = {
   health: "#4caf50",
@@ -61,22 +87,46 @@ export function GoalsClient() {
     deadline: "",
   });
 
-  // Load goals - D1 is source of truth
+  const cachedGoals = getMemoryCache<{ goals: Goal[] }>(GOALS_CACHE_KEY);
+  useEffect(() => {
+    if (cachedGoals?.data?.goals?.length) {
+      setGoals(cachedGoals.data.goals);
+      setIsLoading(false);
+    }
+  }, [cachedGoals]);
+
+  const mapGoalFromApi = useCallback((goal: GoalApiResponse): Goal => {
+    return {
+      id: goal.id,
+      title: goal.title,
+      description: goal.description || "",
+      category: (goal.category || "personal") as Goal["category"],
+      deadline: goal.target_date || undefined,
+      milestones: (goal.milestones || []).map((m) => ({
+        id: m.id,
+        title: m.title,
+        completed: m.is_completed,
+      })),
+      createdAt: goal.started_at || new Date().toISOString(),
+      completed: goal.status === "completed",
+    };
+  }, []);
+
+  // Load goals - backend is source of truth
   useEffect(() => {
     async function loadGoals() {
-      // Try to fetch from D1 first
       try {
         const response = await safeFetch(`${API_BASE_URL}/api/goals`);
         if (response.ok) {
-          const data = await response.json() as { goals?: Goal[] };
-          if (data.goals && data.goals.length > 0) {
-            setGoals(data.goals);
-            setIsLoading(false);
-            return;
-          }
+          const data = await response.json() as { goals?: GoalApiResponse[] };
+          const mapped = (data.goals || []).map(mapGoalFromApi);
+          setGoals(mapped);
+          setMemoryCache(GOALS_CACHE_KEY, { goals: mapped });
+          setIsLoading(false);
+          return;
         }
       } catch (e) {
-        console.error("Failed to fetch goals from D1:", e);
+        console.error("Failed to fetch goals from API:", e);
       }
 
       // Only fall back to localStorage if deprecation is disabled
@@ -94,7 +144,7 @@ export function GoalsClient() {
     }
 
     loadGoals();
-  }, []);
+  }, [mapGoalFromApi]);
 
   // Save goals - only to localStorage if deprecation is disabled
   useEffect(() => {
@@ -104,86 +154,124 @@ export function GoalsClient() {
   }, [goals, isLoading]);
 
   // Add a new goal
-  const handleAddGoal = useCallback(() => {
+  const handleAddGoal = useCallback(async () => {
     if (!newGoal.title.trim()) return;
-
-    const goal: Goal = {
-      id: `goal-${Date.now()}`,
-      title: newGoal.title.trim(),
-      description: newGoal.description.trim(),
-      category: newGoal.category,
-      deadline: newGoal.deadline || undefined,
-      milestones: [],
-      createdAt: new Date().toISOString(),
-      completed: false,
-    };
-
-    setGoals((prev) => [goal, ...prev]);
-    setNewGoal({ title: "", description: "", category: "personal", deadline: "" });
-    setShowAddForm(false);
-  }, [newGoal]);
-
-  // Add milestone to goal
-  const handleAddMilestone = useCallback((goalId: string, title: string) => {
-    if (!title.trim()) return;
-
-    const updatedGoal = goals.find(g => g.id === goalId);
-    if (updatedGoal) {
-      const newMilestones = [
-        ...updatedGoal.milestones,
-        { id: `ms-${Date.now()}`, title: title.trim(), completed: false },
-      ];
-      const updated = { ...updatedGoal, milestones: newMilestones };
-
-      setGoals((prev) =>
-        prev.map((g) => (g.id !== goalId ? g : updated))
-      );
-
-      // Sync to D1
-      safeFetch(`${API_BASE_URL}/api/goals`, {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/api/goals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "update", ...updated }),
-      }).catch(console.error);
+        body: JSON.stringify({
+          title: newGoal.title.trim(),
+          description: newGoal.description.trim() || undefined,
+          category: newGoal.category,
+          target_date: newGoal.deadline || undefined,
+          priority: 0,
+        }),
+      });
+      if (!response.ok) {
+        console.error("Failed to create goal");
+        return;
+      }
+      const data = await response.json() as { goal?: GoalApiResponse };
+      if (data.goal) {
+        const mapped = mapGoalFromApi(data.goal);
+        setGoals((prev) => {
+          const next = [mapped, ...prev];
+          setMemoryCache(GOALS_CACHE_KEY, { goals: next });
+          return next;
+        });
+      }
+      setNewGoal({ title: "", description: "", category: "personal", deadline: "" });
+      setShowAddForm(false);
+    } catch (e) {
+      console.error("Failed to create goal:", e);
+    }
+  }, [newGoal, mapGoalFromApi]);
+
+  // Add milestone to goal
+  const handleAddMilestone = useCallback(async (goalId: string, title: string) => {
+    if (!title.trim()) return;
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/api/goals/${goalId}/milestones`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), description: undefined }),
+      });
+      if (!response.ok) {
+        console.error("Failed to add milestone");
+        return;
+      }
+      const data = await response.json() as { milestone?: MilestoneApiResponse };
+      if (data.milestone) {
+        setGoals((prev) => {
+          const next = prev.map((g) =>
+            g.id === goalId
+              ? {
+                  ...g,
+                  milestones: [
+                    ...g.milestones,
+                    { id: data.milestone.id, title: data.milestone.title, completed: data.milestone.is_completed },
+                  ],
+                }
+              : g
+          );
+          setMemoryCache(GOALS_CACHE_KEY, { goals: next });
+          return next;
+        });
+      }
+    } catch (e) {
+      console.error("Failed to add milestone:", e);
+    }
+  }, []);
+
+  // Complete milestone
+  const handleToggleMilestone = useCallback(async (goalId: string, milestoneId: string) => {
+    const goal = goals.find((g) => g.id === goalId);
+    const milestone = goal?.milestones.find((m) => m.id === milestoneId);
+    if (!milestone || milestone.completed) return;
+
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/api/goals/milestones/${milestoneId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        console.error("Failed to complete milestone");
+        return;
+      }
+      const data = await response.json() as {
+        result?: { milestone?: MilestoneApiResponse; goal_progress?: number; goal_completed?: boolean };
+      };
+      if (data.result?.milestone) {
+        setGoals((prev) => {
+          const next = prev.map((g) => {
+            if (g.id !== goalId) return g;
+            const updatedMilestones = g.milestones.map((m) =>
+              m.id === milestoneId ? { ...m, completed: true } : m
+            );
+            return { ...g, milestones: updatedMilestones, completed: data.result?.goal_completed ?? g.completed };
+          });
+          setMemoryCache(GOALS_CACHE_KEY, { goals: next });
+          return next;
+        });
+      }
+    } catch (e) {
+      console.error("Failed to complete milestone:", e);
     }
   }, [goals]);
 
-  // Toggle milestone completion
-  const handleToggleMilestone = useCallback((goalId: string, milestoneId: string) => {
-    setGoals((prev) => {
-      const newGoals = prev.map((g) => {
-        if (g.id !== goalId) return g;
-        const milestones = g.milestones.map((m) =>
-          m.id === milestoneId ? { ...m, completed: !m.completed } : m
-        );
-        const allComplete = milestones.length > 0 && milestones.every((m) => m.completed);
-        return { ...g, milestones, completed: allComplete };
-      });
-
-      // Sync updated goal to D1
-      const updatedGoal = newGoals.find(g => g.id === goalId);
-      if (updatedGoal) {
-        safeFetch(`${API_BASE_URL}/api/goals`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "update", ...updatedGoal }),
-        }).catch(console.error);
-      }
-
-      return newGoals;
-    });
-  }, []);
-
   // Delete goal
-  const handleDeleteGoal = useCallback((goalId: string) => {
-    setGoals((prev) => prev.filter((g) => g.id !== goalId));
-
-    // Sync to D1
-    safeFetch(`${API_BASE_URL}/api/goals`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", id: goalId }),
-    }).catch(console.error);
+  const handleDeleteGoal = useCallback(async (goalId: string) => {
+    setGoals((prev) => {
+      const next = prev.filter((g) => g.id !== goalId);
+      setMemoryCache(GOALS_CACHE_KEY, { goals: next });
+      return next;
+    });
+    try {
+      await safeFetch(`${API_BASE_URL}/api/goals/${goalId}`, { method: "DELETE" });
+    } catch (e) {
+      console.error("Failed to delete goal:", e);
+    }
   }, []);
 
   // Calculate progress

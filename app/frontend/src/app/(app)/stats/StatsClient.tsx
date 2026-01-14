@@ -29,8 +29,10 @@ interface StatsClientProps {
 }
 
 interface FocusStatsResponse {
-  completedSessions?: number;
-  totalFocusTime?: number;
+  stats?: {
+    completed_sessions?: number;
+    total_focus_seconds?: number;
+  };
 }
 
 export function StatsClient({ userId: _userId }: StatsClientProps) {
@@ -49,13 +51,14 @@ export function StatsClient({ userId: _userId }: StatsClientProps) {
     setIsLoading(true);
     try {
       // Fetch focus stats
-      const focusResponse = await safeFetch(`${API_BASE_URL}/api/focus?stats=true&period=${period}`);
+      const periodParam = period === "all" ? "" : `?period=${period}`;
+      const focusResponse = await safeFetch(`${API_BASE_URL}/api/focus/stats${periodParam}`);
       if (focusResponse.ok) {
         const focusData = await focusResponse.json() as FocusStatsResponse;
         setStats((prev) => ({
           ...prev,
-          focusSessions: focusData.completedSessions || 0,
-          totalFocusTime: focusData.totalFocusTime || 0,
+          focusSessions: focusData.stats?.completed_sessions || 0,
+          totalFocusTime: focusData.stats?.total_focus_seconds || 0,
         }));
       }
     } catch (error) {

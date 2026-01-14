@@ -9,6 +9,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { safeFetch, API_BASE_URL } from "@/lib/api";
+import { getMemoryCache, setMemoryCache } from "@/lib/cache/memory";
 import { useAutoRefresh } from "@/lib/hooks";
 import styles from "./page.module.css";
 
@@ -38,7 +39,7 @@ interface APICalendarEvent {
   event_type: CalendarEventType;
   start_time: string;
   end_time: string;
-  all_day: number;
+  all_day: boolean;
   location: string | null;
   color: string | null;
   xp_reward?: number;
@@ -100,7 +101,7 @@ function apiEventToLocal(event: APICalendarEvent): CalendarEvent {
     event_type: event.event_type,
     start_time: new Date(event.start_time),
     end_time: new Date(event.end_time),
-    all_day: event.all_day === 1,
+    all_day: Boolean(event.all_day),
     location: event.location || undefined,
     color: event.color || getEventTypeColor(event.event_type),
     xpReward: event.xp_reward || 10,
@@ -108,6 +109,8 @@ function apiEventToLocal(event: APICalendarEvent): CalendarEvent {
     completed: event.completed === 1,
   };
 }
+
+const PLANNER_CACHE_KEY = "planner-events";
 
 function getEventTypeIcon(type: CalendarEventType): React.ReactNode {
   switch (type) {
@@ -146,14 +149,16 @@ function getEventTypeIcon(type: CalendarEventType): React.ReactNode {
 }
 
 export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
+  const cachedEvents = getMemoryCache<{ events: CalendarEvent[] }>(PLANNER_CACHE_KEY);
+  const seedEvents = initialEvents.length > 0 ? initialEvents : (cachedEvents?.data?.events ?? []);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterType, setFilterType] = useState<CalendarEventType | "all">("all");
-  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
+  const [events, setEvents] = useState<CalendarEvent[]>(seedEvents);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(seedEvents.length === 0);
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch events from API
@@ -165,6 +170,7 @@ export function PlannerClient({ initialEvents = [] }: PlannerClientProps) {
         const data = await response.json() as { events: APICalendarEvent[] };
         const localEvents = (data.events || []).map(apiEventToLocal);
         setEvents(localEvents);
+        setMemoryCache(PLANNER_CACHE_KEY, { events: localEvents });
       } else {
         console.error("[planner] Failed to fetch events:", response.status, response.statusText);
       }

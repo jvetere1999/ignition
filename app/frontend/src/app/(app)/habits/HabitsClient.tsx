@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { safeFetch, API_BASE_URL } from "@/lib/api";
+import { getMemoryCache, setMemoryCache } from "@/lib/cache/memory";
 import { useAutoRefresh } from "@/lib/hooks";
 import { LoadingState } from "@/components/ui";
 import { useBadges } from "@/lib/sync/SyncStateContext";
@@ -18,20 +19,19 @@ import styles from "./page.module.css";
 
 interface Habit {
   id: string;
-  title: string;
+  name: string;
   description: string | null;
   frequency: string;
   target_count: number;
-  category: string;
-  xp_reward: number;
-  coin_reward: number;
-  is_active: number;
-}
-
-interface HabitLog {
-  id: string;
-  habit_id: string;
-  completed_at: string;
+  custom_days?: number[] | null;
+  icon?: string | null;
+  color?: string | null;
+  is_active: boolean;
+  current_streak: number;
+  longest_streak: number;
+  last_completed_at: string | null;
+  completed_today: boolean;
+  sort_order: number;
 }
 
 interface Streaks {
@@ -53,10 +53,18 @@ const PRESET_HABITS = [
   { title: "Write in journal", category: "journal", xp: 10, coins: 5 },
 ];
 
+const HABITS_CACHE_KEY = "habits";
+
+const CATEGORY_REWARDS: Record<string, { xp: number; coins: number }> = {
+  focus: { xp: 15, coins: 5 },
+  exercise: { xp: 25, coins: 10 },
+  learning: { xp: 10, coins: 5 },
+  journal: { xp: 10, coins: 5 },
+  general: { xp: 10, coins: 5 },
+};
+
 export function HabitsClient() {
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [todayLogs, setTodayLogs] = useState<HabitLog[]>([]);
-  const [streaks, setStreaks] = useState<Streaks>({});
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newHabit, setNewHabit] = useState({
@@ -70,14 +78,30 @@ export function HabitsClient() {
   // FAST LOADING: Get polled badges for instant count display
   const polledBadges = useBadges();
 
+  const cachedHabits = getMemoryCache<{ habits: Habit[] }>(HABITS_CACHE_KEY);
+  useEffect(() => {
+    if (cachedHabits?.data?.habits?.length) {
+      setHabits(cachedHabits.data.habits);
+      setIsLoading(false);
+    }
+  }, [cachedHabits]);
+
+  const getHabitCategoryId = useCallback((habit: Habit) => {
+    return habit.icon || "general";
+  }, []);
+
+  const getCategoryRewards = useCallback((categoryId: string) => {
+    return CATEGORY_REWARDS[categoryId] || CATEGORY_REWARDS.general;
+  }, []);
+
   const fetchHabits = useCallback(async () => {
     try {
       const res = await safeFetch(`${API_BASE_URL}/api/habits`);
       if (res.ok) {
-        const data = await res.json() as { habits?: Habit[]; todayLogs?: HabitLog[]; streaks?: Streaks };
-        setHabits(data.habits || []);
-        setTodayLogs(data.todayLogs || []);
-        setStreaks(data.streaks || {});
+        const data = await res.json() as { habits?: Habit[] };
+        const nextHabits = data.habits || [];
+        setHabits(nextHabits);
+        setMemoryCache(HABITS_CACHE_KEY, { habits: nextHabits });
       }
     } catch (error) {
       console.error("Failed to fetch habits:", error);
@@ -106,10 +130,18 @@ export function HabitsClient() {
   const handleCreateHabit = async () => {
     if (!newHabit.title.trim()) return;
     try {
+      const category = getCategoryInfo(newHabit.category);
       const res = await safeFetch(`${API_BASE_URL}/api/habits`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", ...newHabit }),
+        body: JSON.stringify({
+          name: newHabit.title.trim(),
+          description: newHabit.description.trim() || undefined,
+          frequency: "daily",
+          target_count: 1,
+          icon: newHabit.category,
+          color: category.color,
+        }),
       });
       if (res.ok) {
         setNewHabit({ title: "", description: "", category: "general", xp_reward: 10, coin_reward: 5 });
@@ -123,10 +155,9 @@ export function HabitsClient() {
 
   const handleLogHabit = async (habitId: string) => {
     try {
-      const res = await safeFetch(`${API_BASE_URL}/api/habits`, {
+      const res = await safeFetch(`${API_BASE_URL}/api/habits/${habitId}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "log", habit_id: habitId }),
       });
       if (res.ok) fetchHabits();
     } catch (error) {
@@ -137,18 +168,14 @@ export function HabitsClient() {
   const handleDeleteHabit = async (habitId: string) => {
     if (!confirm("Delete this habit?")) return;
     try {
-      await safeFetch(`${API_BASE_URL}/api/habits`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "delete", id: habitId }),
-      });
+      await safeFetch(`${API_BASE_URL}/api/habits/${habitId}`, { method: "DELETE" });
       fetchHabits();
     } catch (error) {
       console.error("Failed to delete habit:", error);
     }
   };
 
-  const isCompletedToday = (habitId: string) => todayLogs.some((log) => log.habit_id === habitId);
+  const isCompletedToday = (habit: Habit) => habit.completed_today;
   const getCategoryInfo = (categoryId: string) => CATEGORIES.find((c) => c.id === categoryId) || CATEGORIES[4];
 
   const addPresetHabit = (preset: typeof PRESET_HABITS[0]) => {
@@ -156,8 +183,14 @@ export function HabitsClient() {
     setShowAddForm(true);
   };
 
-  const completedCount = habits.filter((h) => isCompletedToday(h.id)).length;
+  const completedCount = habits.filter((h) => isCompletedToday(h)).length;
   const totalHabits = habits.length;
+  const streaks: Streaks = habits.reduce((acc, habit) => {
+    if (habit.current_streak > 0) {
+      acc[habit.name] = { current: habit.current_streak, longest: habit.longest_streak };
+    }
+    return acc;
+  }, {} as Streaks);
 
   // FAST LOADING: Show instant habit count while loading full data
   if (isLoading) {
@@ -255,8 +288,10 @@ export function HabitsClient() {
         ) : (
           <div className={styles.habitsList}>
             {habits.map((habit) => {
-              const category = getCategoryInfo(habit.category);
-              const completed = isCompletedToday(habit.id);
+              const categoryId = getHabitCategoryId(habit);
+              const category = getCategoryInfo(categoryId);
+              const rewards = getCategoryRewards(categoryId);
+              const completed = isCompletedToday(habit);
               return (
                 <div key={habit.id} className={`${styles.habitCard} ${completed ? styles.completed : ""}`}>
                   <div className={styles.habitMain}>
@@ -264,11 +299,11 @@ export function HabitsClient() {
                       {completed && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>}
                     </button>
                     <div className={styles.habitInfo}>
-                      <h3 className={styles.habitTitle}>{habit.title}</h3>
+                      <h3 className={styles.habitTitle}>{habit.name}</h3>
                       {habit.description && <p className={styles.habitDescription}>{habit.description}</p>}
                       <div className={styles.habitMeta}>
                         <span className={styles.habitCategory} style={{ color: category.color }}>{category.label}</span>
-                        <span className={styles.habitReward}>+{habit.xp_reward} XP, +{habit.coin_reward} coins</span>
+                        <span className={styles.habitReward}>+{rewards.xp} XP, +{rewards.coins} coins</span>
                       </div>
                     </div>
                   </div>

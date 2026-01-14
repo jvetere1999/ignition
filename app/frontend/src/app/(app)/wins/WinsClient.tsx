@@ -37,7 +37,7 @@ interface FocusItem {
 }
 
 interface FocusResponse {
-  items?: FocusItem[];
+  sessions?: FocusItem[];
 }
 
 export function WinsClient({ userId: _userId }: WinsClientProps) {
@@ -49,14 +49,14 @@ export function WinsClient({ userId: _userId }: WinsClientProps) {
     setIsLoading(true);
     try {
       // Fetch activity events that count as wins
-      const response = await safeFetch(`${API_BASE_URL}/api/focus?stats=true&period=week`);
+      const response = await safeFetch(`${API_BASE_URL}/api/focus?page=1&page_size=50`);
       if (response.ok) {
         const data = await response.json() as FocusResponse;
 
         // Transform focus completions into wins
         const focusWins: Win[] = [];
-        if (data.items) {
-          data.items
+        if (data.sessions) {
+          data.sessions
             .filter((item) => item.status === "completed")
             .slice(0, 20)
             .forEach((item) => {

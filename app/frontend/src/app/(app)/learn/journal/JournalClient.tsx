@@ -7,21 +7,17 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import styles from "./page.module.css";
+import {
+  createJournalEntry,
+  deleteJournalEntry,
+  listJournalEntries,
+  updateJournalEntry,
+  type JournalEntry as ApiJournalEntry,
+} from "@/lib/api/learn";
 
-interface JournalEntry {
-  id: string;
+type JournalEntry = ApiJournalEntry & {
   synth: "serum" | "vital" | "other";
-  patchName: string;
-  tags: string[];
-  notes: string;
-  whatLearned: string;
-  whatBroke: string;
-  presetReference: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const STORAGE_KEY = "passion_patch_journal_v1";
+};
 
 interface JournalClientProps {
   userId?: string; // Optional - will use useAuth() if not provided
@@ -29,6 +25,7 @@ interface JournalClientProps {
 
 export function JournalClient({ userId }: JournalClientProps = {}) {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [synthFilter, setSynthFilter] = useState<"all" | "serum" | "vital" | "other">("all");
   const [isEditing, setIsEditing] = useState(false);
@@ -43,26 +40,33 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
   const [formWhatBroke, setFormWhatBroke] = useState("");
   const [formPresetRef, setFormPresetRef] = useState("");
 
-  // Load entries
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setEntries(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error("Failed to load journal:", e);
-    }
-  }, []);
+    let isMounted = true;
 
-  // Save entries
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    } catch (e) {
-      console.error("Failed to save journal:", e);
-    }
-  }, [entries]);
+    const loadEntries = async () => {
+      try {
+        const data = await listJournalEntries();
+        if (!isMounted) return;
+        setEntries(data.map((entry) => ({
+          ...entry,
+          synth: entry.synth as "serum" | "vital" | "other",
+        })));
+      } catch {
+        if (isMounted) {
+          setEntries([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadEntries();
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
 
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
@@ -70,7 +74,7 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
       const matchesSearch =
         !searchQuery ||
         entry.patchName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        entry.notes.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (entry.notes || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         entry.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchesSynth && matchesSearch;
     });
@@ -98,14 +102,14 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
     setFormSynth(entry.synth);
     setFormPatchName(entry.patchName);
     setFormTags(entry.tags.join(", "));
-    setFormNotes(entry.notes);
-    setFormWhatLearned(entry.whatLearned);
-    setFormWhatBroke(entry.whatBroke);
-    setFormPresetRef(entry.presetReference);
+    setFormNotes(entry.notes || "");
+    setFormWhatLearned(entry.whatLearned || "");
+    setFormWhatBroke(entry.whatBroke || "");
+    setFormPresetRef(entry.presetReference || "");
     setIsEditing(true);
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!formPatchName.trim()) return;
 
     const tags = formTags
@@ -113,42 +117,36 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
       .map((t) => t.trim())
       .filter(Boolean);
 
-    if (selectedEntry) {
-      // Update existing
-      setEntries((prev) =>
-        prev.map((e) =>
-          e.id === selectedEntry.id
-            ? {
-                ...e,
-                synth: formSynth,
-                patchName: formPatchName.trim(),
-                tags,
-                notes: formNotes.trim(),
-                whatLearned: formWhatLearned.trim(),
-                whatBroke: formWhatBroke.trim(),
-                presetReference: formPresetRef.trim(),
-                updatedAt: new Date().toISOString(),
-              }
-            : e
-        )
-      );
-    } else {
-      // Create new
-      const newEntry: JournalEntry = {
-        id: crypto.randomUUID(),
-        synth: formSynth,
-        patchName: formPatchName.trim(),
-        tags,
-        notes: formNotes.trim(),
-        whatLearned: formWhatLearned.trim(),
-        whatBroke: formWhatBroke.trim(),
-        presetReference: formPresetRef.trim(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setEntries((prev) => [newEntry, ...prev]);
+    try {
+      if (selectedEntry) {
+        const updated = await updateJournalEntry(selectedEntry.id, {
+          synth: formSynth,
+          patchName: formPatchName.trim(),
+          tags,
+          notes: formNotes.trim(),
+          whatLearned: formWhatLearned.trim(),
+          whatBroke: formWhatBroke.trim(),
+          presetReference: formPresetRef.trim(),
+        });
+        setEntries((prev) =>
+          prev.map((entry) => (entry.id === updated.id ? { ...updated, synth: formSynth } : entry))
+        );
+      } else {
+        const created = await createJournalEntry({
+          synth: formSynth,
+          patchName: formPatchName.trim(),
+          tags,
+          notes: formNotes.trim() || null,
+          whatLearned: formWhatLearned.trim() || null,
+          whatBroke: formWhatBroke.trim() || null,
+          presetReference: formPresetRef.trim() || null,
+        });
+        setEntries((prev) => [{ ...created, synth: formSynth }, ...prev]);
+      }
+      resetForm();
+    } catch {
+      // noop - error notification handled elsewhere
     }
-    resetForm();
   }, [
     selectedEntry,
     formSynth,
@@ -161,9 +159,16 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
     resetForm,
   ]);
 
-  const handleDelete = useCallback((id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (confirm("Delete this journal entry?")) {
-      setEntries((prev) => prev.filter((e) => e.id !== id));
+      try {
+        const success = await deleteJournalEntry(id);
+        if (success) {
+          setEntries((prev) => prev.filter((e) => e.id !== id));
+        }
+      } catch {
+        // noop
+      }
     }
   }, []);
 
@@ -312,7 +317,11 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
         </div>
       </div>
 
-      {filteredEntries.length === 0 ? (
+      {loading ? (
+        <div className={styles.emptyState}>
+          <p>Loading journal entries...</p>
+        </div>
+      ) : filteredEntries.length === 0 ? (
         <div className={styles.emptyState}>
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M12 20h9" />
@@ -374,4 +383,3 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
 }
 
 export default JournalClient;
-

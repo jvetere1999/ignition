@@ -8,6 +8,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import styles from "./page.module.css";
+import { getLearnOverview } from "@/lib/api/learn";
 
 interface DashboardData {
   continueItem: {
@@ -56,25 +57,51 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // For now, use mock data until API is ready
-    const mockData: DashboardData = {
-      continueItem: null,
-      dueReviewCount: 0,
-      estimatedReviewMinutes: 0,
-      weakAreas: [],
-      recentActivity: [],
-      streak: { current: 0, longest: 0, isActiveToday: false },
-      stats: {
-        lessonsCompleted: 0,
-        exercisesCompleted: 0,
-        projectsCompleted: 0,
-        reviewCardsTotal: 0,
-        avgRetention: 0,
-      },
-      diagnosticCompleted: false,
+    let isMounted = true;
+
+    const loadOverview = async () => {
+      try {
+        const overview = await getLearnOverview();
+        if (!isMounted) return;
+
+        const dueReviewCount = overview.review_count;
+        const estimatedReviewMinutes = dueReviewCount > 0 ? Math.ceil(dueReviewCount * 0.5) : 0;
+
+        setData({
+          continueItem: null,
+          dueReviewCount,
+          estimatedReviewMinutes,
+          weakAreas: [],
+          recentActivity: [],
+          streak: {
+            current: overview.progress.current_streak_days,
+            longest: overview.progress.current_streak_days,
+            isActiveToday: overview.progress.current_streak_days > 0,
+          },
+          stats: {
+            lessonsCompleted: overview.progress.lessons_completed,
+            exercisesCompleted: overview.progress.drills_practiced,
+            projectsCompleted: 0,
+            reviewCardsTotal: dueReviewCount,
+            avgRetention: 0,
+          },
+          diagnosticCompleted: true,
+        });
+      } catch {
+        if (isMounted) {
+          setData(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     };
-    setData(mockData);
-    setLoading(false);
+
+    loadOverview();
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
 
   if (loading) {
@@ -334,4 +361,3 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
 }
 
 export default LearnDashboard;
-

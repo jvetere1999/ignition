@@ -123,6 +123,98 @@ pub struct UserDrillStats {
     pub total_time_seconds: i32,
 }
 
+/// Learning flashcard (global)
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LearnFlashcard {
+    pub id: Uuid,
+    pub topic_id: Option<Uuid>,
+    pub lesson_id: Option<Uuid>,
+    pub front: String,
+    pub back: String,
+    pub card_type: String,
+    pub concept_id: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// User flashcard progress (spaced repetition)
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct UserFlashcardProgress {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub flashcard_id: Uuid,
+    pub due_at: DateTime<Utc>,
+    pub interval_days: f64,
+    pub ease_factor: f64,
+    pub lapses: i32,
+    pub last_reviewed_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// User flashcard review history
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct UserFlashcardReview {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub flashcard_id: Uuid,
+    pub grade: i32,
+    pub interval_days: f64,
+    pub ease_factor: f64,
+    pub lapses: i32,
+    pub reviewed_at: DateTime<Utc>,
+}
+
+/// Glossary entry (global)
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct GlossaryEntry {
+    pub id: Uuid,
+    pub term: String,
+    pub definition: String,
+    pub category: String,
+    pub aliases: Option<Vec<String>>,
+    pub related_concepts: Option<Vec<String>>,
+    pub is_active: bool,
+    pub sort_order: i32,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Recipe template (user)
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct RecipeTemplate {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub title: String,
+    pub synth: String,
+    pub target_type: String,
+    pub descriptors: Option<Vec<String>>,
+    pub mono: bool,
+    pub cpu_budget: String,
+    pub macro_count: i32,
+    pub recipe_json: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Journal entry (user)
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct JournalEntry {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub synth: String,
+    pub patch_name: String,
+    pub tags: Option<Vec<String>>,
+    pub notes: Option<String>,
+    pub what_learned: Option<String>,
+    pub what_broke: Option<String>,
+    pub preset_reference: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 // ============================================================================
 // REQUEST MODELS
 // ============================================================================
@@ -148,6 +240,50 @@ pub struct SubmitDrillRequest {
     pub correct_count: i32,
     pub total_count: i32,
     pub time_seconds: i32,
+}
+
+/// Review submission request
+#[derive(Debug, Deserialize)]
+pub struct SubmitReviewRequest {
+    pub card_id: Uuid,
+    pub grade: i32,
+}
+
+/// Create recipe template request
+#[derive(Debug, Deserialize)]
+pub struct CreateRecipeTemplateRequest {
+    pub title: String,
+    pub synth: String,
+    pub target_type: String,
+    pub descriptors: Option<Vec<String>>,
+    pub mono: bool,
+    pub cpu_budget: String,
+    pub macro_count: i32,
+    pub recipe_json: serde_json::Value,
+}
+
+/// Create journal entry request
+#[derive(Debug, Deserialize)]
+pub struct CreateJournalEntryRequest {
+    pub synth: String,
+    pub patch_name: String,
+    pub tags: Option<Vec<String>>,
+    pub notes: Option<String>,
+    pub what_learned: Option<String>,
+    pub what_broke: Option<String>,
+    pub preset_reference: Option<String>,
+}
+
+/// Update journal entry request
+#[derive(Debug, Deserialize)]
+pub struct UpdateJournalEntryRequest {
+    pub synth: Option<String>,
+    pub patch_name: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub notes: Option<String>,
+    pub what_learned: Option<String>,
+    pub what_broke: Option<String>,
+    pub preset_reference: Option<String>,
 }
 
 // ============================================================================
@@ -263,12 +399,31 @@ pub struct DrillResultResponse {
     pub new_streak: i32,
 }
 
+/// Flashcard review item
+#[derive(Debug, Clone, Serialize)]
+pub struct ReviewCardResponse {
+    pub id: Uuid,
+    pub front: String,
+    pub back: String,
+    pub concept_id: Option<String>,
+    pub card_type: String,
+    pub due_at: DateTime<Utc>,
+    pub interval_days: f64,
+    pub ease_factor: f64,
+    pub lapses: i32,
+}
+
 /// Review items response
 #[derive(Serialize)]
 pub struct ReviewItemsResponse {
-    pub lessons_due: Vec<LessonResponse>,
-    pub drills_due: Vec<DrillResponse>,
+    pub cards: Vec<ReviewCardResponse>,
     pub total_due: i64,
+}
+
+/// Review submission response
+#[derive(Serialize)]
+pub struct ReviewSubmitResult {
+    pub card: ReviewCardResponse,
 }
 
 /// Learning progress summary
@@ -280,4 +435,45 @@ pub struct LearnProgressSummary {
     pub drills_practiced: i64,
     pub total_xp_earned: i64,
     pub current_streak_days: i32,
+}
+
+/// Glossary entry response
+#[derive(Serialize)]
+pub struct GlossaryEntryResponse {
+    pub id: Uuid,
+    pub term: String,
+    pub definition: String,
+    pub category: String,
+    pub aliases: Option<Vec<String>>,
+    pub related_concepts: Option<Vec<String>>,
+}
+
+/// Recipe template response
+#[derive(Serialize)]
+pub struct RecipeTemplateResponse {
+    pub id: Uuid,
+    pub title: String,
+    pub synth: String,
+    pub target_type: String,
+    pub descriptors: Option<Vec<String>>,
+    pub mono: bool,
+    pub cpu_budget: String,
+    pub macro_count: i32,
+    pub recipe_json: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Journal entry response
+#[derive(Serialize)]
+pub struct JournalEntryResponse {
+    pub id: Uuid,
+    pub synth: String,
+    pub patch_name: String,
+    pub tags: Option<Vec<String>>,
+    pub notes: Option<String>,
+    pub what_learned: Option<String>,
+    pub what_broke: Option<String>,
+    pub preset_reference: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }

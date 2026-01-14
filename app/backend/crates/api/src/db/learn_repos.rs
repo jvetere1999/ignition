@@ -2,6 +2,7 @@
 //!
 //! Database operations for learning system.
 
+use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
@@ -465,109 +466,10 @@ impl LearnRepo {
         pool: &PgPool,
         user_id: Uuid,
     ) -> Result<ReviewItemsResponse, AppError> {
-        // Get lessons that were completed but might need review
-        #[derive(FromRow)]
-        struct LessonDueRow {
-            id: Uuid,
-            topic_id: Uuid,
-            key: String,
-            title: String,
-            description: Option<String>,
-            duration_minutes: Option<i32>,
-            difficulty: Option<String>,
-            xp_reward: i32,
-            coin_reward: i32,
-            has_quiz: Option<bool>,
-            has_audio: Option<bool>,
-        }
+        let cards = Self::get_flashcards_due(pool, user_id).await?;
+        let total_due = Self::count_flashcards_due(pool, user_id).await?;
 
-        let lessons_due = sqlx::query_as::<_, LessonDueRow>(
-            r#"
-            SELECT l.id, l.topic_id, l.key, l.title, l.description,
-                   l.duration_minutes, l.difficulty, l.xp_reward, l.coin_reward,
-                   l.quiz_json IS NOT NULL as has_quiz,
-                   l.audio_r2_key IS NOT NULL as has_audio
-            FROM learn_lessons l
-            JOIN user_lesson_progress p ON p.lesson_id = l.id AND p.user_id = $1
-            WHERE p.status = 'completed'
-              AND p.completed_at < NOW() - INTERVAL '7 days'
-            ORDER BY p.completed_at
-            LIMIT 5
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(pool)
-        .await?;
-
-        #[derive(FromRow)]
-        struct DrillDueRow {
-            id: Uuid,
-            topic_id: Uuid,
-            key: String,
-            title: String,
-            description: Option<String>,
-            drill_type: String,
-            difficulty: Option<String>,
-            duration_seconds: Option<i32>,
-            xp_reward: i32,
-            best_score: Option<i32>,
-            current_streak: Option<i32>,
-        }
-
-        let drills_due = sqlx::query_as::<_, DrillDueRow>(
-            r#"
-            SELECT d.id, d.topic_id, d.key, d.title, d.description,
-                   d.drill_type, d.difficulty, d.duration_seconds, d.xp_reward,
-                   s.best_score, s.current_streak
-            FROM learn_drills d
-            JOIN user_drill_stats s ON s.drill_id = d.id AND s.user_id = $1
-            WHERE s.last_attempt_at < NOW() - INTERVAL '3 days'
-            ORDER BY s.last_attempt_at
-            LIMIT 5
-            "#,
-        )
-        .bind(user_id)
-        .fetch_all(pool)
-        .await?;
-
-        let total_due = (lessons_due.len() + drills_due.len()) as i64;
-
-        Ok(ReviewItemsResponse {
-            lessons_due: lessons_due
-                .into_iter()
-                .map(|l| LessonResponse {
-                    id: l.id,
-                    topic_id: l.topic_id,
-                    key: l.key,
-                    title: l.title,
-                    description: l.description,
-                    duration_minutes: l.duration_minutes.unwrap_or(0),
-                    difficulty: l.difficulty.unwrap_or_default(),
-                    xp_reward: l.xp_reward,
-                    coin_reward: l.coin_reward,
-                    status: "review".to_string(),
-                    has_quiz: l.has_quiz.unwrap_or(false),
-                    has_audio: l.has_audio.unwrap_or(false),
-                })
-                .collect(),
-            drills_due: drills_due
-                .into_iter()
-                .map(|d| DrillResponse {
-                    id: d.id,
-                    topic_id: d.topic_id,
-                    key: d.key,
-                    title: d.title,
-                    description: d.description,
-                    drill_type: d.drill_type,
-                    difficulty: d.difficulty.unwrap_or_default(),
-                    duration_seconds: d.duration_seconds.unwrap_or(0),
-                    xp_reward: d.xp_reward,
-                    best_score: d.best_score,
-                    current_streak: d.current_streak.unwrap_or(0),
-                })
-                .collect(),
-            total_due,
-        })
+        Ok(ReviewItemsResponse { cards, total_due })
     }
 
     /// Get learning progress summary
@@ -614,6 +516,519 @@ impl LearnRepo {
             total_xp_earned: 0,     // Would sum from lesson/drill completions
             current_streak_days: 0, // Would calculate from daily activity
         })
+    }
+
+    // ============================================
+    // Flashcard Review
+    // ============================================
+
+    async fn count_flashcards_due(pool: &PgPool, user_id: Uuid) -> Result<i64, AppError> {
+        let count = sqlx::query_scalar::<_, i64>(
+            r#"
+            SELECT COUNT(*)
+            FROM learn_flashcards f
+            LEFT JOIN user_flashcard_progress p
+              ON p.flashcard_id = f.id AND p.user_id = $1
+            WHERE f.is_active = true
+              AND (p.due_at IS NULL OR p.due_at <= NOW())
+            "#,
+        )
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(count)
+    }
+
+    async fn get_flashcards_due(pool: &PgPool, user_id: Uuid) -> Result<Vec<ReviewCardResponse>, AppError> {
+        #[derive(FromRow)]
+        struct CardRow {
+            id: Uuid,
+            front: String,
+            back: String,
+            concept_id: Option<String>,
+            card_type: String,
+            due_at: DateTime<Utc>,
+            interval_days: f64,
+            ease_factor: f64,
+            lapses: i32,
+        }
+
+        let cards = sqlx::query_as::<_, CardRow>(
+            r#"
+            SELECT
+                f.id,
+                f.front,
+                f.back,
+                f.concept_id,
+                f.card_type,
+                COALESCE(p.due_at, NOW()) as due_at,
+                COALESCE(p.interval_days, 1) as interval_days,
+                COALESCE(p.ease_factor, 2.5) as ease_factor,
+                COALESCE(p.lapses, 0) as lapses
+            FROM learn_flashcards f
+            LEFT JOIN user_flashcard_progress p
+              ON p.flashcard_id = f.id AND p.user_id = $1
+            WHERE f.is_active = true
+              AND (p.due_at IS NULL OR p.due_at <= NOW())
+            ORDER BY COALESCE(p.due_at, NOW()) ASC
+            LIMIT 30
+            "#,
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(cards
+            .into_iter()
+            .map(|c| ReviewCardResponse {
+                id: c.id,
+                front: c.front,
+                back: c.back,
+                concept_id: c.concept_id,
+                card_type: c.card_type,
+                due_at: c.due_at,
+                interval_days: c.interval_days,
+                ease_factor: c.ease_factor,
+                lapses: c.lapses,
+            })
+            .collect())
+    }
+
+    fn compute_next_review(progress: &ReviewCardResponse, grade: i32) -> (f64, f64, i32, DateTime<Utc>) {
+        let mut interval = progress.interval_days;
+        let mut ease = progress.ease_factor;
+        let mut lapses = progress.lapses;
+
+        match grade {
+            0 => {
+                interval = 1.0;
+                lapses += 1;
+                ease = (ease - 0.2).max(1.3);
+            }
+            1 => {
+                interval = (interval * 1.2).max(1.0);
+                ease = (ease - 0.15).max(1.3);
+            }
+            2 => {
+                interval = if interval < 1.0 { 1.0 } else { interval * ease };
+            }
+            _ => {
+                interval = interval * ease * 1.3;
+                ease += 0.15;
+            }
+        }
+
+        let mut due_at = Utc::now();
+        due_at = due_at + chrono::Duration::days(interval.round() as i64);
+
+        (interval, ease, lapses, due_at)
+    }
+
+    pub async fn submit_review(
+        pool: &PgPool,
+        user_id: Uuid,
+        card_id: Uuid,
+        grade: i32,
+    ) -> Result<ReviewSubmitResult, AppError> {
+        let card = sqlx::query_as::<_, LearnFlashcard>(
+            r#"
+            SELECT id, topic_id, lesson_id, front, back, card_type, concept_id, tags, is_active, created_at, updated_at
+            FROM learn_flashcards
+            WHERE id = $1 AND is_active = true
+            "#,
+        )
+        .bind(card_id)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Card not found".to_string()))?;
+
+        let existing = sqlx::query_as::<_, UserFlashcardProgress>(
+            r#"
+            SELECT id, user_id, flashcard_id, due_at, interval_days, ease_factor, lapses,
+                   last_reviewed_at, created_at, updated_at
+            FROM user_flashcard_progress
+            WHERE user_id = $1 AND flashcard_id = $2
+            "#,
+        )
+        .bind(user_id)
+        .bind(card_id)
+        .fetch_optional(pool)
+        .await?;
+
+        let base = ReviewCardResponse {
+            id: card.id,
+            front: card.front,
+            back: card.back,
+            concept_id: card.concept_id,
+            card_type: card.card_type,
+            due_at: existing.as_ref().map(|p| p.due_at).unwrap_or_else(Utc::now),
+            interval_days: existing.as_ref().map(|p| p.interval_days).unwrap_or(1.0),
+            ease_factor: existing.as_ref().map(|p| p.ease_factor).unwrap_or(2.5),
+            lapses: existing.as_ref().map(|p| p.lapses).unwrap_or(0),
+        };
+
+        let (interval, ease, lapses, due_at) = Self::compute_next_review(&base, grade);
+
+        let progress = sqlx::query_as::<_, UserFlashcardProgress>(
+            r#"
+            INSERT INTO user_flashcard_progress
+              (user_id, flashcard_id, due_at, interval_days, ease_factor, lapses, last_reviewed_at, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), NOW())
+            ON CONFLICT (user_id, flashcard_id)
+            DO UPDATE SET
+              due_at = $3,
+              interval_days = $4,
+              ease_factor = $5,
+              lapses = $6,
+              last_reviewed_at = NOW(),
+              updated_at = NOW()
+            RETURNING id, user_id, flashcard_id, due_at, interval_days, ease_factor, lapses,
+                      last_reviewed_at, created_at, updated_at
+            "#,
+        )
+        .bind(user_id)
+        .bind(card_id)
+        .bind(due_at)
+        .bind(interval)
+        .bind(ease)
+        .bind(lapses)
+        .fetch_one(pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            INSERT INTO user_flashcard_reviews
+              (user_id, flashcard_id, grade, interval_days, ease_factor, lapses, reviewed_at)
+            VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            "#,
+        )
+        .bind(user_id)
+        .bind(card_id)
+        .bind(grade)
+        .bind(progress.interval_days)
+        .bind(progress.ease_factor)
+        .bind(progress.lapses)
+        .execute(pool)
+        .await?;
+
+        Ok(ReviewSubmitResult {
+            card: ReviewCardResponse {
+                id: progress.flashcard_id,
+                front: base.front,
+                back: base.back,
+                concept_id: base.concept_id,
+                card_type: base.card_type,
+                due_at: progress.due_at,
+                interval_days: progress.interval_days,
+                ease_factor: progress.ease_factor,
+                lapses: progress.lapses,
+            },
+        })
+    }
+
+    // ============================================
+    // Glossary
+    // ============================================
+
+    pub async fn list_glossary(
+        pool: &PgPool,
+        query: Option<&str>,
+        category: Option<&str>,
+    ) -> Result<Vec<GlossaryEntryResponse>, AppError> {
+        #[derive(FromRow)]
+        struct GlossaryRow {
+            id: Uuid,
+            term: String,
+            definition: String,
+            category: String,
+            aliases: Option<Vec<String>>,
+            related_concepts: Option<Vec<String>>,
+        }
+
+        let mut sql = String::from(
+            r#"
+            SELECT id, term, definition, category, aliases, related_concepts
+            FROM glossary_entries
+            WHERE is_active = true
+            "#,
+        );
+
+        if category.is_some() {
+            sql.push_str(" AND category = $1");
+        }
+
+        if query.is_some() {
+            if category.is_some() {
+                sql.push_str(" AND (term ILIKE $2 OR definition ILIKE $2)");
+            } else {
+                sql.push_str(" AND (term ILIKE $1 OR definition ILIKE $1)");
+            }
+        }
+
+        sql.push_str(" ORDER BY sort_order, term");
+
+        let mut q = sqlx::query_as::<_, GlossaryRow>(&sql);
+        if let Some(cat) = category {
+            q = q.bind(cat);
+        }
+        if let Some(term) = query {
+            let pattern = format!("%{}%", term);
+            q = q.bind(pattern);
+        }
+
+        let rows = q.fetch_all(pool).await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| GlossaryEntryResponse {
+                id: r.id,
+                term: r.term,
+                definition: r.definition,
+                category: r.category,
+                aliases: r.aliases,
+                related_concepts: r.related_concepts,
+            })
+            .collect())
+    }
+
+    // ============================================
+    // Recipes
+    // ============================================
+
+    pub async fn list_recipes(pool: &PgPool, user_id: Uuid) -> Result<Vec<RecipeTemplateResponse>, AppError> {
+        let rows = sqlx::query_as::<_, RecipeTemplate>(
+            r#"
+            SELECT id, user_id, title, synth, target_type, descriptors, mono, cpu_budget,
+                   macro_count, recipe_json, created_at, updated_at
+            FROM recipe_templates
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| RecipeTemplateResponse {
+                id: r.id,
+                title: r.title,
+                synth: r.synth,
+                target_type: r.target_type,
+                descriptors: r.descriptors,
+                mono: r.mono,
+                cpu_budget: r.cpu_budget,
+                macro_count: r.macro_count,
+                recipe_json: r.recipe_json,
+                created_at: r.created_at,
+            })
+            .collect())
+    }
+
+    pub async fn create_recipe(
+        pool: &PgPool,
+        user_id: Uuid,
+        req: &CreateRecipeTemplateRequest,
+    ) -> Result<RecipeTemplateResponse, AppError> {
+        let row = sqlx::query_as::<_, RecipeTemplate>(
+            r#"
+            INSERT INTO recipe_templates
+              (user_id, title, synth, target_type, descriptors, mono, cpu_budget, macro_count, recipe_json, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            RETURNING id, user_id, title, synth, target_type, descriptors, mono, cpu_budget,
+                      macro_count, recipe_json, created_at, updated_at
+            "#,
+        )
+        .bind(user_id)
+        .bind(&req.title)
+        .bind(&req.synth)
+        .bind(&req.target_type)
+        .bind(&req.descriptors)
+        .bind(req.mono)
+        .bind(&req.cpu_budget)
+        .bind(req.macro_count)
+        .bind(&req.recipe_json)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(RecipeTemplateResponse {
+            id: row.id,
+            title: row.title,
+            synth: row.synth,
+            target_type: row.target_type,
+            descriptors: row.descriptors,
+            mono: row.mono,
+            cpu_budget: row.cpu_budget,
+            macro_count: row.macro_count,
+            recipe_json: row.recipe_json,
+            created_at: row.created_at,
+        })
+    }
+
+    pub async fn delete_recipe(pool: &PgPool, user_id: Uuid, id: Uuid) -> Result<bool, AppError> {
+        let result = sqlx::query("DELETE FROM recipe_templates WHERE id = $1 AND user_id = $2")
+            .bind(id)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    // ============================================
+    // Journal
+    // ============================================
+
+    pub async fn list_journal_entries(pool: &PgPool, user_id: Uuid) -> Result<Vec<JournalEntryResponse>, AppError> {
+        let rows = sqlx::query_as::<_, JournalEntry>(
+            r#"
+            SELECT id, user_id, synth, patch_name, tags, notes, what_learned,
+                   what_broke, preset_reference, created_at, updated_at
+            FROM journal_entries
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|e| JournalEntryResponse {
+                id: e.id,
+                synth: e.synth,
+                patch_name: e.patch_name,
+                tags: e.tags,
+                notes: e.notes,
+                what_learned: e.what_learned,
+                what_broke: e.what_broke,
+                preset_reference: e.preset_reference,
+                created_at: e.created_at,
+                updated_at: e.updated_at,
+            })
+            .collect())
+    }
+
+    pub async fn create_journal_entry(
+        pool: &PgPool,
+        user_id: Uuid,
+        req: &CreateJournalEntryRequest,
+    ) -> Result<JournalEntryResponse, AppError> {
+        let row = sqlx::query_as::<_, JournalEntry>(
+            r#"
+            INSERT INTO journal_entries
+              (user_id, synth, patch_name, tags, notes, what_learned, what_broke, preset_reference, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+            RETURNING id, user_id, synth, patch_name, tags, notes, what_learned,
+                      what_broke, preset_reference, created_at, updated_at
+            "#,
+        )
+        .bind(user_id)
+        .bind(&req.synth)
+        .bind(&req.patch_name)
+        .bind(&req.tags)
+        .bind(&req.notes)
+        .bind(&req.what_learned)
+        .bind(&req.what_broke)
+        .bind(&req.preset_reference)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(JournalEntryResponse {
+            id: row.id,
+            synth: row.synth,
+            patch_name: row.patch_name,
+            tags: row.tags,
+            notes: row.notes,
+            what_learned: row.what_learned,
+            what_broke: row.what_broke,
+            preset_reference: row.preset_reference,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        })
+    }
+
+    pub async fn update_journal_entry(
+        pool: &PgPool,
+        user_id: Uuid,
+        id: Uuid,
+        req: &UpdateJournalEntryRequest,
+    ) -> Result<JournalEntryResponse, AppError> {
+        let existing = sqlx::query_as::<_, JournalEntry>(
+            r#"
+            SELECT id, user_id, synth, patch_name, tags, notes, what_learned,
+                   what_broke, preset_reference, created_at, updated_at
+            FROM journal_entries
+            WHERE id = $1 AND user_id = $2
+            "#,
+        )
+        .bind(id)
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Journal entry not found".to_string()))?;
+
+        let synth = req.synth.as_deref().unwrap_or(&existing.synth);
+        let patch_name = req.patch_name.as_deref().unwrap_or(&existing.patch_name);
+        let tags = req.tags.as_ref().unwrap_or(&existing.tags);
+        let notes = req.notes.as_ref().or(existing.notes.as_ref());
+        let what_learned = req.what_learned.as_ref().or(existing.what_learned.as_ref());
+        let what_broke = req.what_broke.as_ref().or(existing.what_broke.as_ref());
+        let preset_reference = req.preset_reference.as_ref().or(existing.preset_reference.as_ref());
+
+        let row = sqlx::query_as::<_, JournalEntry>(
+            r#"
+            UPDATE journal_entries
+            SET synth = $3,
+                patch_name = $4,
+                tags = $5,
+                notes = $6,
+                what_learned = $7,
+                what_broke = $8,
+                preset_reference = $9,
+                updated_at = NOW()
+            WHERE id = $1 AND user_id = $2
+            RETURNING id, user_id, synth, patch_name, tags, notes, what_learned,
+                      what_broke, preset_reference, created_at, updated_at
+            "#,
+        )
+        .bind(id)
+        .bind(user_id)
+        .bind(synth)
+        .bind(patch_name)
+        .bind(tags)
+        .bind(notes)
+        .bind(what_learned)
+        .bind(what_broke)
+        .bind(preset_reference)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(JournalEntryResponse {
+            id: row.id,
+            synth: row.synth,
+            patch_name: row.patch_name,
+            tags: row.tags,
+            notes: row.notes,
+            what_learned: row.what_learned,
+            what_broke: row.what_broke,
+            preset_reference: row.preset_reference,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        })
+    }
+
+    pub async fn delete_journal_entry(pool: &PgPool, user_id: Uuid, id: Uuid) -> Result<bool, AppError> {
+        let result = sqlx::query("DELETE FROM journal_entries WHERE id = $1 AND user_id = $2")
+            .bind(id)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
     }
 }
 

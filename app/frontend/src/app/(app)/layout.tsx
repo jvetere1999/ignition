@@ -19,9 +19,11 @@ import { AppShell } from "@/components/shell";
 import { OnboardingProvider } from "@/components/onboarding";
 import { AdminButton } from "@/components/admin/AdminButton";
 import { SyncStateProvider } from "@/lib/sync/SyncStateContext";
+import { useRouter } from "next/navigation";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, signIn } = useAuth();
+  const { user, isAuthenticated, isLoading, signIn } = useAuth();
+  const router = useRouter();
 
   // Session guard - redirect to login if not authenticated
   useEffect(() => {
@@ -29,6 +31,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       signIn();
     }
   }, [isLoading, isAuthenticated, signIn]);
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !user) return;
+
+    if (!user.ageVerified) {
+      router.replace("/age-verification");
+      return;
+    }
+
+    if (!user.approved) {
+      router.replace("/pending-approval");
+    }
+  }, [isLoading, isAuthenticated, user, router]);
 
   // Show nothing while checking auth or redirecting
   if (isLoading || !isAuthenticated) {
@@ -46,4 +61,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </SyncStateProvider>
   );
 }
-

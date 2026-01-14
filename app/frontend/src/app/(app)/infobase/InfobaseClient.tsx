@@ -76,9 +76,10 @@ export function InfobaseClient() {
         `${API_BASE_URL}/api/infobase?category=${selectedCategory === "All Entries" ? "" : selectedCategory}&search=${searchQuery}`
       );
       if (res.ok) {
-        const data = await res.json() as { entries?: Array<{ id: string; title: string; content: string; category: string; tags: string[] | string; created_at: string; updated_at: string }> };
-        if (data.entries && data.entries.length > 0) {
-          const mapped = data.entries.map((e) => ({
+        const data = await res.json() as { data?: { entries?: Array<{ id: string; title: string; content: string; category: string; tags: string[]; created_at: string; updated_at: string }> } };
+        const entriesData = data.data?.entries || [];
+        if (entriesData.length > 0) {
+          const mapped = entriesData.map((e) => ({
             id: e.id,
             title: e.title,
             content: e.content,
@@ -88,7 +89,6 @@ export function InfobaseClient() {
             updatedAt: e.updated_at,
           }));
           setEntries(mapped);
-          // Only cache to localStorage if deprecation is disabled
           if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
           }
@@ -101,8 +101,6 @@ export function InfobaseClient() {
         if (stored) {
           const localEntries = JSON.parse(stored);
           setEntries(localEntries);
-          // Sync local entries to D1
-          syncEntriesToD1(localEntries);
         }
       }
     } catch (e) {
@@ -122,19 +120,6 @@ export function InfobaseClient() {
       setIsLoading(false);
     }
   }, [selectedCategory, searchQuery]);
-
-  // Sync entries to D1
-  const syncEntriesToD1 = async (entriesToSync: InfoEntry[]) => {
-    try {
-      await safeFetch(`${API_BASE_URL}/api/infobase`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sync", entries: entriesToSync }),
-      });
-    } catch (e) {
-      console.error("Failed to sync infobase to D1:", e);
-    }
-  };
 
   // Load entries on mount and when filters change
   useEffect(() => {
@@ -219,11 +204,33 @@ export function InfobaseClient() {
 
       // Save to D1
       try {
-        await safeFetch(`${API_BASE_URL}/api/infobase`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/infobase`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "create", ...newEntry, tags }),
+          body: JSON.stringify({
+            title: newEntry.title,
+            content: newEntry.content,
+            category: newEntry.category,
+            tags,
+          }),
         });
+        if (res.ok) {
+          const data = await res.json() as { data?: { id: string; created_at: string; updated_at: string } };
+          if (data.data?.id) {
+            setEntries((prev) =>
+              prev.map((entry) =>
+                entry.id === newEntry.id
+                  ? {
+                      ...entry,
+                      id: data.data.id,
+                      createdAt: data.data.created_at,
+                      updatedAt: data.data.updated_at,
+                    }
+                  : entry
+              )
+            );
+          }
+        }
       } catch (e) {
         console.error("Failed to save to D1:", e);
       }
@@ -243,18 +250,28 @@ export function InfobaseClient() {
 
       // Update in D1
       try {
-        await safeFetch(`${API_BASE_URL}/api/infobase`, {
-          method: "POST",
+        const res = await safeFetch(`${API_BASE_URL}/api/infobase/${selectedEntry.id}`, {
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "update",
-            id: selectedEntry.id,
             title: updatedEntry.title,
             content: updatedEntry.content,
             category: updatedEntry.category,
-            tags
+            tags,
           }),
         });
+        if (res.ok) {
+          const data = await res.json() as { data?: { updated_at: string } };
+          if (data.data?.updated_at) {
+            setEntries((prev) =>
+              prev.map((entry) =>
+                entry.id === selectedEntry.id
+                  ? { ...entry, updatedAt: data.data.updated_at }
+                  : entry
+              )
+            );
+          }
+        }
       } catch (e) {
         console.error("Failed to update in D1:", e);
       }
@@ -273,11 +290,7 @@ export function InfobaseClient() {
 
         // Delete from D1
         try {
-          await safeFetch(`${API_BASE_URL}/api/infobase`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "delete", id }),
-          });
+          await safeFetch(`${API_BASE_URL}/api/infobase/${id}`, { method: "DELETE" });
         } catch (e) {
           console.error("Failed to delete from D1:", e);
         }

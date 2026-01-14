@@ -228,17 +228,22 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
       });
       if (response.ok) {
         const data = await response.json() as {
-          totalSessions?: number;
-          completedSessions?: number;
-          totalFocusTime?: number;
-          streak_days?: number;
+          stats?: {
+            completed_sessions?: number;
+            abandoned_sessions?: number;
+            total_focus_seconds?: number;
+          };
         };
-        setStats({
-          totalSessions: data.totalSessions || 0,
-          completedSessions: data.completedSessions || 0,
-          totalFocusTime: data.totalFocusTime || 0,
-          streak: data.streak_days || 0, // From user_streaks.current_streak in sync
-        });
+        const completed = data.stats?.completed_sessions || 0;
+        const abandoned = data.stats?.abandoned_sessions || 0;
+        const totalSessions = completed + abandoned;
+        const totalFocusTime = data.stats?.total_focus_seconds || 0;
+        setStats((prev) => ({
+          ...prev,
+          totalSessions,
+          completedSessions: completed,
+          totalFocusTime,
+        }));
       }
     } catch (error) {
       console.error("Failed to fetch focus stats:", error);
@@ -537,11 +542,27 @@ export function FocusClient({ initialStats, initialSession }: FocusClientProps) 
   // Start timer
   const handleStart = async () => {
     if (status === "paused") {
-      setStatus("running");
+      setIsActionLoading(true);
+      try {
+        const response = await safeFetch(`${API_BASE_URL}/api/focus/pause`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (response.ok) {
+          setStatus("running");
+        }
+      } catch (error) {
+        console.error("Failed to resume session:", error);
+      } finally {
+        setIsActionLoading(false);
+      }
       return;
     }
 
     setIsActionLoading(true);
+    if (status === "idle" && timeRemaining === 0) {
+      setTimeRemaining(durations[mode]);
+    }
     setStatus("running");
     startTimeRef.current = Date.now();
 

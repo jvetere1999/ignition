@@ -7,7 +7,7 @@ use std::sync::Arc;
 use axum::{
     extract::{Extension, Path, State},
     http::StatusCode,
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/", get(list_habits).post(create_habit))
         .route("/archived", get(list_archived_habits))
         .route("/{id}/complete", post(complete_habit))
+        .route("/{id}", delete(delete_habit))
 }
 
 // ============================================================================
@@ -118,4 +119,15 @@ async fn complete_habit(
     let result = HabitsRepo::complete_habit(&state.db, id, user.id, notes.as_deref()).await?;
 
     Ok(Json(CompleteResultWrapper { result }))
+}
+
+/// DELETE /habits/:id
+/// Archive a habit
+async fn delete_habit(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    HabitsRepo::archive(&state.db, id, user.id).await?;
+    Ok(Json(serde_json::json!({ "success": true, "id": id })))
 }

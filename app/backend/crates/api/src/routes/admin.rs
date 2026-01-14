@@ -247,6 +247,7 @@ fn users_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/", get(list_users))
         .route("/{id}", get(get_user).delete(delete_user))
+        .route("/{id}/approve", post(update_user_approval))
         .route("/{id}/cleanup", post(cleanup_user))
 }
 
@@ -330,6 +331,21 @@ async fn get_user(
     let user = AdminUserRepo::get_user(&state.db, id)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+    Ok(Json(user))
+}
+
+#[derive(Deserialize)]
+struct ApprovalRequest {
+    approved: bool,
+}
+
+/// Update a user's approval status
+async fn update_user_approval(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+    Json(req): Json<ApprovalRequest>,
+) -> Result<Json<AdminUserWithStats>, AppError> {
+    let user = AdminUserRepo::update_approval(&state.db, id, req.approved).await?;
     Ok(Json(user))
 }
 

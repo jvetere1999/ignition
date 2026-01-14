@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Extension, Path, Query, State},
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ use crate::state::AppState;
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/", get(list_goals).post(create_goal))
-        .route("/{id}", get(get_goal))
+        .route("/{id}", get(get_goal).delete(delete_goal))
         .route("/{id}/milestones", post(add_milestone))
         .route("/milestones/{id}/complete", post(complete_milestone))
 }
@@ -141,4 +141,15 @@ async fn complete_milestone(
     let result = GoalsRepo::complete_milestone(&state.db, id, user.id).await?;
 
     Ok(Json(CompleteMilestoneWrapper { result }))
+}
+
+/// DELETE /goals/:id
+/// Delete a goal and its milestones
+async fn delete_goal(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    GoalsRepo::delete(&state.db, id, user.id).await?;
+    Ok(Json(serde_json::json!({ "success": true, "id": id })))
 }

@@ -785,6 +785,19 @@ CREATE TABLE focus_library_tracks (
     added_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE glossary_entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    term TEXT NOT NULL,
+    definition TEXT NOT NULL,
+    category TEXT NOT NULL,
+    aliases TEXT[],
+    related_concepts TEXT[],
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE infobase_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
@@ -793,6 +806,20 @@ CREATE TABLE infobase_entries (
     category TEXT,
     tags TEXT[],
     is_pinned BOOLEAN NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE journal_entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    synth TEXT NOT NULL,
+    patch_name TEXT NOT NULL,
+    tags TEXT[],
+    notes TEXT,
+    what_learned TEXT,
+    what_broke TEXT,
+    preset_reference TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -811,6 +838,20 @@ CREATE TABLE learn_drills (
     sort_order INTEGER NOT NULL,
     is_active BOOLEAN NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE learn_flashcards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    topic_id UUID,
+    lesson_id UUID,
+    front TEXT NOT NULL,
+    back TEXT NOT NULL,
+    card_type TEXT NOT NULL,
+    concept_id TEXT,
+    tags TEXT[],
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE listening_prompt_presets (
@@ -915,6 +956,21 @@ CREATE TABLE program_workouts (
     intensity_modifier REAL NOT NULL
 );
 
+CREATE TABLE recipe_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    title TEXT NOT NULL,
+    synth TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    descriptors TEXT[],
+    mono BOOLEAN NOT NULL,
+    cpu_budget TEXT NOT NULL,
+    macro_count INTEGER NOT NULL,
+    recipe_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE reference_tracks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
@@ -1009,6 +1065,30 @@ CREATE TABLE user_drill_stats (
     best_streak INTEGER NOT NULL,
     last_attempt_at TIMESTAMPTZ,
     total_time_seconds INTEGER NOT NULL
+);
+
+CREATE TABLE user_flashcard_progress (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    flashcard_id UUID NOT NULL,
+    due_at TIMESTAMPTZ NOT NULL,
+    interval_days REAL NOT NULL,
+    ease_factor REAL NOT NULL,
+    lapses INTEGER NOT NULL,
+    last_reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE user_flashcard_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    flashcard_id UUID NOT NULL,
+    grade INTEGER NOT NULL,
+    interval_days REAL NOT NULL,
+    ease_factor REAL NOT NULL,
+    lapses INTEGER NOT NULL,
+    reviewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE user_interests (

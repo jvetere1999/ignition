@@ -151,7 +151,11 @@ pub async fn extract_session(
 }
 
 /// Require authenticated user and inject User extension
-pub async fn require_auth(mut req: Request, next: Next) -> Result<Response, AppError> {
+pub async fn require_auth(
+    State(state): State<Arc<AppState>>,
+    mut req: Request,
+    next: Next,
+) -> Result<Response, AppError> {
     // Check if AuthContext is present in extensions
     let auth_context = req
         .extensions()
@@ -159,23 +163,21 @@ pub async fn require_auth(mut req: Request, next: Next) -> Result<Response, AppE
         .ok_or(AppError::Unauthorized("Authentication required".to_string()))?
         .clone();
 
-    // Convert AuthContext to User and inject into extensions
-    let user = crate::db::models::User {
-        id: auth_context.user_id,
-        name: auth_context.name,
-        email: auth_context.email,
-        email_verified: None,
-        image: None,
-        role: auth_context.role,
-        approved: true,
-        age_verified: true,
-        tos_accepted: true,
-        tos_accepted_at: Some(chrono::Utc::now()),
-        tos_version: Some("1.0".to_string()),
-        last_activity_at: Some(chrono::Utc::now()),
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
-    };
+    let user = UserRepo::find_by_id(&state.db, auth_context.user_id)
+        .await?
+        .ok_or(AppError::Unauthorized("User not found".to_string()))?;
+
+    if !user.approved {
+        return Err(AppError::Forbidden);
+    }
+
+    if !user.age_verified {
+        return Err(AppError::Forbidden);
+    }
+
+    if !user.tos_accepted {
+        return Err(AppError::Forbidden);
+    }
 
     req.extensions_mut().insert(user);
 

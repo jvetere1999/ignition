@@ -838,6 +838,20 @@ export interface FocusLibraryTracks {
   added_at: string;
 }
 
+/** Database model for `glossary_entries` table */
+export interface GlossaryEntries {
+  id: string;
+  term: string;
+  definition: string;
+  category: string;
+  aliases?: string[];
+  related_concepts?: string[];
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Database model for `infobase_entries` table */
 export interface InfobaseEntries {
   id: string;
@@ -847,6 +861,21 @@ export interface InfobaseEntries {
   category?: string;
   tags?: string[];
   is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Database model for `journal_entries` table */
+export interface JournalEntries {
+  id: string;
+  user_id: string;
+  synth: string;
+  patch_name: string;
+  tags?: string[];
+  notes?: string;
+  what_learned?: string;
+  what_broke?: string;
+  preset_reference?: string;
   created_at: string;
   updated_at: string;
 }
@@ -866,6 +895,21 @@ export interface LearnDrills {
   sort_order: number;
   is_active: boolean;
   created_at: string;
+}
+
+/** Database model for `learn_flashcards` table */
+export interface LearnFlashcards {
+  id: string;
+  topic_id?: string;
+  lesson_id?: string;
+  front: string;
+  back: string;
+  card_type: string;
+  concept_id?: string;
+  tags?: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Database model for `listening_prompt_presets` table */
@@ -979,6 +1023,22 @@ export interface ProgramWorkouts {
   intensity_modifier: number;
 }
 
+/** Database model for `recipe_templates` table */
+export interface RecipeTemplates {
+  id: string;
+  user_id: string;
+  title: string;
+  synth: string;
+  target_type: string;
+  descriptors?: string[];
+  mono: boolean;
+  cpu_budget: string;
+  macro_count: number;
+  recipe_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Database model for `reference_tracks` table */
 export interface ReferenceTracks {
   id: string;
@@ -1079,6 +1139,32 @@ export interface UserDrillStats {
   best_streak: number;
   last_attempt_at?: string;
   total_time_seconds: number;
+}
+
+/** Database model for `user_flashcard_progress` table */
+export interface UserFlashcardProgress {
+  id: string;
+  user_id: string;
+  flashcard_id: string;
+  due_at: string;
+  interval_days: number;
+  ease_factor: number;
+  lapses: number;
+  last_reviewed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Database model for `user_flashcard_reviews` table */
+export interface UserFlashcardReviews {
+  id: string;
+  user_id: string;
+  flashcard_id: string;
+  grade: number;
+  interval_days: number;
+  ease_factor: number;
+  lapses: number;
+  reviewed_at: string;
 }
 
 /** Database model for `user_interests` table */
@@ -1215,6 +1301,7 @@ export type FeatureFlag = FeatureFlags;
 export type FocusLibrary = FocusLibraries;
 export type FocusLibraryTrack = FocusLibraryTracks;
 export type FocusSession = FocusSessions;
+export type GlossaryEntry = GlossaryEntries;
 export type GoalMileston = GoalMilestones;
 export type Goal = Goals;
 export type HabitCompletion = HabitCompletions;
@@ -1222,7 +1309,9 @@ export type Habit = Habits;
 export type Idea = Ideas;
 export type InboxItem = InboxItems;
 export type InfobaseEntry = InfobaseEntries;
+export type JournalEntry = JournalEntries;
 export type LearnDrill = LearnDrills;
+export type LearnFlashcard = LearnFlashcards;
 export type LearnLesson = LearnLessons;
 export type LearnTopic = LearnTopics;
 export type ListeningPromptPreset = ListeningPromptPresets;
@@ -1238,6 +1327,7 @@ export type PlanTemplat = PlanTemplates;
 export type ProgramWeek = ProgramWeeks;
 export type ProgramWorkout = ProgramWorkouts;
 export type ReadingSession = ReadingSessions;
+export type RecipeTemplat = RecipeTemplates;
 export type ReferenceTrack = ReferenceTracks;
 export type RoleEntitlement = RoleEntitlements;
 export type Rol = Roles;
@@ -1250,6 +1340,7 @@ export type TrainingProgram = TrainingPrograms;
 export type UniversalQuest = UniversalQuests;
 export type UserAchievement = UserAchievements;
 export type UserDrillStat = UserDrillStats;
+export type UserFlashcardReview = UserFlashcardReviews;
 export type UserInterest = UserInterests;
 export type UserOnboardingResponse = UserOnboardingResponses;
 export type UserPurchase = UserPurchases;

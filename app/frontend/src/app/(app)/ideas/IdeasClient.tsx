@@ -65,16 +65,15 @@ export function IdeasClient({}: IdeasClientProps = {}) {
       try {
         const response = await safeFetch(`${API_BASE_URL}/api/ideas`);
         if (response.ok) {
-          const data = await response.json() as { ideas: Array<{
+          const data = await response.json() as { ideas?: Array<{
             id: string;
             title: string;
             content: string | null;
             category: string;
             tags: string[];
-            isPinned: boolean;
-            createdAt: string;
+            is_pinned: boolean;
+            created_at: string;
           }> };
-          // Map D1 format to component format
           const mapped: Idea[] = (data.ideas || []).map((idea) => ({
             id: idea.id,
             type: "text" as const,
@@ -82,7 +81,7 @@ export function IdeasClient({}: IdeasClientProps = {}) {
             key: undefined,
             bpm: undefined,
             mood: idea.tags?.[0] || undefined,
-            createdAt: idea.createdAt,
+            createdAt: idea.created_at,
           }));
           setIdeas(mapped);
         }
@@ -122,9 +121,10 @@ export function IdeasClient({}: IdeasClientProps = {}) {
         }),
       });
       if (response.ok) {
-        const data = await response.json() as { idea: { id: string } };
-        // Update local state with server-generated ID
-        setIdeas(prev => [{ ...idea, id: data.idea.id }, ...prev.filter(i => i.id !== idea.id)]);
+        const data = await response.json() as { data?: { id: string } };
+        if (data.data?.id) {
+          setIdeas(prev => [{ ...idea, id: data.data.id }, ...prev.filter(i => i.id !== idea.id)]);
+        }
       }
     } catch (error) {
       console.error("Failed to save idea:", error);
@@ -209,7 +209,7 @@ export function IdeasClient({}: IdeasClientProps = {}) {
     setIdeas(prev => prev.filter(idea => idea.id !== id));
     // Delete from D1
     try {
-      await safeFetch(`${API_BASE_URL}/api/ideas?id=${id}`, { method: "DELETE" });
+      await safeFetch(`${API_BASE_URL}/api/ideas/${id}`, { method: "DELETE" });
     } catch (error) {
       console.error("Failed to delete idea:", error);
     }

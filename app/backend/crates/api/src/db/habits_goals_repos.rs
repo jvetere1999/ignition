@@ -292,6 +292,29 @@ impl HabitsRepo {
             streak_bonus,
         })
     }
+
+    /// Archive a habit (soft delete)
+    pub async fn archive(
+        pool: &PgPool,
+        habit_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<(), AppError> {
+        let result = sqlx::query(
+            r#"UPDATE habits
+               SET is_active = false, updated_at = NOW()
+               WHERE id = $1 AND user_id = $2"#,
+        )
+        .bind(habit_id)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Habit not found".into()));
+        }
+
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -571,5 +594,30 @@ impl GoalsRepo {
             goal_progress: progress,
             goal_completed,
         })
+    }
+
+    /// Delete a goal and its milestones
+    pub async fn delete(
+        pool: &PgPool,
+        goal_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<(), AppError> {
+        // Remove milestones first
+        sqlx::query("DELETE FROM goal_milestones WHERE goal_id = $1")
+            .bind(goal_id)
+            .execute(pool)
+            .await?;
+
+        let result = sqlx::query("DELETE FROM goals WHERE id = $1 AND user_id = $2")
+            .bind(goal_id)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Goal not found".into()));
+        }
+
+        Ok(())
     }
 }
