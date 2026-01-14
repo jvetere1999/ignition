@@ -431,11 +431,13 @@ describe("getDynamicUIData", () => {
       }),
     } as unknown as import("@cloudflare/workers-types").D1Database;
 
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const result = await getDynamicUIData(mockDb, userId);
 
     expect(result.quickPicks).toEqual([]);
     expect(result.resumeLast).toBeNull();
     expect(result.interestPrimer).toBeNull();
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });
-

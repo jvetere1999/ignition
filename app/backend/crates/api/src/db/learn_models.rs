@@ -199,6 +199,36 @@ pub struct RecipeTemplate {
     pub updated_at: DateTime<Utc>,
 }
 
+// ============================================================================ 
+// Aggregates for overview
+// ============================================================================ 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContinueItem {
+    pub topic_id: Uuid,
+    pub topic_name: String,
+    pub lesson_id: Uuid,
+    pub lesson_title: String,
+    pub status: String,
+    pub progress_pct: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WeakArea {
+    pub concept_id: Option<String>,
+    pub term: String,
+    pub suggested_lesson_id: Option<Uuid>,
+    pub suggested_lesson_title: Option<String>,
+    pub lapses: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityItem {
+    pub item_type: String,
+    pub title: String,
+    pub completed_at: DateTime<Utc>,
+}
+
 /// Journal entry (user)
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct JournalEntry {
@@ -424,6 +454,29 @@ pub struct ReviewItemsResponse {
 #[derive(Serialize)]
 pub struct ReviewSubmitResult {
     pub card: ReviewCardResponse,
+}
+
+/// Review analytics grade counts
+#[derive(Serialize)]
+pub struct ReviewGradeCounts {
+    pub again: i64,
+    pub hard: i64,
+    pub good: i64,
+    pub easy: i64,
+}
+
+/// Review analytics summary
+#[derive(Serialize)]
+pub struct ReviewAnalyticsResponse {
+    pub total_reviews: i64,
+    pub reviews_last_7_days: i64,
+    pub reviews_last_30_days: i64,
+    pub retention_rate: f64,
+    pub avg_ease_factor: f64,
+    pub avg_interval_days: f64,
+    pub total_lapses: i64,
+    pub last_reviewed_at: Option<DateTime<Utc>>,
+    pub grades: ReviewGradeCounts,
 }
 
 /// Learning progress summary

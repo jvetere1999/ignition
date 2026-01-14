@@ -23,6 +23,7 @@ use crate::state::AppState;
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/", get(list_habits).post(create_habit))
+        .route("/analytics", get(get_habit_analytics))
         .route("/archived", get(list_archived_habits))
         .route("/{id}/complete", post(complete_habit))
         .route("/{id}", delete(delete_habit))
@@ -46,6 +47,11 @@ struct HabitsListWrapper {
 #[derive(Serialize)]
 struct CompleteResultWrapper {
     result: CompleteHabitResult,
+}
+
+#[derive(Serialize)]
+struct HabitAnalyticsWrapper {
+    analytics: HabitAnalyticsResponse,
 }
 
 // ============================================================================
@@ -130,4 +136,14 @@ async fn delete_habit(
 ) -> Result<Json<serde_json::Value>, AppError> {
     HabitsRepo::archive(&state.db, id, user.id).await?;
     Ok(Json(serde_json::json!({ "success": true, "id": id })))
+}
+
+/// GET /habits/analytics
+/// Get habit analytics summary
+async fn get_habit_analytics(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+) -> Result<Json<HabitAnalyticsWrapper>, AppError> {
+    let analytics = HabitsRepo::get_analytics(&state.db, user.id).await?;
+    Ok(Json(HabitAnalyticsWrapper { analytics }))
 }

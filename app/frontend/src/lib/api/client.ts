@@ -12,6 +12,15 @@
 // ============================================
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ecent.online';
+const OFFLINE_QUEUE_BLOCKLIST = [
+  '/api/infobase',
+  '/api/ideas',
+  '/api/learn/journal',
+  '/api/reference',
+  '/api/references',
+  '/reference',
+  '/references',
+];
 
 /**
  * API Error with typed details
@@ -184,6 +193,47 @@ function buildUrl(path: string, params?: Record<string, string | number | boolea
   return url.toString();
 }
 
+function isAbsoluteUrl(path: string): boolean {
+  return /^https?:\/\//i.test(path);
+}
+
+function ensureAbsoluteUrl(path: string): string {
+  if (isAbsoluteUrl(path)) {
+    return path;
+  }
+  return new URL(path, API_BASE_URL).toString();
+}
+
+function isQueueableMutation(url: string): boolean {
+  const normalized = ensureAbsoluteUrl(url);
+  const pathname = new URL(normalized).pathname;
+  return !OFFLINE_QUEUE_BLOCKLIST.some((prefix) => pathname.startsWith(prefix));
+}
+
+async function withMutationLock<T>(work: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== 'undefined' && 'locks' in navigator && (navigator as any).locks?.request) {
+    return (navigator as any).locks.request('api-mutation', work);
+  }
+  return work();
+}
+
+function normalizeFetchInput(input: string | Request): string | Request {
+  if (typeof input === 'string') {
+    return ensureAbsoluteUrl(input);
+  }
+
+  const absoluteUrl = ensureAbsoluteUrl(input.url);
+  if (absoluteUrl === input.url) {
+    return input;
+  }
+
+  return new Request(absoluteUrl, input);
+}
+
+function isMutation(method: string): boolean {
+  return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
+}
+
 /**
  * Execute fetch with standard configuration
  * Automatically tracks errors via error notification system if available
@@ -225,10 +275,27 @@ async function executeFetch<T>(
     : undefined;
 
   try {
-    const response = await fetch(url, {
-      ...fetchOptions,
-      signal: controller.signal,
-    });
+    // If offline and mutation, enqueue for replay and return 202 (unless blocked for E2EE)
+    if (typeof navigator !== 'undefined' && !navigator.onLine && isMutation(method)) {
+      if (!isQueueableMutation(url)) {
+        throw new ApiError('Offline write blocked for encrypted content', 409, 'offline_blocked');
+      }
+      const { enqueueMutation } = await import('@/lib/api/offlineQueue');
+      await enqueueMutation({
+        url,
+        method,
+        body: typeof fetchOptions.body === 'string' ? fetchOptions.body : fetchOptions.body ? JSON.stringify(fetchOptions.body) : undefined,
+        headers,
+      });
+      return { queued: true } as unknown as T;
+    }
+
+    const runFetch = () =>
+      fetch(url, {
+        ...fetchOptions,
+        signal: controller.signal,
+      });
+    const response = isMutation(method) ? await withMutationLock(runFetch) : await runFetch();
 
     if (timeoutId) clearTimeout(timeoutId);
 
@@ -341,20 +408,48 @@ export async function apiDelete<T>(path: string, options?: ApiRequestOptions): P
  * works globally, not just for centralized API calls.
  * 
  * Usage:
- *   const response = await safeFetch('/api/focus');
- *   const response = await safeFetch('/api/books', { method: 'POST', body: ... });
+ *   const response = await safeFetch(`${API_BASE_URL}/api/focus`);
+ *   const response = await safeFetch(`${API_BASE_URL}/api/books`, { method: 'POST', body: ... });
  */
 export async function safeFetch(
   input: string | Request,
   init?: RequestInit & { credentials?: 'include' | 'omit' }
 ): Promise<Response> {
+  const normalizedInput = normalizeFetchInput(input);
+
   // Ensure credentials are always included for auth
   const fetchOptions = {
     ...init,
     credentials: init?.credentials ?? 'include',
   } as RequestInit;
 
-  const response = await fetch(input, fetchOptions);
+  const method = (fetchOptions.method || 'GET').toUpperCase();
+  if (typeof navigator !== 'undefined' && !navigator.onLine && isMutation(method)) {
+    const url = typeof normalizedInput === 'string' ? normalizedInput : normalizedInput.url;
+    if (!isQueueableMutation(url)) {
+      return new Response(
+        JSON.stringify({ error: 'offline_blocked', message: 'Offline write blocked for encrypted content' }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    const { enqueueMutation } = await import('@/lib/api/offlineQueue');
+    await enqueueMutation({
+      url,
+      method,
+      body: typeof fetchOptions.body === 'string' ? fetchOptions.body : fetchOptions.body ? JSON.stringify(fetchOptions.body) : undefined,
+      headers: fetchOptions.headers as Record<string, string> | undefined,
+    });
+    return new Response(JSON.stringify({ queued: true }), {
+      status: 202,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const runFetch = () => fetch(normalizedInput, fetchOptions);
+  const response = isMutation(method) ? await withMutationLock(runFetch) : await runFetch();
 
   // Handle 401 Unauthorized - Session expired or invalid
   if (response.status === 401) {

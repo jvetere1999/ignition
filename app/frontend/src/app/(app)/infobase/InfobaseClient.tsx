@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { QuickModeHeader } from "@/components/ui/QuickModeHeader";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
+import { encryptString, decryptString, isEncryptedPayload, type EncryptedPayload } from "@/lib/e2ee/crypto";
 import styles from "./page.module.css";
 
 interface InfoEntry {
@@ -47,6 +48,8 @@ export function InfobaseClient() {
   const [isCreating, setIsCreating] = useState(false);
   const [_isLoading, setIsLoading] = useState(true);
   const [isQuickMode, setIsQuickMode] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
+  const [vaultUnlocked, setVaultUnlocked] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Detect quick mode from URL
@@ -79,14 +82,25 @@ export function InfobaseClient() {
         const data = await res.json() as { data?: { entries?: Array<{ id: string; title: string; content: string; category: string; tags: string[]; created_at: string; updated_at: string }> } };
         const entriesData = data.data?.entries || [];
         if (entriesData.length > 0) {
-          const mapped = entriesData.map((e) => ({
-            id: e.id,
-            title: e.title,
-            content: e.content,
-            category: e.category,
-            tags: Array.isArray(e.tags) ? e.tags : [],
-            createdAt: e.created_at,
-            updatedAt: e.updated_at,
+          const mapped = await Promise.all(entriesData.map(async (e) => {
+            let content = e.content;
+            try {
+              const maybe = JSON.parse(e.content);
+              if (isEncryptedPayload(maybe) && vaultUnlocked && passphrase) {
+                content = await decryptString(maybe as EncryptedPayload, passphrase);
+              }
+            } catch {
+              // plaintext or parse error, leave as-is
+            }
+            return {
+              id: e.id,
+              title: e.title,
+              content,
+              category: e.category,
+              tags: Array.isArray(e.tags) ? e.tags : [],
+              createdAt: e.created_at,
+              updatedAt: e.updated_at,
+            };
           }));
           setEntries(mapped);
           if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
@@ -119,7 +133,7 @@ export function InfobaseClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, vaultUnlocked, passphrase]);
 
   // Load entries on mount and when filters change
   useEffect(() => {
@@ -204,12 +218,17 @@ export function InfobaseClient() {
 
       // Save to D1
       try {
+        let contentToSend: string = newEntry.content;
+        if (vaultUnlocked && passphrase) {
+          const encrypted = await encryptString(newEntry.content, passphrase);
+          contentToSend = JSON.stringify(encrypted);
+        }
         const res = await safeFetch(`${API_BASE_URL}/api/infobase`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: newEntry.title,
-            content: newEntry.content,
+            content: contentToSend,
             category: newEntry.category,
             tags,
           }),
@@ -250,12 +269,17 @@ export function InfobaseClient() {
 
       // Update in D1
       try {
+        let contentToSend: string = updatedEntry.content;
+        if (vaultUnlocked && passphrase) {
+          const encrypted = await encryptString(updatedEntry.content, passphrase);
+          contentToSend = JSON.stringify(encrypted);
+        }
         const res = await safeFetch(`${API_BASE_URL}/api/infobase/${selectedEntry.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: updatedEntry.title,
-            content: updatedEntry.content,
+            content: contentToSend,
             category: updatedEntry.category,
             tags,
           }),
@@ -308,6 +332,36 @@ export function InfobaseClient() {
         <h1 className={styles.title}>Infobase</h1>
         <p className={styles.subtitle}>Your personal knowledge base.</p>
       </header>
+
+      {!vaultUnlocked && (
+        <div className={styles.vaultBanner}>
+          <div>
+            <p className={styles.vaultTitle}>Unlock Private Work (E2EE)</p>
+            <p className={styles.vaultSubtitle}>
+              Enter your passphrase to decrypt entries locally. Passphrase is kept only in-memory.
+            </p>
+          </div>
+          <div className={styles.vaultControls}>
+            <input
+              type="password"
+              placeholder="Passphrase"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              className={styles.vaultInput}
+            />
+            <button
+              className={styles.vaultButton}
+              onClick={() => {
+                if (!passphrase.trim()) return;
+                setVaultUnlocked(true);
+                fetchEntries();
+              }}
+            >
+              Unlock
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.toolbar}>
         <button className={styles.addButton} onClick={handleCreate}>

@@ -6,8 +6,18 @@
   gap: var(--space-6);
 }
 
+.practice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
 .header {
-  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
 }
 
 .title {
@@ -23,60 +33,242 @@
   margin: var(--space-1) 0 0;
 }
 
-.content {
+.layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: minmax(220px, 280px) 1fr;
   gap: var(--space-6);
 }
 
-.section {
-  padding: var(--space-6);
+.sidebar {
+  padding: var(--space-5);
   background-color: var(--color-bg-secondary);
   border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-primary);
+  height: fit-content;
 }
 
-.section h2 {
+.sidebarTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-3);
+}
+
+.topicList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.topicButton {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background-color: transparent;
+  text-align: left;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.topicButton:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.topicActive {
+  background-color: var(--color-bg-primary);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary);
+}
+
+.topicMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin: 0 0 var(--space-2);
-}
-
-.description {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin: 0 0 var(--space-4);
-}
-
-.emptyState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-6);
-  background-color: var(--color-bg-primary);
-  border-radius: var(--radius-md);
-  text-align: center;
-}
-
-.emptyState p {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
   margin: 0;
 }
 
-.linkBtn {
-  padding: var(--space-2) var(--space-4);
+.sectionMeta {
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  background-color: var(--color-accent-primary);
-  color: white;
+  color: var(--color-text-muted);
+}
+
+.loadingCard,
+.emptyCard,
+.error {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.drillGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.drillCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+}
+
+.drillHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.drillTitle {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+}
+
+.drillDesc {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.drillDifficulty {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.drillMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.logButton {
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  text-decoration: none;
+  border: 1px solid var(--color-border-primary);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
 }
 
-.linkBtn:hover {
+.logButton:hover {
+  border-color: var(--color-border-focus);
+  color: var(--color-text-primary);
+}
+
+.logPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.logGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.logField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.logField input {
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-primary);
+  font-size: var(--font-size-sm);
+}
+
+.logFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.scorePreview {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.submitButton {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: none;
+  background-color: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.submitButton:hover {
   opacity: 0.9;
-  text-decoration: none;
 }
 
+.errorText {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .logGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .logFooter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

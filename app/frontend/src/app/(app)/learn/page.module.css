@@ -281,6 +281,12 @@
   color: var(--color-text-muted);
 }
 
+.continueActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+
 /* Review Card */
 .reviewCard {
   display: flex;
@@ -396,6 +402,11 @@
   margin: 0;
 }
 
+.weakLink {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
 .weakInfo a {
   font-size: var(--font-size-xs);
   color: var(--color-accent-primary);
@@ -441,9 +452,20 @@
   gap: var(--space-4);
 }
 
+.analyticsMeta {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
 @media (max-width: 640px) {
   .stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .analyticsMeta {
+    text-align: left;
   }
 }
 
@@ -505,4 +527,3 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
-

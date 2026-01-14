@@ -156,6 +156,67 @@ impl HabitsRepo {
         Ok(HabitsListResponse { habits: responses, total })
     }
 
+    pub async fn get_analytics(
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<HabitAnalyticsResponse, AppError> {
+        #[derive(sqlx::FromRow)]
+        struct AnalyticsRow {
+            total_habits: i64,
+            active_habits: i64,
+            completed_today: i64,
+            total_completions: i64,
+            completions_last_7_days: i64,
+            completions_last_30_days: i64,
+            longest_streak: i32,
+            active_streaks: i64,
+            last_completed_at: Option<chrono::DateTime<chrono::Utc>>,
+        }
+
+        let row = sqlx::query_as::<_, AnalyticsRow>(
+            r#"
+            SELECT
+              (SELECT COUNT(*) FROM habits WHERE user_id = $1) AS total_habits,
+              (SELECT COUNT(*) FROM habits WHERE user_id = $1 AND is_active = true) AS active_habits,
+              (SELECT COUNT(*) FROM habit_completions WHERE user_id = $1 AND completed_date = CURRENT_DATE) AS completed_today,
+              (SELECT COUNT(*) FROM habit_completions WHERE user_id = $1) AS total_completions,
+              (SELECT COUNT(*) FROM habit_completions WHERE user_id = $1 AND completed_at >= NOW() - INTERVAL '7 days') AS completions_last_7_days,
+              (SELECT COUNT(*) FROM habit_completions WHERE user_id = $1 AND completed_at >= NOW() - INTERVAL '30 days') AS completions_last_30_days,
+              (SELECT COALESCE(MAX(longest_streak), 0) FROM habits WHERE user_id = $1) AS longest_streak,
+              (SELECT COUNT(*) FROM habits WHERE user_id = $1 AND current_streak > 0) AS active_streaks,
+              (SELECT MAX(completed_at) FROM habit_completions WHERE user_id = $1) AS last_completed_at
+            "#,
+        )
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+        let completion_rate_7_days = if row.active_habits > 0 {
+            row.completions_last_7_days as f64 / (row.active_habits as f64 * 7.0)
+        } else {
+            0.0
+        };
+        let completion_rate_30_days = if row.active_habits > 0 {
+            row.completions_last_30_days as f64 / (row.active_habits as f64 * 30.0)
+        } else {
+            0.0
+        };
+
+        Ok(HabitAnalyticsResponse {
+            total_habits: row.total_habits,
+            active_habits: row.active_habits,
+            completed_today: row.completed_today,
+            total_completions: row.total_completions,
+            completions_last_7_days: row.completions_last_7_days,
+            completions_last_30_days: row.completions_last_30_days,
+            completion_rate_7_days,
+            completion_rate_30_days,
+            longest_streak: row.longest_streak,
+            active_streaks: row.active_streaks,
+            last_completed_at: row.last_completed_at,
+        })
+    }
+
     /// Complete a habit for today
     pub async fn complete_habit(
         pool: &PgPool,
@@ -331,8 +392,8 @@ impl GoalsRepo {
         req: &CreateGoalRequest,
     ) -> Result<Goal, AppError> {
         let goal = sqlx::query_as::<_, Goal>(
-            r#"INSERT INTO goals (user_id, title, description, category, target_date, priority, started_at)
-               VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            r#"INSERT INTO goals (user_id, title, description, category, target_date, priority, started_at, status, progress, sort_order)
+               VALUES ($1, $2, $3, $4, $5, $6, NOW(), 'active', 0, 0)
                RETURNING id, user_id, title, description, category, target_date, started_at,
                          completed_at, status, progress, priority, sort_order, created_at, updated_at"#,
         )
@@ -495,8 +556,9 @@ impl GoalsRepo {
         }
 
         let milestone = sqlx::query_as::<_, GoalMilestone>(
-            r#"INSERT INTO goal_milestones (goal_id, title, description)
-               VALUES ($1, $2, $3)
+            r#"INSERT INTO goal_milestones (goal_id, title, description, is_completed, sort_order)
+               VALUES ($1, $2, $3, false,
+                       COALESCE((SELECT MAX(sort_order) + 1 FROM goal_milestones WHERE goal_id = $1), 0))
                RETURNING id, goal_id, title, description, is_completed, completed_at, sort_order"#,
         )
         .bind(goal_id)

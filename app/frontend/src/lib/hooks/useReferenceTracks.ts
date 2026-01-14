@@ -318,7 +318,7 @@ export interface UseUploadResult {
   uploading: boolean;
   progress: number;
   error: Error | null;
-  uploadTrack: (file: File, metadata?: { name?: string; artist?: string; album?: string }) => Promise<ReferenceTrackResponse>;
+  uploadTrack: (file: File, metadata?: { name?: string; artist?: string; album?: string; passphrase?: string }) => Promise<ReferenceTrackResponse>;
 }
 
 export function useUpload(): UseUploadResult {
@@ -329,7 +329,7 @@ export function useUpload(): UseUploadResult {
   const uploadTrack = useCallback(
     async (
       file: File,
-      metadata?: { name?: string; artist?: string; album?: string }
+      metadata?: { name?: string; artist?: string; album?: string; passphrase?: string }
     ): Promise<ReferenceTrackResponse> => {
       setUploading(true);
       setProgress(0);
@@ -344,9 +344,19 @@ export function useUpload(): UseUploadResult {
           file.size
         );
 
+        let uploadBody: Blob | File = file;
+        let uploadMime = file.type;
+        if (metadata?.passphrase) {
+          const buffer = await file.arrayBuffer();
+          const { encryptBytes } = await import("@/lib/e2ee/crypto");
+          const encrypted = await encryptBytes(buffer, metadata.passphrase);
+          uploadBody = new Blob([encrypted.cipher], { type: "application/octet-stream" });
+          uploadMime = "application/octet-stream";
+        }
+
         // 2. Upload to R2
         setProgress(20);
-        await referenceTracksApi.uploadFile(signedUrl, file);
+        await referenceTracksApi.uploadFile(signedUrl, uploadBody, uploadMime);
         setProgress(80);
 
         // 3. Create track record
@@ -379,4 +389,3 @@ export function useUpload(): UseUploadResult {
     uploadTrack,
   };
 }
-

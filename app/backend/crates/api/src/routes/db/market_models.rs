@@ -9,15 +9,23 @@ use chrono::{DateTime, Utc};
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct MarketItem {
     pub id: Uuid,
+    pub key: String,
     pub name: String,
     pub description: Option<String>,
+    pub category: String,
     pub cost_coins: i32,
-    pub category: Option<String>,
-    pub rarity: Option<String>, // common, rare, epic, legendary
-    pub icon_url: Option<String>,
-    pub available: bool,
-    pub available_from: Option<DateTime<Utc>>,
-    pub available_until: Option<DateTime<Utc>>,
+    pub rarity: Option<String>,
+    pub icon: Option<String>,
+    pub image_url: Option<String>,
+    pub is_global: bool,
+    pub is_available: bool,
+    pub is_active: bool,
+    pub is_consumable: bool,
+    pub uses_per_purchase: Option<i32>,
+    pub total_stock: Option<i32>,
+    pub remaining_stock: Option<i32>,
+    pub created_by_user_id: Option<Uuid>,
+    pub sort_order: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -26,11 +34,11 @@ pub struct MarketItem {
 pub struct UserWallet {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub total_coins: i32,
-    pub earned_coins: i32,
-    pub spent_coins: i32,
-    pub updated_at: DateTime<Utc>,
+    pub coins: i32,
+    pub total_earned: i32,
+    pub total_spent: i32,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -38,9 +46,12 @@ pub struct UserReward {
     pub id: Uuid,
     pub user_id: Uuid,
     pub reward_type: String,
+    pub source_id: Option<Uuid>,
     pub coins_earned: i32,
+    pub xp_earned: i32,
     pub claimed: bool,
     pub claimed_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -49,9 +60,14 @@ pub struct UserMarketPurchase {
     pub id: Uuid,
     pub user_id: Uuid,
     pub item_id: Uuid,
+    pub cost_coins: i32,
     pub quantity: i32,
-    pub cost_paid_coins: i32,
     pub purchased_at: DateTime<Utc>,
+    pub redeemed_at: Option<DateTime<Utc>>,
+    pub uses_remaining: Option<i32>,
+    pub status: String,
+    pub refunded_at: Option<DateTime<Utc>>,
+    pub refund_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -60,6 +76,7 @@ pub struct MarketTransaction {
     pub user_id: Uuid,
     pub transaction_type: String, // earn, spend, refund
     pub coins_amount: i32,
+    pub item_id: Option<Uuid>,
     pub reason: Option<String>,
     pub created_at: DateTime<Utc>,
 }
@@ -69,7 +86,7 @@ pub struct MarketRecommendation {
     pub id: Uuid,
     pub user_id: Uuid,
     pub item_id: Uuid,
-    pub score: Option<f32>, // 0.0-1.0
+    pub score: f32, // 0.0-1.0
     pub reason: Option<String>,
     pub computed_at: DateTime<Utc>,
 }

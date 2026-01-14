@@ -99,6 +99,40 @@
   margin: 0 0 var(--space-4);
 }
 
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+
+.analyticsCard {
+  background-color: var(--color-bg-secondary);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.analyticsValue {
+  display: block;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.analyticsLabel {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.analyticsMeta {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
 .streaksGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

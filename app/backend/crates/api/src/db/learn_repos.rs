@@ -518,6 +518,160 @@ impl LearnRepo {
         })
     }
 
+    /// Determine the next lesson to continue (first non-completed, ordered by topic/lesson sort)
+    pub async fn get_continue_item(
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Option<ContinueItem>, AppError> {
+        #[derive(FromRow)]
+        struct Row {
+            topic_id: Uuid,
+            topic_name: String,
+            lesson_id: Uuid,
+            lesson_title: String,
+            status: String,
+            completed_count: Option<f64>,
+            lesson_count: Option<f64>,
+        }
+
+        let row = sqlx::query_as::<_, Row>(
+            r#"
+            WITH topic_progress AS (
+                SELECT l.topic_id,
+                       COUNT(*)::float AS lesson_count,
+                       COUNT(*) FILTER (WHERE COALESCE(p.status, 'not_started') = 'completed')::float AS completed_count
+                FROM learn_lessons l
+                LEFT JOIN user_lesson_progress p ON p.lesson_id = l.id AND p.user_id = $1
+                GROUP BY l.topic_id
+            )
+            SELECT t.id AS topic_id,
+                   t.name AS topic_name,
+                   l.id AS lesson_id,
+                   l.title AS lesson_title,
+                   COALESCE(p.status, 'not_started') AS status,
+                   tp.completed_count,
+                   tp.lesson_count
+            FROM learn_topics t
+            JOIN learn_lessons l ON l.topic_id = t.id
+            LEFT JOIN user_lesson_progress p ON p.lesson_id = l.id AND p.user_id = $1
+            LEFT JOIN topic_progress tp ON tp.topic_id = t.id
+            WHERE COALESCE(p.status, 'not_started') <> 'completed'
+            ORDER BY t.sort_order, l.sort_order
+            LIMIT 1
+            "#,
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(row.map(|r| ContinueItem {
+            topic_id: r.topic_id,
+            topic_name: r.topic_name,
+            lesson_id: r.lesson_id,
+            lesson_title: r.lesson_title,
+            status: r.status,
+            progress_pct: if let (Some(done), Some(total)) = (r.completed_count, r.lesson_count) {
+                if total > 0.0 {
+                    (done / total * 100.0).clamp(0.0, 100.0)
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
+            },
+        }))
+    }
+
+    /// Identify weak areas from flashcard lapses (highest lapses first)
+    pub async fn get_weak_areas(
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<WeakArea>, AppError> {
+        #[derive(FromRow)]
+        struct Row {
+            concept_id: Option<String>,
+            term: String,
+            lesson_id: Option<Uuid>,
+            lesson_title: Option<String>,
+            lapses: Option<i32>,
+        }
+
+        let rows = sqlx::query_as::<_, Row>(
+            r#"
+            SELECT f.concept_id,
+                   f.front AS term,
+                   f.lesson_id,
+                   l.title AS lesson_title,
+                   p.lapses
+            FROM learn_flashcards f
+            LEFT JOIN user_flashcard_progress p ON p.flashcard_id = f.id AND p.user_id = $1
+            LEFT JOIN learn_lessons l ON l.id = f.lesson_id
+            WHERE f.is_active = true
+              AND COALESCE(p.lapses, 0) > 0
+            ORDER BY p.lapses DESC, f.created_at ASC
+            LIMIT 3
+            "#,
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| WeakArea {
+                concept_id: r.concept_id,
+                term: r.term,
+                suggested_lesson_id: r.lesson_id,
+                suggested_lesson_title: r.lesson_title,
+                lapses: r.lapses.unwrap_or(0),
+            })
+            .collect())
+    }
+
+    /// Recent learning activity (lessons started/completed)
+    pub async fn get_recent_activity(
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<ActivityItem>, AppError> {
+        #[derive(FromRow)]
+        struct Row {
+            title: String,
+            completed_at: Option<chrono::DateTime<chrono::Utc>>,
+            started_at: Option<chrono::DateTime<chrono::Utc>>,
+            status: Option<String>,
+        }
+
+        let rows = sqlx::query_as::<_, Row>(
+            r#"
+            SELECT l.title,
+                   p.completed_at,
+                   p.started_at,
+                   p.status
+            FROM user_lesson_progress p
+            JOIN learn_lessons l ON l.id = p.lesson_id
+            WHERE p.user_id = $1
+              AND (p.completed_at IS NOT NULL OR p.started_at IS NOT NULL)
+            ORDER BY COALESCE(p.completed_at, p.started_at) DESC
+            LIMIT 5
+            "#,
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .filter_map(|r| {
+                let ts = r.completed_at.or(r.started_at)?;
+                Some(ActivityItem {
+                    item_type: r.status.unwrap_or_else(|| "started".to_string()),
+                    title: r.title,
+                    completed_at: ts,
+                })
+            })
+            .collect())
+    }
+
     // ============================================
     // Flashcard Review
     // ============================================
@@ -723,6 +877,67 @@ impl LearnRepo {
                 interval_days: progress.interval_days,
                 ease_factor: progress.ease_factor,
                 lapses: progress.lapses,
+            },
+        })
+    }
+
+    pub async fn get_review_analytics(
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<ReviewAnalyticsResponse, AppError> {
+        #[derive(FromRow)]
+        struct ReviewAnalyticsRow {
+            total_reviews: i64,
+            reviews_last_7_days: i64,
+            reviews_last_30_days: i64,
+            retention_rate: f64,
+            avg_ease_factor: f64,
+            avg_interval_days: f64,
+            total_lapses: i64,
+            last_reviewed_at: Option<DateTime<Utc>>,
+            again_count: i64,
+            hard_count: i64,
+            good_count: i64,
+            easy_count: i64,
+        }
+
+        let row = sqlx::query_as::<_, ReviewAnalyticsRow>(
+            r#"
+            SELECT
+              COUNT(*)::bigint AS total_reviews,
+              COUNT(*) FILTER (WHERE reviewed_at >= NOW() - INTERVAL '7 days')::bigint AS reviews_last_7_days,
+              COUNT(*) FILTER (WHERE reviewed_at >= NOW() - INTERVAL '30 days')::bigint AS reviews_last_30_days,
+              COALESCE(AVG(CASE WHEN grade >= 2 THEN 1.0 ELSE 0.0 END), 0.0)::float8 AS retention_rate,
+              COALESCE(AVG(ease_factor), 0.0)::float8 AS avg_ease_factor,
+              COALESCE(AVG(interval_days), 0.0)::float8 AS avg_interval_days,
+              COALESCE(SUM(lapses), 0)::bigint AS total_lapses,
+              MAX(reviewed_at) AS last_reviewed_at,
+              COUNT(*) FILTER (WHERE grade = 0)::bigint AS again_count,
+              COUNT(*) FILTER (WHERE grade = 1)::bigint AS hard_count,
+              COUNT(*) FILTER (WHERE grade = 2)::bigint AS good_count,
+              COUNT(*) FILTER (WHERE grade = 3)::bigint AS easy_count
+            FROM user_flashcard_reviews
+            WHERE user_id = $1
+            "#,
+        )
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(ReviewAnalyticsResponse {
+            total_reviews: row.total_reviews,
+            reviews_last_7_days: row.reviews_last_7_days,
+            reviews_last_30_days: row.reviews_last_30_days,
+            retention_rate: row.retention_rate,
+            avg_ease_factor: row.avg_ease_factor,
+            avg_interval_days: row.avg_interval_days,
+            total_lapses: row.total_lapses,
+            last_reviewed_at: row.last_reviewed_at,
+            grades: ReviewGradeCounts {
+                again: row.again_count,
+                hard: row.hard_count,
+                good: row.good_count,
+                easy: row.easy_count,
             },
         })
     }

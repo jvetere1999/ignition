@@ -14,6 +14,7 @@ import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { getMemoryCache, setMemoryCache } from "@/lib/cache/memory";
 import { useAutoRefresh } from "@/lib/hooks";
 import { LoadingState } from "@/components/ui";
+import { getHabitAnalytics, type HabitAnalytics } from "@/lib/api/habits";
 import { useBadges } from "@/lib/sync/SyncStateContext";
 import styles from "./page.module.css";
 
@@ -67,6 +68,7 @@ export function HabitsClient() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [analytics, setAnalytics] = useState<HabitAnalytics | null>(null);
   const [newHabit, setNewHabit] = useState({
     title: "",
     description: "",
@@ -94,6 +96,15 @@ export function HabitsClient() {
     return CATEGORY_REWARDS[categoryId] || CATEGORY_REWARDS.general;
   }, []);
 
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      const result = await getHabitAnalytics();
+      setAnalytics(result);
+    } catch (error) {
+      console.error("Failed to fetch habit analytics:", error);
+    }
+  }, []);
+
   const fetchHabits = useCallback(async () => {
     try {
       const res = await safeFetch(`${API_BASE_URL}/api/habits`);
@@ -108,7 +119,8 @@ export function HabitsClient() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   // Auto-refresh: refetch on focus after 1 minute staleness
   // Pauses on page unload, soft refreshes on reload if stale
@@ -185,6 +197,8 @@ export function HabitsClient() {
 
   const completedCount = habits.filter((h) => isCompletedToday(h)).length;
   const totalHabits = habits.length;
+  const completionRate7d = analytics ? Math.round(analytics.completion_rate_7_days * 100) : 0;
+  const completionRate30d = analytics ? Math.round(analytics.completion_rate_30_days * 100) : 0;
   const streaks: Streaks = habits.reduce((acc, habit) => {
     if (habit.current_streak > 0) {
       acc[habit.name] = { current: habit.current_streak, longest: habit.longest_streak };
@@ -241,6 +255,51 @@ export function HabitsClient() {
           </div>
         </div>
       </header>
+
+      {analytics && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Habit Analytics</h2>
+          <div className={styles.analyticsGrid}>
+            <div className={styles.analyticsCard}>
+              <span className={styles.analyticsValue}>{analytics.active_habits}</span>
+              <span className={styles.analyticsLabel}>Active habits</span>
+            </div>
+            <div className={styles.analyticsCard}>
+              <span className={styles.analyticsValue}>{analytics.completed_today}</span>
+              <span className={styles.analyticsLabel}>Completed today</span>
+            </div>
+            <div className={styles.analyticsCard}>
+              <span className={styles.analyticsValue}>{analytics.completions_last_7_days}</span>
+              <span className={styles.analyticsLabel}>Last 7 days</span>
+            </div>
+            <div className={styles.analyticsCard}>
+              <span className={styles.analyticsValue}>{analytics.completions_last_30_days}</span>
+              <span className={styles.analyticsLabel}>Last 30 days</span>
+            </div>
+            <div className={styles.analyticsCard}>
+              <span className={styles.analyticsValue}>{completionRate7d}%</span>
+              <span className={styles.analyticsLabel}>7-day completion</span>
+            </div>
+            <div className={styles.analyticsCard}>
+              <span className={styles.analyticsValue}>{completionRate30d}%</span>
+              <span className={styles.analyticsLabel}>30-day completion</span>
+            </div>
+            <div className={styles.analyticsCard}>
+              <span className={styles.analyticsValue}>{analytics.longest_streak}</span>
+              <span className={styles.analyticsLabel}>Longest streak</span>
+            </div>
+            <div className={styles.analyticsCard}>
+              <span className={styles.analyticsValue}>{analytics.active_streaks}</span>
+              <span className={styles.analyticsLabel}>Active streaks</span>
+            </div>
+          </div>
+          {analytics.last_completed_at && (
+            <p className={styles.analyticsMeta}>
+              Last completion: {new Date(analytics.last_completed_at).toLocaleDateString()}
+            </p>
+          )}
+        </section>
+      )}
 
       {Object.keys(streaks).length > 0 && (
         <section className={styles.section}>

@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { API_BASE_URL } from '../client';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -27,7 +28,7 @@ describe('API Client', () => {
         json: async () => ({ data: 'test' }),
       });
 
-      const response = await fetch('/api/test');
+      const response = await fetch(`${API_BASE_URL}/api/test`);
       const data = await response.json();
 
       expect(response.ok).toBe(true);
@@ -41,7 +42,7 @@ describe('API Client', () => {
         json: async () => ({ error: 'Not found' }),
       });
 
-      const response = await fetch('/api/nonexistent');
+      const response = await fetch(`${API_BASE_URL}/api/nonexistent`);
 
       expect(response.ok).toBe(false);
       expect(response.status).toBe(404);
@@ -54,7 +55,7 @@ describe('API Client', () => {
         json: async () => ({ error: 'Unauthorized' }),
       });
 
-      const response = await fetch('/api/protected');
+      const response = await fetch(`${API_BASE_URL}/api/protected`);
 
       expect(response.status).toBe(401);
     });
@@ -62,7 +63,7 @@ describe('API Client', () => {
     it('handles network error', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(fetch('/api/test')).rejects.toThrow('Network error');
+      await expect(fetch(`${API_BASE_URL}/api/test`)).rejects.toThrow('Network error');
     });
   });
 
@@ -74,13 +75,13 @@ describe('API Client', () => {
         json: async () => ({ id: 'new-id' }),
       });
 
-      const response = await fetch('/api/resource', {
+      const response = await fetch(`${API_BASE_URL}/api/resource`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'test' }),
       });
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/resource', expect.objectContaining({
+      expect(mockFetch).toHaveBeenCalledWith(`${API_BASE_URL}/api/resource`, expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       }));
@@ -94,7 +95,7 @@ describe('API Client', () => {
         json: async () => ({ error: 'CSRF token invalid' }),
       });
 
-      const response = await fetch('/api/resource', { method: 'POST' });
+      const response = await fetch(`${API_BASE_URL}/api/resource`, { method: 'POST' });
 
       expect(response.status).toBe(403);
     });
@@ -109,7 +110,7 @@ describe('API Client', () => {
         }),
       });
 
-      const response = await fetch('/api/resource', {
+      const response = await fetch(`${API_BASE_URL}/api/resource`, {
         method: 'POST',
         body: JSON.stringify({}),
       });
@@ -126,7 +127,7 @@ describe('API Client', () => {
         json: async () => ({ id: '1', name: 'updated' }),
       });
 
-      const response = await fetch('/api/resource/1', {
+      const response = await fetch(`${API_BASE_URL}/api/resource/1`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'updated' }),
@@ -143,7 +144,7 @@ describe('API Client', () => {
         status: 204,
       });
 
-      const response = await fetch('/api/resource/1', { method: 'DELETE' });
+      const response = await fetch(`${API_BASE_URL}/api/resource/1`, { method: 'DELETE' });
 
       expect(response.status).toBe(204);
     });
@@ -164,7 +165,7 @@ describe('API Client', () => {
         }),
       });
 
-      const response = await fetch('/api/resources?page=1&page_size=20');
+      const response = await fetch(`${API_BASE_URL}/api/resources?page=1&page_size=20`);
       const data = await response.json() as { data: unknown[]; total: number; has_next: boolean };
 
       expect(data.data).toHaveLength(2);
@@ -187,7 +188,7 @@ describe('API Client', () => {
         }),
       });
 
-      const response = await fetch('/api/resource');
+      const response = await fetch(`${API_BASE_URL}/api/resource`);
       const errorData = await response.json() as { error: { code: string; message: string } };
 
       expect(errorData.error.code).toBe('INVALID_INPUT');
@@ -205,7 +206,7 @@ describe('Request Helpers', () => {
         filter: 'active',
       });
 
-      const url = `/api/resources?${params.toString()}`;
+      const url = `${API_BASE_URL}/api/resources?${params.toString()}`;
 
       expect(url).toContain('page=1');
       expect(url).toContain('page_size=20');
@@ -216,7 +217,7 @@ describe('Request Helpers', () => {
       const params = new URLSearchParams();
       ['tag1', 'tag2', 'tag3'].forEach(tag => params.append('tags', tag));
 
-      const url = `/api/resources?${params.toString()}`;
+      const url = `${API_BASE_URL}/api/resources?${params.toString()}`;
 
       expect(url).toContain('tags=tag1');
       expect(url).toContain('tags=tag2');

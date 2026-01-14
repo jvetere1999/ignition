@@ -30,7 +30,7 @@ impl UserProgressRepo {
     pub async fn get_or_create(pool: &PgPool, user_id: Uuid) -> Result<UserProgress, AppError> {
         // Try to get existing
         let existing = sqlx::query_as::<_, UserProgress>(
-            r#"SELECT id, user_id, total_xp, current_level, xp_to_next_level,
+            r#"SELECT id, user_id, total_xp::bigint AS total_xp, current_level, xp_to_next_level,
                       total_skill_stars, created_at, updated_at
                FROM user_progress WHERE user_id = $1"#,
         )
@@ -46,7 +46,7 @@ impl UserProgressRepo {
         let progress = sqlx::query_as::<_, UserProgress>(
             r#"INSERT INTO user_progress (user_id, total_xp, current_level, xp_to_next_level, total_skill_stars)
                VALUES ($1, 0, 1, 100, 0)
-               RETURNING id, user_id, total_xp, current_level, xp_to_next_level,
+               RETURNING id, user_id, total_xp::bigint AS total_xp, current_level, xp_to_next_level,
                          total_skill_stars, created_at, updated_at"#,
         )
         .bind(user_id)
@@ -124,12 +124,13 @@ impl UserProgressRepo {
 
         // Record in ledger
         sqlx::query(
-            r#"INSERT INTO points_ledger (user_id, event_type, event_id, xp, reason, idempotency_key)
-               VALUES ($1, $2, $3, $4, $5, $6)"#,
+            r#"INSERT INTO points_ledger (user_id, event_type, event_id, coins, xp, reason, idempotency_key)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
         )
         .bind(user_id)
         .bind(event_type)
         .bind(event_id)
+        .bind(0)
         .bind(xp)
         .bind(reason)
         .bind(idempotency_key)
@@ -157,7 +158,11 @@ impl UserWalletRepo {
     pub async fn get_or_create(pool: &PgPool, user_id: Uuid) -> Result<UserWallet, AppError> {
         // Try to get existing
         let existing = sqlx::query_as::<_, UserWallet>(
-            r#"SELECT id, user_id, coins, total_earned, total_spent, created_at, updated_at
+            r#"SELECT id, user_id,
+                      coins::bigint AS coins,
+                      total_earned::bigint AS total_earned,
+                      total_spent::bigint AS total_spent,
+                      created_at, updated_at
                FROM user_wallet WHERE user_id = $1"#,
         )
         .bind(user_id)
@@ -172,7 +177,11 @@ impl UserWalletRepo {
         let wallet = sqlx::query_as::<_, UserWallet>(
             r#"INSERT INTO user_wallet (user_id, coins, total_earned, total_spent)
                VALUES ($1, 0, 0, 0)
-               RETURNING id, user_id, coins, total_earned, total_spent, created_at, updated_at"#,
+               RETURNING id, user_id,
+                         coins::bigint AS coins,
+                         total_earned::bigint AS total_earned,
+                         total_spent::bigint AS total_spent,
+                         created_at, updated_at"#,
         )
         .bind(user_id)
         .fetch_one(pool)
@@ -222,22 +231,23 @@ impl UserWalletRepo {
                    total_earned = CASE WHEN $1 > 0 THEN total_earned + $1 ELSE total_earned END,
                    updated_at = NOW()
                WHERE user_id = $2
-               RETURNING coins"#,
+               RETURNING coins::bigint"#,
         )
-        .bind(coins as i64)
+        .bind(coins)
         .bind(user_id)
         .fetch_one(pool)
         .await?;
 
         // Record in ledger
         sqlx::query(
-            r#"INSERT INTO points_ledger (user_id, event_type, event_id, coins, reason, idempotency_key)
-               VALUES ($1, $2, $3, $4, $5, $6)"#,
+            r#"INSERT INTO points_ledger (user_id, event_type, event_id, coins, xp, reason, idempotency_key)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
         )
         .bind(user_id)
         .bind(event_type)
         .bind(event_id)
         .bind(coins)
+        .bind(0)
         .bind(reason)
         .bind(idempotency_key)
         .execute(pool)
@@ -276,21 +286,22 @@ impl UserWalletRepo {
             r#"UPDATE user_wallet
                SET coins = coins - $1, total_spent = total_spent + $1, updated_at = NOW()
                WHERE user_id = $2
-               RETURNING coins"#,
+               RETURNING coins::bigint"#,
         )
-        .bind(amount as i64)
+        .bind(amount)
         .bind(user_id)
         .fetch_one(pool)
         .await?;
 
         // Record in ledger (negative amount)
         sqlx::query(
-            r#"INSERT INTO points_ledger (user_id, event_type, event_id, coins, reason)
-               VALUES ($1, 'spend', $2, $3, $4)"#,
+            r#"INSERT INTO points_ledger (user_id, event_type, event_id, coins, xp, reason)
+               VALUES ($1, 'spend', $2, $3, $4, $5)"#,
         )
         .bind(user_id)
         .bind(purchase_id)
         .bind(-amount)
+        .bind(0)
         .bind(reason)
         .execute(pool)
         .await?;

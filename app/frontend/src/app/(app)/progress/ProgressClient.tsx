@@ -14,7 +14,6 @@ import { useState, useEffect, useCallback } from "react";
 import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { SkillWheel, DEFAULT_SKILLS, type Skill } from "@/components/progress";
 import { useAutoRefresh } from "@/lib/hooks";
-import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import styles from "./page.module.css";
 
 interface ProgressStats {
@@ -24,10 +23,6 @@ interface ProgressStats {
   currentStreak: number;
   level: number;
 }
-
-// Skills storage key
-const SKILLS_STORAGE_KEY = "passion_progress_skills_v1";
-
 
 export function ProgressClient() {
   const [skills, setSkills] = useState<Skill[]>(DEFAULT_SKILLS);
@@ -41,37 +36,10 @@ export function ProgressClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [recentActivities, _setRecentActivities] = useState<{ label: string; xp: number; skill: string }[]>([]);
 
-  // Load skills from localStorage (backend endpoint not available)
   useEffect(() => {
-    async function loadSkills() {
-      // Only fall back to localStorage if deprecation is disabled
-      if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
-        try {
-          const stored = localStorage.getItem(SKILLS_STORAGE_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored) as Skill[];
-            setSkills(parsed);
-          }
-        } catch (e) {
-          console.error("Failed to load skills from localStorage:", e);
-        }
-      }
-      setIsLoading(false);
-    }
-
-    loadSkills();
+    // No client persistence; rely on server payloads (render-only frontend rule)
+    setIsLoading(false);
   }, []);
-
-  // Save skills to localStorage only if deprecation is disabled
-  useEffect(() => {
-    if (!isLoading && !DISABLE_MASS_LOCAL_PERSISTENCE) {
-      try {
-        localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(skills));
-      } catch (e) {
-        console.error("Failed to save skills:", e);
-      }
-    }
-  }, [skills, isLoading]);
 
   // Fetch stats from API
   const fetchStats = useCallback(async () => {

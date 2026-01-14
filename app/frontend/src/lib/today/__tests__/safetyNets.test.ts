@@ -228,6 +228,7 @@ describe("withFallback", () => {
   });
 
   it("returns fallback on error", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const result = withFallback(
       () => {
         throw new Error("test error");
@@ -236,6 +237,8 @@ describe("withFallback", () => {
       "test"
     );
     expect(result).toBe("fallback");
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
   });
 });
 
@@ -250,6 +253,7 @@ describe("withFallbackAsync", () => {
   });
 
   it("returns fallback on async error", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const result = await withFallbackAsync(
       async () => {
         throw new Error("test error");
@@ -258,6 +262,8 @@ describe("withFallbackAsync", () => {
       "test"
     );
     expect(result).toBe("fallback");
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
   });
 });
 
@@ -307,4 +313,3 @@ describe("safeSessionStorageSet", () => {
     expect(mockSessionStorage.getItem("test")).toBe("value");
   });
 });
-

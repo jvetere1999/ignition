@@ -14,6 +14,7 @@ import {
   updateJournalEntry,
   type JournalEntry as ApiJournalEntry,
 } from "@/lib/api/learn";
+import { encryptString, decryptString, isEncryptedPayload, type EncryptedPayload } from "@/lib/e2ee/crypto";
 
 type JournalEntry = ApiJournalEntry & {
   synth: "serum" | "vital" | "other";
@@ -30,6 +31,8 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
   const [synthFilter, setSynthFilter] = useState<"all" | "serum" | "vital" | "other">("all");
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+  const [passphrase, setPassphrase] = useState("");
+  const [vaultUnlocked, setVaultUnlocked] = useState(false);
 
   // Form state
   const [formSynth, setFormSynth] = useState<"serum" | "vital" | "other">("serum");
@@ -47,10 +50,32 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
       try {
         const data = await listJournalEntries();
         if (!isMounted) return;
-        setEntries(data.map((entry) => ({
-          ...entry,
-          synth: entry.synth as "serum" | "vital" | "other",
-        })));
+        const mapped = await Promise.all(
+          data.map(async (entry) => {
+            const decryptField = async (value: string | null) => {
+              if (!value) return value;
+              try {
+                const maybe = JSON.parse(value);
+                if (isEncryptedPayload(maybe) && vaultUnlocked && passphrase) {
+                  return await decryptString(maybe as EncryptedPayload, passphrase);
+                }
+              } catch {
+                // plaintext
+              }
+              return value;
+            };
+            return {
+              ...entry,
+              synth: entry.synth as "serum" | "vital" | "other",
+              patchName: (await decryptField(entry.patchName)) || "",
+              notes: await decryptField(entry.notes),
+              whatLearned: await decryptField(entry.whatLearned),
+              whatBroke: await decryptField(entry.whatBroke),
+              presetReference: await decryptField(entry.presetReference),
+            };
+          })
+        );
+        setEntries(mapped);
       } catch {
         if (isMounted) {
           setEntries([]);
@@ -119,27 +144,37 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
 
     try {
       if (selectedEntry) {
+        const encryptField = async (value: string) => {
+          if (!vaultUnlocked || !passphrase) return value;
+          const encrypted = await encryptString(value, passphrase);
+          return JSON.stringify(encrypted);
+        };
         const updated = await updateJournalEntry(selectedEntry.id, {
           synth: formSynth,
-          patchName: formPatchName.trim(),
+          patchName: await encryptField(formPatchName.trim()),
           tags,
-          notes: formNotes.trim(),
-          whatLearned: formWhatLearned.trim(),
-          whatBroke: formWhatBroke.trim(),
-          presetReference: formPresetRef.trim(),
+          notes: formNotes ? await encryptField(formNotes.trim()) : null,
+          whatLearned: formWhatLearned ? await encryptField(formWhatLearned.trim()) : null,
+          whatBroke: formWhatBroke ? await encryptField(formWhatBroke.trim()) : null,
+          presetReference: formPresetRef ? await encryptField(formPresetRef.trim()) : null,
         });
         setEntries((prev) =>
           prev.map((entry) => (entry.id === updated.id ? { ...updated, synth: formSynth } : entry))
         );
       } else {
+        const encryptField = async (value: string) => {
+          if (!vaultUnlocked || !passphrase) return value;
+          const encrypted = await encryptString(value, passphrase);
+          return JSON.stringify(encrypted);
+        };
         const created = await createJournalEntry({
           synth: formSynth,
-          patchName: formPatchName.trim(),
+          patchName: await encryptField(formPatchName.trim()),
           tags,
-          notes: formNotes.trim() || null,
-          whatLearned: formWhatLearned.trim() || null,
-          whatBroke: formWhatBroke.trim() || null,
-          presetReference: formPresetRef.trim() || null,
+          notes: formNotes ? await encryptField(formNotes.trim()) : null,
+          whatLearned: formWhatLearned ? await encryptField(formWhatLearned.trim()) : null,
+          whatBroke: formWhatBroke ? await encryptField(formWhatBroke.trim()) : null,
+          presetReference: formPresetRef ? await encryptField(formPresetRef.trim()) : null,
         });
         setEntries((prev) => [{ ...created, synth: formSynth }, ...prev]);
       }
@@ -175,6 +210,33 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
   if (isEditing) {
     return (
       <div className={styles.page}>
+        {!vaultUnlocked && (
+          <div className={styles.vaultBanner}>
+            <div>
+              <p className={styles.vaultTitle}>Unlock Journal (E2EE)</p>
+              <p className={styles.vaultSubtitle}>Enter passphrase to decrypt entries locally.</p>
+            </div>
+            <div className={styles.vaultControls}>
+              <input
+                type="password"
+                placeholder="Passphrase"
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value)}
+                className={styles.vaultInput}
+              />
+              <button
+                className={styles.vaultButton}
+                onClick={() => {
+                  if (!passphrase.trim()) return;
+                  setVaultUnlocked(true);
+                  setEntries((prev) => [...prev]);
+                }}
+              >
+                Unlock
+              </button>
+            </div>
+          </div>
+        )}
         <header className={styles.header}>
           <h1 className={styles.title}>{selectedEntry ? "Edit Entry" : "New Entry"}</h1>
         </header>
@@ -276,6 +338,33 @@ export function JournalClient({ userId }: JournalClientProps = {}) {
 
   return (
     <div className={styles.page}>
+      {!vaultUnlocked && (
+        <div className={styles.vaultBanner}>
+          <div>
+            <p className={styles.vaultTitle}>Unlock Journal (E2EE)</p>
+            <p className={styles.vaultSubtitle}>Enter passphrase to decrypt entries locally.</p>
+          </div>
+          <div className={styles.vaultControls}>
+            <input
+              type="password"
+              placeholder="Passphrase"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              className={styles.vaultInput}
+            />
+            <button
+              className={styles.vaultButton}
+              onClick={() => {
+                if (!passphrase.trim()) return;
+                setVaultUnlocked(true);
+                setEntries((prev) => [...prev]);
+              }}
+            >
+              Unlock
+            </button>
+          </div>
+        </div>
+      )}
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Patch Journal</h1>

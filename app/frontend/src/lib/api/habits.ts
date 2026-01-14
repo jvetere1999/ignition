@@ -50,6 +50,20 @@ export interface CompleteHabitResult {
   streak_bonus: boolean;
 }
 
+export interface HabitAnalytics {
+  total_habits: number;
+  active_habits: number;
+  completed_today: number;
+  total_completions: number;
+  completions_last_7_days: number;
+  completions_last_30_days: number;
+  completion_rate_7_days: number;
+  completion_rate_30_days: number;
+  longest_streak: number;
+  active_streaks: number;
+  last_completed_at: string | null;
+}
+
 // ============================================
 // API Methods
 // ============================================
@@ -82,6 +96,15 @@ export async function completeHabit(habitId: string, notes?: string): Promise<Co
     notes ? { notes } : undefined
   );
   return response.result;
+}
+
+/**
+ * Get habit analytics
+ * GET /api/habits/analytics
+ */
+export async function getHabitAnalytics(): Promise<HabitAnalytics> {
+  const response = await apiGet<{ analytics: HabitAnalytics }>('/api/habits/analytics');
+  return response.analytics;
 }
 
 // ============================================

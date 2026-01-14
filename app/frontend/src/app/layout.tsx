@@ -6,14 +6,26 @@ import { themeScript } from "@/lib/theme/script";
 import { SiteFooter } from "@/components/shell/SiteFooter";
 import { ErrorNotifications } from "@/components/ui/ErrorNotifications";
 import { ErrorNotificationInitializer } from "@/components/ui/ErrorNotificationInitializer";
+import { OfflineStatusBanner } from "@/components/ui/OfflineStatusBanner";
 import { ZenBrowserInitializer } from "@/components/browser/ZenBrowserInitializer";
 import { OnboardingGate } from "@/components/onboarding/OnboardingGate";
+import dynamic from "next/dynamic";
 import "@/styles/tokens.css";
 import "./globals.css";
 import "./zen-browser.css";
 
 // AdSense publisher ID - set to empty to disable ads
 const ADSENSE_PUBLISHER_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "";
+
+const OfflineQueueWorker = dynamic(
+  () => import("@/components/OfflineQueueWorker").then((mod) => mod.OfflineQueueWorker),
+  { ssr: false }
+);
+
+const ServiceWorkerRegistrar = dynamic(
+  () => import("@/components/ServiceWorkerRegistrar").then((mod) => mod.ServiceWorkerRegistrar),
+  { ssr: false }
+);
 
 export const metadata: Metadata = {
   title: {
@@ -141,10 +153,13 @@ export default function RootLayout({
           <ThemeProvider>
             <ZenBrowserInitializer />
             <OnboardingGate>
+              <OfflineStatusBanner />
               <div id="app-root">{children}</div>
               <SiteFooter />
               <ErrorNotifications />
               <ErrorNotificationInitializer />
+              <ServiceWorkerRegistrar />
+              <OfflineQueueWorker />
             </OnboardingGate>
           </ThemeProvider>
         </AuthProvider>
@@ -152,4 +167,3 @@ export default function RootLayout({
     </html>
   );
 }
-

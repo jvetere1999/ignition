@@ -99,6 +99,22 @@ pub struct HabitsListResponse {
     pub total: i64,
 }
 
+/// Habit analytics summary
+#[derive(Debug, Clone, Serialize)]
+pub struct HabitAnalyticsResponse {
+    pub total_habits: i64,
+    pub active_habits: i64,
+    pub completed_today: i64,
+    pub total_completions: i64,
+    pub completions_last_7_days: i64,
+    pub completions_last_30_days: i64,
+    pub completion_rate_7_days: f64,
+    pub completion_rate_30_days: f64,
+    pub longest_streak: i32,
+    pub active_streaks: i64,
+    pub last_completed_at: Option<DateTime<Utc>>,
+}
+
 // ============================================================================
 // GOALS
 // ============================================================================

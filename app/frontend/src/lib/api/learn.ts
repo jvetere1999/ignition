@@ -83,10 +83,36 @@ export interface LearnProgressSummary {
   current_streak_days: number;
 }
 
+export interface ContinueItem {
+  topic_id: string;
+  topic_name: string;
+  lesson_id: string;
+  lesson_title: string;
+  status: LessonStatus;
+  progress_pct: number;
+}
+
+export interface WeakArea {
+  concept_id: string | null;
+  term: string;
+  suggested_lesson_id: string | null;
+  suggested_lesson_title: string | null;
+  lapses: number;
+}
+
+export interface ActivityItem {
+  item_type: string;
+  title: string;
+  completed_at: string;
+}
+
 export interface LearnOverview {
   progress: LearnProgressSummary;
   review_count: number;
   topics: LearnTopic[];
+  continue_item: ContinueItem | null;
+  weak_areas: WeakArea[];
+  recent_activity: ActivityItem[];
 }
 
 export interface ReviewCard {
@@ -104,6 +130,25 @@ export interface ReviewCard {
 export interface ReviewItems {
   cards: ReviewCard[];
   totalDue: number;
+}
+
+export interface ReviewGradeCounts {
+  again: number;
+  hard: number;
+  good: number;
+  easy: number;
+}
+
+export interface ReviewAnalytics {
+  totalReviews: number;
+  reviewsLast7Days: number;
+  reviewsLast30Days: number;
+  retentionRate: number;
+  avgEaseFactor: number;
+  avgIntervalDays: number;
+  totalLapses: number;
+  lastReviewedAt: string | null;
+  grades: ReviewGradeCounts;
 }
 
 export interface GlossaryEntry {
@@ -195,6 +240,25 @@ interface ReviewWrapper {
   };
 }
 
+interface ReviewAnalyticsWrapper {
+  analytics: {
+    total_reviews: number;
+    reviews_last_7_days: number;
+    reviews_last_30_days: number;
+    retention_rate: number;
+    avg_ease_factor: number;
+    avg_interval_days: number;
+    total_lapses: number;
+    last_reviewed_at: string | null;
+    grades: {
+      again: number;
+      hard: number;
+      good: number;
+      easy: number;
+    };
+  };
+}
+
 interface ProgressWrapper {
   progress: LearnProgressSummary;
 }
@@ -274,8 +338,12 @@ interface JournalEntryWrapper {
   };
 }
 
-interface CompleteLessonResult {
-  result: CompleteLessonResult;
+export interface CompleteLessonResult {
+  lesson_id: string;
+  xp_awarded: number;
+  coins_awarded: number;
+  is_first_completion: boolean;
+  quiz_score: number | null;
 }
 
 interface DrillResult {
@@ -349,6 +417,22 @@ export async function submitReview(cardId: string, grade: number): Promise<Revie
     intervalDays: card.interval_days,
     easeFactor: card.ease_factor,
     lapses: card.lapses,
+  };
+}
+
+export async function getReviewAnalytics(): Promise<ReviewAnalytics> {
+  const response = await apiGet<ReviewAnalyticsWrapper>('/api/learn/review/analytics');
+  const analytics = response.analytics;
+  return {
+    totalReviews: analytics.total_reviews,
+    reviewsLast7Days: analytics.reviews_last_7_days,
+    reviewsLast30Days: analytics.reviews_last_30_days,
+    retentionRate: analytics.retention_rate,
+    avgEaseFactor: analytics.avg_ease_factor,
+    avgIntervalDays: analytics.avg_interval_days,
+    totalLapses: analytics.total_lapses,
+    lastReviewedAt: analytics.last_reviewed_at,
+    grades: analytics.grades,
   };
 }
 

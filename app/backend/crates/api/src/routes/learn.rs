@@ -9,6 +9,7 @@ use axum::{
     routing::{delete, get, post, put},
     Json, Router,
 };
+use crate::db::learn_models::{ActivityItem, ContinueItem, WeakArea};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -29,6 +30,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/lessons/{id}/start", post(start_lesson))
         .route("/lessons/{id}/complete", post(complete_lesson))
         .route("/drills/{id}/submit", post(submit_drill))
+        .route("/review/analytics", get(get_review_analytics))
         .route("/review", get(get_review_items).post(submit_review))
         .route("/progress", get(get_progress))
         .route("/glossary", get(list_glossary))
@@ -88,6 +90,11 @@ struct ReviewSubmitWrapper {
 }
 
 #[derive(Serialize)]
+struct ReviewAnalyticsWrapper {
+    analytics: ReviewAnalyticsResponse,
+}
+
+#[derive(Serialize)]
 struct ProgressWrapper {
     progress: LearnProgressSummary,
 }
@@ -97,6 +104,9 @@ struct LearnOverview {
     progress: LearnProgressSummary,
     review_count: i64,
     topics: Vec<TopicResponse>,
+    continue_item: Option<ContinueItem>,
+    weak_areas: Vec<WeakArea>,
+    recent_activity: Vec<ActivityItem>,
 }
 
 #[derive(Serialize)]
@@ -134,6 +144,7 @@ struct JournalEntryWrapper {
     entry: JournalEntryResponse,
 }
 
+
 #[derive(Debug, Deserialize)]
 struct ReviewSubmitBody {
     card_id: Uuid,
@@ -159,12 +170,18 @@ async fn get_overview(
     let progress = LearnRepo::get_progress_summary(&state.db, user.id).await?;
     let topics = LearnRepo::list_topics(&state.db, user.id).await?;
     let review = LearnRepo::get_review_items(&state.db, user.id).await?;
+    let continue_item = LearnRepo::get_continue_item(&state.db, user.id).await?;
+    let weak_areas = LearnRepo::get_weak_areas(&state.db, user.id).await?;
+    let recent_activity = LearnRepo::get_recent_activity(&state.db, user.id).await?;
 
     Ok(Json(OverviewWrapper {
         items: LearnOverview {
             progress,
             review_count: review.total_due,
             topics: topics.topics,
+            continue_item,
+            weak_areas,
+            recent_activity,
         },
     }))
 }
@@ -291,6 +308,16 @@ async fn submit_review(
 ) -> Result<Json<ReviewSubmitWrapper>, AppError> {
     let result = LearnRepo::submit_review(&state.db, user.id, body.card_id, body.grade).await?;
     Ok(Json(ReviewSubmitWrapper { result }))
+}
+
+/// GET /learn/review/analytics
+/// Get review analytics summary
+async fn get_review_analytics(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+) -> Result<Json<ReviewAnalyticsWrapper>, AppError> {
+    let analytics = LearnRepo::get_review_analytics(&state.db, user.id).await?;
+    Ok(Json(ReviewAnalyticsWrapper { analytics }))
 }
 
 /// GET /learn/progress

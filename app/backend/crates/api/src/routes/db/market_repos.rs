@@ -17,10 +17,9 @@ impl MarketRepo {
         sqlx::query_as::<_, MarketItem>(
             r#"
             SELECT * FROM market_items
-            WHERE available = TRUE
-            AND (available_from IS NULL OR available_from <= NOW())
-            AND (available_until IS NULL OR available_until > NOW())
-            ORDER BY category, name
+            WHERE is_available = TRUE
+            AND is_active = TRUE
+            ORDER BY sort_order, name
             "#,
         )
         .fetch_all(pool)
@@ -34,8 +33,8 @@ impl MarketRepo {
         sqlx::query_as::<_, MarketItem>(
             r#"
             SELECT * FROM market_items
-            WHERE category = $1 AND available = TRUE
-            ORDER BY name
+            WHERE category = $1 AND is_available = TRUE AND is_active = TRUE
+            ORDER BY sort_order, name
             "#,
         )
         .bind(category)
@@ -66,11 +65,18 @@ impl MarketRepo {
     ) -> Result<UserWallet, SqlxError> {
         sqlx::query_as::<_, UserWallet>(
             r#"
-            INSERT INTO user_wallet (id, user_id, total_coins, earned_coins, spent_coins)
-            VALUES (gen_random_uuid(), $1, 0, 0, 0)
-            ON CONFLICT (user_id) DO UPDATE
-            SET updated_at = NOW()
-            RETURNING *
+            WITH existing AS (
+                SELECT * FROM user_wallet WHERE user_id = $1 LIMIT 1
+            ),
+            inserted AS (
+                INSERT INTO user_wallet (id, user_id, coins, total_earned, total_spent)
+                SELECT gen_random_uuid(), $1, 0, 0, 0
+                WHERE NOT EXISTS (SELECT 1 FROM existing)
+                RETURNING *
+            )
+            SELECT * FROM inserted
+            UNION ALL
+            SELECT * FROM existing
             "#,
         )
         .bind(user_id)
@@ -86,7 +92,7 @@ impl MarketRepo {
     ) -> Result<Vec<UserMarketPurchase>, SqlxError> {
         sqlx::query_as::<_, UserMarketPurchase>(
             r#"
-            SELECT * FROM user_market_purchases
+            SELECT * FROM user_purchases
             WHERE user_id = $1
             ORDER BY purchased_at DESC
             "#,
@@ -117,7 +123,7 @@ impl MarketRepo {
             .await?
             .ok_or_else(|| SqlxError::RowNotFound)?;
 
-        if wallet.total_coins < total_cost {
+        if wallet.coins < total_cost {
             return Err(SqlxError::RowNotFound); // Insufficient coins
         }
 
@@ -125,8 +131,8 @@ impl MarketRepo {
         sqlx::query(
             r#"
             UPDATE user_wallet
-            SET total_coins = total_coins - $1,
-                spent_coins = spent_coins + $1,
+            SET coins = coins - $1,
+                total_spent = total_spent + $1,
                 updated_at = NOW()
             WHERE user_id = $2
             "#,
@@ -150,21 +156,33 @@ impl MarketRepo {
         .await?;
 
         // Create or update purchase
+        let uses_remaining = if item.is_consumable {
+            item.uses_per_purchase.map(|uses| uses * quantity)
+        } else {
+            None
+        };
+
         sqlx::query_as::<_, UserMarketPurchase>(
             r#"
-            INSERT INTO user_market_purchases
-            (id, user_id, item_id, quantity, cost_paid_coins)
-            VALUES (gen_random_uuid(), $1, $2, $3, $4)
+            INSERT INTO user_purchases
+            (id, user_id, item_id, cost_coins, quantity, purchased_at, status, uses_remaining)
+            VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW(), 'purchased', $5)
             ON CONFLICT (user_id, item_id) DO UPDATE
-            SET quantity = quantity + $3,
-                cost_paid_coins = cost_paid_coins + $4
+            SET quantity = user_purchases.quantity + $4,
+                cost_coins = user_purchases.cost_coins + $3,
+                uses_remaining = CASE
+                    WHEN $5 IS NULL THEN user_purchases.uses_remaining
+                    WHEN user_purchases.uses_remaining IS NULL THEN $5
+                    ELSE user_purchases.uses_remaining + $5
+                END
             RETURNING *
             "#,
         )
         .bind(user_id)
         .bind(item_id)
-        .bind(quantity)
         .bind(total_cost)
+        .bind(quantity)
+        .bind(uses_remaining)
         .fetch_one(pool)
         .await
     }

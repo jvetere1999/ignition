@@ -17,8 +17,10 @@
 7. Data Persistence & Sync Rules  
 8. Outstanding Issues & Blockers  
 9. End-to-End Encryption (E2EE) — Option A (SSO + Multi-Device)  
-10. Forward Security & Platform Requirements (Imperatives)  
-11. Explicit Decisions Required (Open)  
+10. Forward-Looking Items (Strategic) — Retained Verbatim  
+11. Explicit Decisions — Resolved and Open  
+12. Future State Specification: Starter Engine V2 (Dynamic UI & Decision Intelligence)  
+13. Implementation Updates (January 2026)  
 
 ---
 
@@ -372,11 +374,12 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 - Waveform visualization
 - Marker points for sections
 - Analysis caching
+- Optional passphrase encryption on upload for private references
 
 **Data Storage:**
 - Postgres: `track_analysis_cache`
 - Browser: File references (IndexedDB/File System Access API)
-- R2: Audio files
+- R2: Audio files (optionally client-encrypted)
 
 ---
 
@@ -396,14 +399,15 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 ## Knowledge & Learning Suite
 
 ### 14. **Learn Dashboard** (`/learn`)
-**Status:** ✅ Partially Complete  
+**Status:** ✅ Implemented  
 **Purpose:** Central hub for learning features
 
 **Features:**
 - Overview + review count (✅)
-- Continue item (⚠️ Placeholder)
-- Weak areas (⚠️ Placeholder)
-- Recent activity (⚠️ Placeholder)
+- Continue item (✅)
+- Weak areas (✅)
+- Recent activity (✅)
+- Review analytics snapshot (✅)
 
 **Data Storage:**
 - Postgres: Learning tables
@@ -414,21 +418,20 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 ---
 
 ### 15. **Courses** (`/learn/courses`)
-**Status:** ⚠️ Incomplete  
+**Status:** ✅ Implemented  
 **Purpose:** Structured learning modules
 
 **Features:**
-- Course catalog: ❌ "Coming Soon"
-- Lesson progression: 🟡 Partial
-- Quiz assessments: 🟡 Partial
+- Course catalog: ✅ Live
+- Lesson progression: ✅ Live
+- Quiz assessments: ✅ Lesson quiz UI + scoring
 - Progress tracking: ✅
 
 **Data Storage:**
 - Postgres: `learn_courses`, `learn_lessons`, `learn_progress`
 
-**Issues:**
-- Catalog browsing UI still incomplete
-- Backend endpoints exist but UI layer missing
+**Notes:**
+- Quiz/assessment UX remains a follow-up item
 
 ---
 
@@ -445,13 +448,30 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 **Data Storage:**
 - Postgres: `learn_flashcards`, `learn_reviews`
 
-**Gap:**
-- Retention metrics and review history summaries not surfaced in UI yet
-- Analytics available in DB but not visualized
+**Notes:**
+- Review analytics surfaced in Learn dashboard (retention, lapses, interval stats).
 
 ---
 
-### 17. **Recipes** (`/learn/recipes`)
+### 17. **Practice (Drills)** (`/learn/practice`)
+**Status:** ✅ Implemented  
+**Purpose:** Guided drills and practice sessions
+
+**Features:**
+- Drill list by topic
+- Log session results (score, accuracy, time)
+- Best score + streak tracking
+
+**Data Storage:**
+- Postgres: `learn_drills`, `user_drill_stats`
+
+**APIs:**
+- `GET /api/learn/topics/:id/drills` - List drills
+- `POST /api/learn/drills/:id/submit` - Submit drill result
+
+---
+
+### 18. **Recipes** (`/learn/recipes`)
 **Status:** ✅ Implemented  
 **Purpose:** Production workflow recipes and techniques
 
@@ -466,7 +486,7 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 
 ---
 
-### 18. **Glossary** (`/learn/glossary`)
+### 19. **Glossary** (`/learn/glossary`)
 **Status:** ✅ Implemented  
 **Purpose:** Music production terminology dictionary
 
@@ -480,7 +500,7 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 
 ---
 
-### 19. **Journal** (`/learn/journal`)
+### 20. **Journal** (`/learn/journal`)
 **Status:** ✅ Implemented  
 **Purpose:** Personal learning and production journal
 
@@ -490,11 +510,11 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 - Search and filter
 
 **Data Storage:**
-- Postgres: `learn_journal_entries`
+- Postgres: `learn_journal_entries` (content encrypted client-side)
 
 ---
 
-### 20. **Infobase** (`/infobase`)
+### 21. **Infobase** (`/infobase`)
 **Status:** ✅ Implemented  
 **Purpose:** Personal knowledge base for notes and information
 
@@ -506,13 +526,14 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 - Markdown content
 
 **Data Storage:**
-- LocalStorage (with Postgres sync planned via `infobase_entries`)
+- Postgres: `infobase_entries` (content encrypted client-side)
+- LocalStorage fallback: `passion_infobase_v1` (deprecated when `DISABLE_MASS_LOCAL_PERSISTENCE` is true)
 
 ---
 
 ## System & Infrastructure
 
-### 21. **Settings** (`/settings`)
+### 22. **Settings** (`/settings`)
 **Status:** ✅ Fully Implemented  
 **Purpose:** User preferences and app configuration
 
@@ -527,7 +548,7 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 
 ---
 
-### 22. **Admin Console** (`/admin`)
+### 23. **Admin Console** (`/admin`)
 **Status:** ✅ Fully Implemented  
 **Purpose:** Administrative interface for system management
 
@@ -539,10 +560,11 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 - Skill configuration
 - Feedback review
 - System statistics
+- E2EE opaque-content banner (encrypted data cannot be inspected)
 
 ---
 
-### 23. **Authentication**
+### 24. **Authentication**
 **Status:** ✅ Fully Implemented  
 **Purpose:** OAuth-based user authentication and authorization
 
@@ -561,7 +583,7 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 
 ---
 
-### 24. **Command Palette** (`Cmd/Ctrl + K`)
+### 25. **Command Palette** (`Cmd/Ctrl + K`)
 **Status:** ✅ Fully Implemented  
 **Purpose:** Global search and quick navigation
 
@@ -574,7 +596,7 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 
 ---
 
-### 25. **Mobile PWA** (`/m/*`)
+### 26. **Mobile PWA** (`/m/*`)
 **Status:** ✅ Fully Implemented  
 **Purpose:** Mobile-optimized progressive web app
 
@@ -605,8 +627,9 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 | **Market** | 2 | ⭐⭐ | ✅ | 🟡 | Complete | market tables | `/api/market/*` | Memory cache (5m) |
 | **Hub (DAW Shortcuts)** | 2 | ⭐⭐ | ✅ | 🟡 | Complete | Static JSON | - | LocalStorage (preferences) |
 | **Reference Tracks** | 2 | ⭐⭐ | ✅ | ❌ | Complete | track_analysis_cache | `/api/analysis` | Memory cache (1m) |
-| **Learn Dashboard** | 2 | ⭐⭐ | ✅ | 🟡 | Partial | learn_* tables | `/api/learn` | Memory cache (2m) |
+| **Learn Dashboard** | 2 | ⭐⭐ | ✅ | 🟡 | Complete | learn_* tables | `/api/learn` | Memory cache (2m) |
 | **Review (Flashcards)** | 2 | ⭐⭐ | ✅ | 🟡 | Complete | learn_flashcards, learn_reviews | `/api/learn/review` | Memory cache (2m) |
+| **Practice (Drills)** | 2 | ⭐ | ✅ | 🟡 | Complete | learn_drills, user_drill_stats | `/api/learn/topics/:id/drills`, `/api/learn/drills/:id/submit` | Memory cache (2m) |
 | **Journal** | 2 | ⭐ | ✅ | ❌ | Complete | learn_journal_entries | `/api/learn/journal` | Memory cache (2m) |
 | **Infobase** | 2 | ⭐ | ✅ | ❌ | Complete | infobase_entries | `/api/infobase` | Memory cache (1m) |
 | **Recipes** | 3 | ⭐ | ✅ | ❌ | Complete | recipe tables | `/api/learn/recipes` | Memory cache (5m) |
@@ -616,7 +639,7 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 | **Command Palette** | 3 | ⭐⭐ | ✅ | ❌ | Complete | - | - | Static + memory |
 | **Admin Console** | 3 | ⭐ | ✅ | ❌ | Complete | admin tables | `/api/admin/*` | Memory cache (5m) |
 | **Mobile PWA** | 2 | ⭐⭐ | ❌ | ✅ | Complete | All (mirrored) | All (mirrored) | Service Worker |
-| **Courses (UI)** | 2 | ⭐ | ✅ | ❌ | ⚠️ Incomplete | learn_courses, learn_lessons | `/api/learn/courses` | Memory cache (5m) |
+| **Courses (UI)** | 2 | ⭐ | ✅ | 🟡 | Complete (Desktop) | learn_courses, learn_lessons | `/api/learn/courses` | Memory cache (5m) |
 
 ---
 
@@ -624,17 +647,13 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 
 ## Critical Gaps
 
-### 1. Learning Courses UI
-- Backend exists; UI missing
-- Need catalog browsing + enrollment + lesson progression
+### 1. E2EE Recovery Flows
+- Recovery code lifecycle and vault reset UX not implemented
+- Requires explicit SSO re-auth + confirmation flow
 
-### 2. Learning Dashboard Depth
-- Missing continue item, weak areas, recent activity
-- Requires backend `/api/learn` expansion + UI
-
-### 3. Review Analytics
-- Metrics exist but not visualized
-- Requires analytics components and dashboard surfacing
+## Closed Gaps (January 2026)
+- Review Analytics surfaced on Learn dashboard (retention, intervals, lapses).
+- Offline UX visibility added with banner + queued mutation count.
 
 ---
 
@@ -646,6 +665,12 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 - R2 versioning
 - Client-side encryption, chunked uploads, resumability
 
+## 1.1 DAW Folder Watcher Agent (Local)
+- Local agent watches user-designated DAW project folders (e.g., `.als`, `.flp`, `.logicx`)
+- Sends change events + metadata (hash/size/mtime) and can trigger encrypted uploads
+- Explicit opt-in required; no silent background syncing
+- Must respect E2EE posture and revocation rules if sharing is enabled
+
 ## 2. Telemetry & Analytics Framework
 - Feature engagement
 - Learning outcomes
@@ -655,12 +680,12 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 ## 3. Advanced Learning Features
 - Weak area detection
 - Learning path recommendations
-- Review analytics dashboard
+- Review analytics dashboard (✅ shipped in Learn)
 
-## 4. Habit System Completion
-- Daily habit log UI
-- Streak tracking
-- Habit analytics
+## 4. Habit System Completion (✅ Shipped)
+- Daily habit log UI ✅
+- Streak tracking ✅
+- Habit analytics ✅ (`/api/habits/analytics` + dashboard)
 
 ---
 
@@ -715,7 +740,7 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 | Reference Tracks | ✅ Metadata | - | - | ✅ Primary | On upload/download | Permanent | Memory cache |
 | DAW Shortcuts | Static | ✅ Preferences | - | - | On change | N/A | LocalStorage |
 | DAW Projects | ✅ Metadata | - | - | ✅ Primary | Versioned + chunked | Permanent | R2 + metadata |
-| Infobase | ✅ Primary | 🔄 Sync planned | - | - | On save + periodic | 1m | SyncState cache |
+| Infobase | ✅ Primary | ⚠️ Deprecated fallback (`passion_infobase_v1`) | - | - | On save + periodic | 1m | SyncState cache |
 | Audio Analysis | ✅ Cache | - | - | - | On reference add | 1m | Memory cache |
 | Learning Cards | ✅ Primary | - | - | - | On mount + optimistic | 2m | SyncState cache |
 | Journal Entries | ✅ Primary | - | - | - | On save | 2m | SyncState cache |
@@ -752,15 +777,26 @@ Tier 4 (Validation) → Background staleness check; refetch if >window
 
 **Current Implementations:**
 ```
+# Active (cosmetic or local-only)
 passion_os_theme_prefs_v1          → Theme ID (dark/light/system)
-passion_os_theme_extended_config   → Extended theme settings
-passion_os_player_settings_v1      → Audio player volume, playlist state
-passion_os_daw_shortcuts_os        → DAW shortcuts OS preference
-passion_os_daw_shortcuts_view      → DAW shortcuts view preference
-passion_os_infobase_sort_v1        → Infobase list sort order (planned)
-passion_os_collapse_state_v1       → Section collapse state (unsafe - sessionStorage preferred)
-passion_os_language_v1             → User language preference (future)
-passion_os_accessibility_v1        → A11y preferences (future)
+theme                              → Legacy theme string (deprecated)
+passion-os-theme                   → Legacy theme fallback (deprecated)
+passion_player_v1                  → Player settings (volume, playback speed)
+passion_player_queue_v1            → Player queue snapshot
+omnibar_command_history_v1         → Command palette history
+passion_command_metrics_v1         → Omnibar metrics
+passion_arrangements_v1            → Arrange data (local-only)
+passion_waveform_cache_v1          → Waveform cache (local-only)
+
+# Deprecated fallbacks (gated by DISABLE_MASS_LOCAL_PERSISTENCE)
+focus_settings                     → Focus settings (deprecated)
+focus_paused_state                 → Focus pause fallback (deprecated)
+passion_goals_v1                   → Goals cache fallback (deprecated)
+passion_quest_progress_v1          → Quest progress fallback (deprecated)
+passion_infobase_v1                → Infobase cache fallback (deprecated)
+passion_learn_settings_v1          → Learn settings fallback (deprecated)
+music_ideas                        → Ideas cache fallback (deprecated)
+passion_analysis_cache_v1          → Audio analysis cache (deprecated)
 ```
 
 **Write Pattern:**
@@ -780,11 +816,11 @@ passion_os_accessibility_v1        → A11y preferences (future)
 
 **Current Implementations:**
 ```
-soft_landing_state                 → Today page Soft Landing override (TTL: session)
-focus_timer_muted                  → Focus timer sound mute state (TTL: session)
-player_volume_unsaved              → Pending volume change (flushed before navigation)
-quick_plan_expand_state            → DailyPlan expansion toggle (TTL: session)
-explore_drawer_state               → ExploreDrawer open/close state (TTL: session)
+passion_soft_landing_v1            → Today page Soft Landing state (TTL: session)
+passion_soft_landing_source        → Soft Landing trigger source (TTL: session)
+passion_momentum_v1                → Momentum feedback shown/dismissed (TTL: session)
+today_reduced_mode_dismissed       → Reduced Mode dismissal flag (TTL: session)
+passion_refresh_<feature>          → Last fetch timestamp per feature (auto-refresh)
 ```
 
 **Write Pattern:**
@@ -842,9 +878,8 @@ if (cached && !isStale(cached)) {
 
 **Current Implementations:**
 ```
-audio_analysis_cache               → Waveform + BPM analysis (key: track hash)
-offline_sync_queue                 → Pending offline mutations (for PWA)
-player_queue_backup                → Playlist queue (large array backup)
+ignition-offline/mutations         → Pending offline mutations (PWA queue)
+passion_os_audio/audio_files       → Stored audio files for Reference Tracks
 ```
 
 **Pattern:**
@@ -1029,30 +1064,32 @@ if (cached?.hash !== apiHash) {
 | Key | Feature | Type | Component | Scope | Size | Backend Sync | Notes |
 |-----|---------|------|-----------|-------|------|--------------|-------|
 | `passion_os_theme_prefs_v1` | Theme | String (theme ID) | ThemeProvider | Cross-tab | <100B | Yes (async) | ✅ Using safe wrappers |
-| `theme` | Theme | String (dark/light) | CommandPalette | Cross-tab | <20B | Deprecated | ⚠️ Legacy (should migrate to v1) |
+| `theme` | Theme | String (dark/light) | CommandPalette | Cross-tab | <20B | Deprecated | ⚠️ Legacy theme toggle |
 | `passion-os-theme` | Theme | String | theme/script.ts | Cross-tab | <20B | No | ⚠️ Legacy fallback |
-| `focus_settings` | Focus | JSON | FocusClient | Cross-tab | ~500B | No | Duration + notification prefs |
-| `focus_paused_state` | Focus | JSON | UnifiedBottomBar, FocusIndicator | Cross-tab | ~100B | No | Cross-device pause sync via Postgres |
-| `passion_os_player_settings_v1` | Audio Player | JSON | player/persist.ts | Cross-tab | ~200B | Yes (periodic) | Volume, playback speed, etc. |
-| `passion_os_player_queue` | Player Queue | JSON | player/persist.ts | Cross-tab | Variable | No | Current playlist (cosmetic only) |
-| `passion_os_waveform_cache` | Audio Analysis | JSON | player/waveform.ts | Cross-tab | ~10KB | No | Waveform data (LRU with trim) |
-| `passion_os_audio_analysis_v2` | Audio Analysis | JSON | player/analysis-cache.ts | Cross-tab | ~50KB | No | BPM + key detection cache |
-| `omnibar_command_history_v1` | Command Palette | JSON | command-palette/behavioral-intelligence.ts | Cross-tab | ~5KB | No | Recent commands + usage metrics |
-| `COMMAND_METRICS_KEY` | Command Metrics | JSON | OmnibarEnhanced.tsx | Cross-tab | ~2KB | No | Command usage tracking |
-| `music_ideas` | Music Ideas | JSON | IdeasClient.tsx | Cross-tab | Variable | No | Local idea storage (not synced) |
-| `arrange_storage` | Arrange Tool | JSON | ArrangeClient.tsx | Cross-tab | ~10KB | No | Arrangement data (local only) |
-| `infobase_entries` | Infobase | JSON | InfobaseClient.tsx | Cross-tab | Variable | Planned | Knowledge base entries |
-| `passion_os_audio_db` | Audio DB | - | player/local-storage.ts | Cross-tab | N/A | No | Legacy DB name reference |
+| `focus_settings` | Focus | JSON | FocusClient.tsx | Cross-tab | ~500B | No | Deprecated when `DISABLE_MASS_LOCAL_PERSISTENCE` |
+| `focus_paused_state` | Focus | JSON | FocusClient.tsx | Cross-tab | ~100B | No | Deprecated fallback |
+| `passion_player_v1` | Audio Player | JSON | player/persist.ts | Cross-tab | ~500B | No | Player settings (volume, speed) |
+| `passion_player_queue_v1` | Player Queue | JSON | player/persist.ts | Cross-tab | Variable | No | Queue snapshot (cosmetic) |
+| `passion_waveform_cache_v1` | Waveform Cache | JSON | player/waveform.ts | Cross-tab | ~50KB | No | Local-only waveform cache |
+| `passion_analysis_cache_v1` | Audio Analysis | JSON | player/analysis-cache.ts | Cross-tab | ~50KB | No | Deprecated when `DISABLE_MASS_LOCAL_PERSISTENCE` |
+| `omnibar_command_history_v1` | Command Palette | JSON | command-palette/behavioral-intelligence.ts | Cross-tab | ~5KB | No | Recent commands |
+| `passion_command_metrics_v1` | Command Metrics | JSON | OmnibarEnhanced.tsx | Cross-tab | ~2KB | No | Command usage metrics |
+| `passion_goals_v1` | Goals | JSON | GoalsClient.tsx | Cross-tab | Variable | No | Deprecated fallback |
+| `passion_quest_progress_v1` | Quests | JSON | QuestsClient.tsx | Cross-tab | Variable | No | Deprecated fallback |
+| `passion_infobase_v1` | Infobase | JSON | InfobaseClient.tsx | Cross-tab | Variable | No | Deprecated fallback |
+| `passion_learn_settings_v1` | Learn Settings | JSON | learn/settings/page.tsx | Cross-tab | ~1KB | No | Deprecated fallback |
+| `music_ideas` | Ideas | JSON | IdeasClient.tsx | Cross-tab | Variable | No | Deprecated fallback |
+| `passion_arrangements_v1` | Arrange Tool | JSON | ArrangeClient.tsx | Cross-tab | Variable | No | Local-only arrangement data |
 
 **SessionStorage Keys (Cleared on Tab Close):**
 
 | Key | Feature | Type | Component | Scope | TTL | Content | Notes |
 |-----|---------|------|-----------|-------|-----|---------|-------|
-| `soft_landing_state` | Today Page | JSON | DailyPlan | Single-tab | Session | Override flag + timestamp | Prevents collapse/expand flashing |
-| `quick_plan_expand_state` | Daily Plan | JSON | DailyPlan | Single-tab | Session | Section expand/collapse flags | Transient UI state |
-| `explore_drawer_state` | Today Drawer | JSON | ExploreDrawer | Single-tab | Session | Drawer open/close + scroll position | Quick access state |
-| `focus_timer_muted` | Focus | Boolean | FocusClient | Single-tab | Session | Mute toggle (pending API update) | User preference for session |
-| `player_volume_unsaved` | Player | Number | Player | Single-tab | Session | Pending volume value | Synced to localStorage on save |
+| `passion_soft_landing_v1` | Today Page | String | lib/today/softLanding.ts | Single-tab | Session | Soft landing state | Transient UI state |
+| `passion_soft_landing_source` | Today Page | String | lib/today/softLanding.ts | Single-tab | Session | Soft landing source | Diagnostics |
+| `passion_momentum_v1` | Momentum | String | lib/today/momentum.ts | Single-tab | Session | Feedback shown/dismissed | Transient UI state |
+| `today_reduced_mode_dismissed` | Reduced Mode | String | ReducedModeBanner.tsx | Single-tab | Session | Dismiss flag | Prevents re-show |
+| `passion_refresh_<feature>` | Auto-refresh | String | useAutoRefresh.ts | Single-tab | Session | Last fetch timestamp | Prefix-based keys |
 
 **Safe Wrapper Implementation:**
 ```typescript
@@ -1102,10 +1139,11 @@ export function safeSetItem(key: string, value: string): boolean {
 - ✅ Error recovery: 401 → signOut, 5xx → retry with exponential backoff
 
 **Offline Support:**
-- 🟡 Partial: Read cache available, write disabled
-- ❌ No service worker (PWA offline read not yet implemented)
-- ❌ No offline queue for mutations
-- ❌ No automatic reconnection logic
+- ✅ Service worker caches GET `/api/*` (network-first with cache fallback)
+- ✅ IndexedDB offline mutation queue with replay on reconnect
+- ✅ Uses `navigator.locks` to serialize API mutations + offline replay
+- ✅ Offline queue blocks E2EE writes when offline (no queued ciphertext)
+- ✅ Offline banner + queued mutation count visible in UI
 
 **Cross-Device Sync:**
 - ✅ Postgres polling (30s for focus/planner, 1-2m for quests/habits)
@@ -1117,15 +1155,16 @@ export function safeSetItem(key: string, value: string): boolean {
 - ✅ LocalStorage changes sync via Storage events
 - ✅ SessionStorage isolated per tab (intentional)
 - ⚠️ Race conditions possible if multiple tabs write simultaneously
-- ❌ No Web Locks API for write coordination
+- 🟡 Web Locks used for offline queue replay only; no general write coordination
 
 ---
 
 #### Proposed Enhancement Patterns (Prioritized)
 
 **Priority 1: Offline Read (High Impact)**
+Status: ✅ Implemented (`/public/sw.js` caches GET `/api/*` with network-first + cache fallback)
 ```typescript
-// Pattern: Service Worker Cache-First
+// Pattern: Service Worker Network-First (cache fallback)
 // Benefit: Fast repeat visits, graceful offline read
 // Cost: Cache invalidation complexity
 
@@ -1139,12 +1178,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method === 'GET') {
     event.respondWith(
       caches.open('api-cache-v1').then(cache => {
-        return cache.match(event.request)
-          .then(response => response || fetch(event.request))
+        return fetch(event.request)
           .then(response => {
             cache.put(event.request, response.clone());
             return response;
-          });
+          })
+          .catch(() => cache.match(event.request));
       })
     );
   }
@@ -1192,6 +1231,7 @@ syncState.quests = mergeChanges(syncState.quests, changes);
 ```
 
 **Priority 4: Offline Queue with Sync (High Complexity)**
+Status: ✅ Implemented for non-E2EE writes (IndexedDB queue + replay on `online`)
 ```typescript
 // Pattern: Queue mutations when offline, replay on reconnect
 // Benefit: Seamless offline experience (write + sync later)
@@ -1248,9 +1288,6 @@ ws.addEventListener('message', (event) => {
 
 | Gap | Impact | Complexity | Timeline |
 |-----|--------|-----------|----------|
-| No Service Worker | Can't read offline | 1 day | v1.2 |
-| No Offline Queue | Can't write offline | 3 days | v1.3 |
-| No Web Locks | Multi-tab races possible | 1 day | v1.2 |
 | No Delta Sync | Bandwidth inefficient | 2 days | v2.0 |
 | No Real-Time Push | 30s sync delay | 2 weeks | v2.1 |
 | Legacy localStorage Keys | Technical debt | 1 day | v1.1 |
@@ -1266,18 +1303,18 @@ ws.addEventListener('message', (event) => {
    - **All existing data preserved in new key**
 
 2. **Safe Wrapper Expansion (1 day):**
-   - ✅ Already done: `storage-safe.ts`
-   - Wrap all remaining localStorage calls
+   - ✅ `storage-safe.ts` shipped
+   - ⚠️ Remaining direct localStorage calls still exist
    - Test in incognito mode
 
 3. **Service Worker (1 day):**
-   - Add `/public/sw.js`
-   - Cache GET `/api/*` responses
-   - Show offline indicator UI
+   - ✅ `/public/sw.js` shipped
+   - ✅ Caches GET `/api/*` responses
+   - ✅ Offline indicator UI + queue count banner
 
 4. **Web Locks (1 day):**
-   - Wrap localStorage writes in `navigator.locks.request()`
-   - Wrap API mutations in lock acquisition
+   - ✅ Applied to API mutations (client lock `api-mutation`)
+   - ⚠️ Not yet applied to direct localStorage writes
 
 5. **IndexedDB Migration (2 days):**
    - Migrate audio cache from localStorage to IndexedDB
@@ -1328,20 +1365,22 @@ Encrypt user intellectual property so **only the user can decrypt**; server stor
 ## Architecture
 
 User Vault Passphrase
-  → derive wrapping key (Argon2id)
-  → unwrap per-user KEK (vault key)
-  → encrypt/decrypt private work with KEK (XChaCha20-Poly1305)
+  → derive key (PBKDF2-HMAC-SHA256, 100k iterations, 16-byte salt)
+  → encrypt/decrypt private work (AES-256-GCM, 12-byte IV)
+
+**Note:** v1 ships without KEK wrapping or Argon2id; those remain planned for v2.
 
 ## Vault Operations
 - Init vault (first-time)
 - Unlock vault (per session/device)
-- Rewrap KEK (passphrase change)
-- Recovery codes (one-time)
+- Rewrap KEK (passphrase change) — v2
+- Recovery codes (one-time) — v2
 
 ## Record Rules
 - One encrypted blob per record
-- Nonce 24 bytes
-- AAD binds user_id + record_id + type + version
+- IV 12 bytes, salt 16 bytes
+- Payload format: `{ iv, salt, cipher, version }`
+- AAD not used in v1 (future: bind user_id + record_id + type + version)
 
 ## DAW Files
 - Chunked client encryption
@@ -1729,6 +1768,43 @@ Why:
 
 ---
 
+# 11. Explicit Decisions — Resolved and Open
+
+## A. Cryptography & Versioning
+- Resolved: Set `crypto_policy_version = 1` for current AES-GCM + PBKDF2 scheme; publish baseline CryptoPolicy.
+- Resolved: Migrate only when algorithms or key formats change ("when necessary").
+- Complexity: low (version tag + policy doc checkpoint).
+- Open: Per-record DEKs (wrapped by KEK) in v2—decision pending.
+
+## B. UX & Vault Behavior
+- Resolved: Unlock once per session.
+- Resolved: Auto-lock when session ends.
+- Resolved: Offline read allowed after unlock.
+- Resolved: Offline write not allowed (no queued ciphertext).
+
+## C. Metadata Leakage
+- Resolved: Only IP-bearing content encrypted.
+- Resolved: Tags/categories/titles remain plaintext unless flagged as private work.
+
+## D. Recovery & Support
+- Open: Recovery code lifecycle (rotation, revocation, invalidation).
+- Open: Vault reset policy (what is destroyed, confirmation flow, re-auth requirements).
+- Options to evaluate:
+  - Time-locked recovery flow with SSO re-auth and multi-step confirmation
+  - One-time recovery codes with rotation + explicit invalidation on use
+  - Vault reset that destroys all encrypted data and forces fresh vault init
+
+## E. Search & Indexing
+- Resolved: Client-side index stored in IndexedDB.
+- Resolved: Deterministic token search allowed locally only.
+- Open: Index max size and eviction policy.
+
+## F. Collaboration Scope
+- Resolved: Single-user encrypted content only (v1/v2).
+- Feasible future: Friend list + secondary revocable keys via per-friend wrapping keys and key rotation on revocation (non-trivial complexity).
+
+---
+
 # 12. Future State Specification: Starter Engine V2 (Dynamic UI & Decision Intelligence)
 
 **Status:** DRAFT  
@@ -1956,35 +2032,21 @@ Regression tests:
 - Reduced Mode must remain state-driven; ranking must not override collapse safety states.
 
 
-# 11. Explicit Decisions Required (Open) — Grouped
+# 13. Implementation Updates (January 2026)
 
-## A. Cryptography & Versioning
-1. Set initial `crypto_policy_version` value and publish CryptoPolicy baseline.
-2. Decide algorithm agility policy: when and how to migrate record formats.
-3. Decide whether to introduce per-record DEKs (wrapped by KEK) in v2.
-
-## B. UX & Vault Behavior
-4. Decide unlock UX: unlock once per session vs per action vs inactivity timer.
-5. Decide vault auto-lock triggers and timeouts (desktop vs mobile).
-6. Decide whether offline read is allowed after unlock.
-7. Decide whether offline write is allowed (queue ciphertext) and how it syncs.
-
-## C. Metadata Leakage
-8. Decide whether tags/categories remain plaintext or become encrypted.
-9. Decide whether titles are encrypted always, or only for `is_private_work`.
-
-## D. Recovery & Support
-10. Decide recovery code lifecycle: rotation, revocation, and invalidation rules.
-11. Decide whether “vault reset” exists and what it destroys.
-
-## E. Search & Indexing
-12. Decide client-side index storage: memory-only vs IndexedDB; max size; eviction.
-13. Decide whether deterministic token search is ever allowed (leakage tradeoff).
-
-## F. Collaboration Scope
-14. Explicitly declare: single-user encrypted content only (v1/v2) OR commit to group-key architecture.
-
----
+- Client-side E2EE shipping: Infobase, Ideas, Journal, and Reference track uploads now support passphrase-gated encryption/decryption (AES-GCM, PBKDF2); admin console shows “encrypted content opaque” notice.
+- Offline safety: Added service worker caching for GET `/api/*` and an IndexedDB mutation queue with navigator.locks to replay POST/PUT/PATCH/DELETE when back online (queue must exclude E2EE data to honor “offline write not allowed” for ciphertext).
+- E2EE offline policy: Mutation queue now blocks encrypted endpoints when offline.
+- Offline UX visibility: Global banner shows offline status and queued mutation counts.
+- Multi-tab safety: API mutations now use `navigator.locks` to serialize writes.
+- Learning suite: Courses UI now renders live topics/lessons; Learn dashboard consumes continue item, weak areas, recent activity from `/api/learn`.
+- Quiz assessments: Lesson viewer now renders content + quiz UI and records quiz scores on completion.
+- Review analytics: Learn dashboard now surfaces retention, intervals, and review volumes from `/api/learn/review/analytics`.
+- Practice drills: `/learn/practice` now lists drills by topic and logs drill results to `user_drill_stats`.
+- Habit analytics: `/api/habits/analytics` powers habit streak and completion metrics in the Habits UI.
+- LocalStorage cleanup: Progress client no longer persists behavior-affecting data; absolute API URLs enforced and offline queue covers mutations.
+- Tests: API E2E coverage now validates learn topic/lesson/drill flows plus review/habit analytics payloads; stricter response-shape assertions enforced for learning endpoints.
+- Admin console: module lives in `app/admin`; admin UI shows encrypted-content opacity banner.
 
 **Document Version:** 1.0 (Canonical)  
 **Last Updated:** January 13, 2026  

@@ -5,91 +5,41 @@
  * Shows continue item, review queue, weak areas, and activity
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import styles from "./page.module.css";
-import { getLearnOverview } from "@/lib/api/learn";
+import type { ActivityItem, ContinueItem, LearnOverview, ReviewAnalytics, WeakArea } from "@/lib/api/learn";
+import { getLearnOverview, getReviewAnalytics } from "@/lib/api/learn";
 
-interface DashboardData {
-  continueItem: {
-    type: string;
-    id: string;
-    title: string;
-    courseName: string;
-    moduleName: string;
-    progressPct: number;
-  } | null;
-  dueReviewCount: number;
-  estimatedReviewMinutes: number;
-  weakAreas: {
-    conceptId: string;
-    term: string;
-    suggestedLessonId: string;
-    suggestedLessonTitle: string;
-    lapseCount: number;
-  }[];
-  recentActivity: {
-    type: string;
-    title: string;
-    completedAt: string;
-  }[];
-  streak: {
-    current: number;
-    longest: number;
-    isActiveToday: boolean;
-  };
-  stats: {
-    lessonsCompleted: number;
-    exercisesCompleted: number;
-    projectsCompleted: number;
-    reviewCardsTotal: number;
-    avgRetention: number;
-  };
-  diagnosticCompleted: boolean;
-}
-
-interface LearnDashboardProps {
-  userId?: string; // Optional - will use useAuth() if not provided
-}
-
-export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
-  const [data, setData] = useState<DashboardData | null>(null);
+export function LearnDashboard() {
+  const [overview, setOverview] = useState<LearnOverview | null>(null);
+  const [reviewAnalytics, setReviewAnalytics] = useState<ReviewAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-
     const loadOverview = async () => {
       try {
-        const overview = await getLearnOverview();
+        const [overviewResult, analyticsResult] = await Promise.allSettled([
+          getLearnOverview(),
+          getReviewAnalytics(),
+        ]);
         if (!isMounted) return;
 
-        const dueReviewCount = overview.review_count;
-        const estimatedReviewMinutes = dueReviewCount > 0 ? Math.ceil(dueReviewCount * 0.5) : 0;
+        if (overviewResult.status === "fulfilled") {
+          setOverview(overviewResult.value);
+          setError(null);
+        } else {
+          setError("Failed to load dashboard");
+        }
 
-        setData({
-          continueItem: null,
-          dueReviewCount,
-          estimatedReviewMinutes,
-          weakAreas: [],
-          recentActivity: [],
-          streak: {
-            current: overview.progress.current_streak_days,
-            longest: overview.progress.current_streak_days,
-            isActiveToday: overview.progress.current_streak_days > 0,
-          },
-          stats: {
-            lessonsCompleted: overview.progress.lessons_completed,
-            exercisesCompleted: overview.progress.drills_practiced,
-            projectsCompleted: 0,
-            reviewCardsTotal: dueReviewCount,
-            avgRetention: 0,
-          },
-          diagnosticCompleted: true,
-        });
+        if (analyticsResult.status === "fulfilled") {
+          setReviewAnalytics(analyticsResult.value);
+        }
       } catch {
         if (isMounted) {
-          setData(null);
+          setError("Failed to load dashboard");
         }
       } finally {
         if (isMounted) {
@@ -97,12 +47,21 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
         }
       }
     };
-
     loadOverview();
     return () => {
       isMounted = false;
     };
-  }, [userId]);
+  }, []);
+
+  const continueItem: ContinueItem | null = overview?.continue_item ?? null;
+  const weakAreas: WeakArea[] = overview?.weak_areas ?? [];
+  const activity: ActivityItem[] = overview?.recent_activity ?? [];
+  const reviewCount = overview?.review_count ?? 0;
+  const estimatedReviewMinutes = reviewCount > 0 ? Math.ceil(reviewCount * 0.5) : 0;
+  const progress = overview?.progress;
+  const hasReviewAnalytics = (reviewAnalytics?.totalReviews ?? 0) > 0;
+  const retentionPct = reviewAnalytics ? Math.round(reviewAnalytics.retentionRate * 100) : 0;
+  const avgInterval = reviewAnalytics ? reviewAnalytics.avgIntervalDays.toFixed(1) : "0.0";
 
   if (loading) {
     return (
@@ -113,73 +72,15 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
     );
   }
 
-  if (!data) {
-    return <div className={styles.error}>Failed to load dashboard</div>;
+  if (error) {
+    return <div className={styles.error}>{error}</div>;
   }
 
-  // Show diagnostic prompt if not completed
-  if (!data.diagnosticCompleted) {
-    return (
-      <div className={styles.page}>
-        <header className={styles.header}>
-          <h1 className={styles.title}>Welcome to the Learning Suite</h1>
-          <p className={styles.subtitle}>
-            Master Serum and Vital synthesis with structured courses and spaced repetition.
-          </p>
-        </header>
-
-        <div className={styles.diagnosticCard}>
-          <div className={styles.diagnosticIcon}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-          </div>
-          <h2>Take the Diagnostic Assessment</h2>
-          <p>
-            Start with a quick 5-minute assessment to identify your current skill level
-            and get personalized course recommendations.
-          </p>
-          <Link href="/learn/diagnostic" className={styles.diagnosticBtn}>
-            Start Diagnostic
-          </Link>
-          <button className={styles.skipBtn}>Skip for now</button>
-        </div>
-
-        <div className={styles.quickStart}>
-          <h3>Or jump right in:</h3>
-          <div className={styles.quickStartCards}>
-            <Link href="/learn/courses" className={styles.quickCard}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
-              <span>Browse Courses</span>
-            </Link>
-            <Link href="/learn/glossary" className={styles.quickCard}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="8" y1="6" x2="21" y2="6" />
-                <line x1="8" y1="12" x2="21" y2="12" />
-                <line x1="8" y1="18" x2="21" y2="18" />
-                <line x1="3" y1="6" x2="3.01" y2="6" />
-                <line x1="3" y1="12" x2="3.01" y2="12" />
-                <line x1="3" y1="18" x2="3.01" y2="18" />
-              </svg>
-              <span>Explore Glossary</span>
-            </Link>
-            <Link href="/learn/recipes" className={styles.quickCard}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 3h6v5l4 9H5l4-9V3z" />
-                <line x1="9" y1="3" x2="15" y2="3" />
-              </svg>
-              <span>Recipe Generator</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const progressPct = useMemo(() => {
+    if (!progress) return 0;
+    if (progress.total_lessons === 0) return 0;
+    return Math.round((progress.lessons_completed / progress.total_lessons) * 100);
+  }, [progress]);
 
   return (
     <div className={styles.page}>
@@ -189,12 +90,14 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
             <h1 className={styles.title}>Learning Dashboard</h1>
             <p className={styles.subtitle}>Keep your momentum going</p>
           </div>
-          <div className={styles.streakBadge}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-            </svg>
-            <span>{data.streak.current} day streak</span>
-          </div>
+          {progress ? (
+            <div className={styles.streakBadge}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
+              <span>{progress.current_streak_days} day streak</span>
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -202,26 +105,28 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
         {/* Continue Learning */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Continue Learning</h2>
-          {data.continueItem ? (
-            <Link
-              href={`/learn/${data.continueItem.type}/${data.continueItem.id}`}
-              className={styles.continueCard}
-            >
+          {continueItem ? (
+            <div className={styles.continueCard}>
               <div className={styles.continueInfo}>
-                <span className={styles.continueBadge}>{data.continueItem.courseName}</span>
-                <h3>{data.continueItem.title}</h3>
-                <p>{data.continueItem.moduleName}</p>
+                <span className={styles.continueBadge}>{continueItem.topic_name}</span>
+                <h3>{continueItem.lesson_title}</h3>
+                <p>Status: {continueItem.status.replaceAll("_", " ")}</p>
               </div>
               <div className={styles.continueProgress}>
                 <div className={styles.progressBar}>
                   <div
                     className={styles.progressFill}
-                    style={{ width: `${data.continueItem.progressPct}%` }}
+                    style={{ width: `${Math.round(continueItem.progress_pct)}%` }}
                   />
                 </div>
-                <span>{data.continueItem.progressPct}% complete</span>
+                <span>{Math.round(continueItem.progress_pct)}% complete</span>
               </div>
-            </Link>
+              <div className={styles.continueActions}>
+                <Link href={`/learn/lessons/${continueItem.lesson_id}`} className={styles.startBtn}>
+                  Continue lesson
+                </Link>
+              </div>
+            </div>
           ) : (
             <div className={styles.emptyCard}>
               <p>No lessons in progress</p>
@@ -235,12 +140,12 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
         {/* Review Queue */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Due for Review</h2>
-          {data.dueReviewCount > 0 ? (
+          {reviewCount > 0 ? (
             <Link href="/learn/review" className={styles.reviewCard}>
-              <div className={styles.reviewCount}>{data.dueReviewCount}</div>
+              <div className={styles.reviewCount}>{reviewCount}</div>
               <div className={styles.reviewInfo}>
                 <h3>Cards due today</h3>
-                <p>~{data.estimatedReviewMinutes} minutes</p>
+                <p>~{estimatedReviewMinutes} minutes</p>
               </div>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="9 18 15 12 9 6" />
@@ -258,20 +163,67 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
           )}
         </section>
 
+        {/* Review Analytics */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Review Analytics</h2>
+          {hasReviewAnalytics ? (
+            <>
+              <div className={styles.stats}>
+                <div className={styles.stat}>
+                  <span className={styles.statValue}>{reviewAnalytics?.totalReviews ?? 0}</span>
+                  <span className={styles.statLabel}>Total reviews</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statValue}>{reviewAnalytics?.reviewsLast7Days ?? 0}</span>
+                  <span className={styles.statLabel}>Last 7 days</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statValue}>{reviewAnalytics?.reviewsLast30Days ?? 0}</span>
+                  <span className={styles.statLabel}>Last 30 days</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statValue}>{retentionPct}%</span>
+                  <span className={styles.statLabel}>Retention</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statValue}>{avgInterval}d</span>
+                  <span className={styles.statLabel}>Avg interval</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statValue}>{reviewAnalytics?.totalLapses ?? 0}</span>
+                  <span className={styles.statLabel}>Total lapses</span>
+                </div>
+              </div>
+              {reviewAnalytics?.lastReviewedAt && (
+                <p className={styles.analyticsMeta}>
+                  Last reviewed on {new Date(reviewAnalytics.lastReviewedAt).toLocaleDateString()}
+                </p>
+              )}
+            </>
+          ) : (
+            <div className={styles.emptyCard}>
+              <p>No review data yet</p>
+              <span>Complete a review session to populate analytics</span>
+            </div>
+          )}
+        </section>
+
         {/* Weak Areas */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Areas to Improve</h2>
-          {data.weakAreas.length > 0 ? (
+          {weakAreas.length > 0 ? (
             <ul className={styles.weakList}>
-              {data.weakAreas.slice(0, 3).map((area) => (
-                <li key={area.conceptId} className={styles.weakItem}>
+              {weakAreas.map((area, idx) => (
+                <li key={`${area.concept_id || idx}`} className={styles.weakItem}>
                   <div className={styles.weakInfo}>
                     <h4>{area.term}</h4>
-                    <Link href={`/learn/lesson/${area.suggestedLessonId}`}>
-                      Review: {area.suggestedLessonTitle}
-                    </Link>
+                    {area.suggested_lesson_id ? (
+                      <span className={styles.weakLink}>Suggested lesson: {area.suggested_lesson_title || "Lesson"}</span>
+                    ) : (
+                      <span className={styles.weakLink}>Focus this concept in review</span>
+                    )}
                   </div>
-                  <span className={styles.lapseCount}>{area.lapseCount} lapses</span>
+                  <span className={styles.lapseCount}>{area.lapses} lapses</span>
                 </li>
               ))}
             </ul>
@@ -316,20 +268,20 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
           <h2 className={styles.sectionTitle}>Your Progress</h2>
           <div className={styles.stats}>
             <div className={styles.stat}>
-              <span className={styles.statValue}>{data.stats.lessonsCompleted}</span>
+              <span className={styles.statValue}>{progress?.lessons_completed ?? 0}</span>
               <span className={styles.statLabel}>Lessons</span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statValue}>{data.stats.exercisesCompleted}</span>
-              <span className={styles.statLabel}>Exercises</span>
+              <span className={styles.statValue}>{progress?.drills_practiced ?? 0}</span>
+              <span className={styles.statLabel}>Drills</span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statValue}>{data.stats.projectsCompleted}</span>
-              <span className={styles.statLabel}>Projects</span>
+              <span className={styles.statValue}>{progress?.topics_started ?? 0}</span>
+              <span className={styles.statLabel}>Topics started</span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statValue}>{data.stats.avgRetention}%</span>
-              <span className={styles.statLabel}>Retention</span>
+              <span className={styles.statValue}>{progressPct}%</span>
+              <span className={styles.statLabel}>Course progress</span>
             </div>
           </div>
         </section>
@@ -337,14 +289,14 @@ export function LearnDashboard({ userId }: LearnDashboardProps = {}) {
         {/* Recent Activity */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Recent Activity</h2>
-          {data.recentActivity.length > 0 ? (
+          {activity.length > 0 ? (
             <ul className={styles.activityList}>
-              {data.recentActivity.map((activity, i) => (
+              {activity.map((item, i) => (
                 <li key={i} className={styles.activityItem}>
-                  <span className={styles.activityType}>{activity.type}</span>
-                  <span className={styles.activityTitle}>{activity.title}</span>
+                  <span className={styles.activityType}>{item.item_type}</span>
+                  <span className={styles.activityTitle}>{item.title}</span>
                   <span className={styles.activityDate}>
-                    {new Date(activity.completedAt).toLocaleDateString()}
+                    {new Date(item.completed_at).toLocaleDateString()}
                   </span>
                 </li>
               ))}

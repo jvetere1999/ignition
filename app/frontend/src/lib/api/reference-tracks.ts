@@ -322,12 +322,12 @@ export const referenceTracksApi = {
     });
   },
 
-  async uploadFile(signedUrl: string, file: File): Promise<void> {
+  async uploadFile(signedUrl: string, file: Blob, contentType?: string): Promise<void> {
     const response = await fetch(signedUrl, {
       method: 'PUT',
       body: file,
       headers: {
-        'Content-Type': file.type,
+        'Content-Type': contentType || file.type || 'application/octet-stream',
       },
     });
     if (!response.ok) {
@@ -517,4 +517,3 @@ export function frameToTimeMs(frame: number, hopMs: number): number {
 export function timeToFrame(timeMs: number, hopMs: number): number {
   return Math.floor(timeMs / hopMs);
 }
-
