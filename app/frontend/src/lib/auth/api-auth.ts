@@ -98,6 +98,15 @@ export async function getProviders(): Promise<AuthProvider[]> {
 export async function getSession(): Promise<SessionResponse> {
   try {
     console.log('[getSession] Fetching from:', `${API_BASE_URL}/auth/session`);
+    console.log('[getSession] API_BASE_URL:', API_BASE_URL);
+    
+    // Debug: check if cookies exist
+    if (typeof document !== 'undefined') {
+      const hasCookies = document.cookie.length > 0;
+      console.log('[getSession] Document has cookies:', hasCookies);
+      console.log('[getSession] document.cookie:', document.cookie);
+    }
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
@@ -109,6 +118,9 @@ export async function getSession(): Promise<SessionResponse> {
     });
     
     clearTimeout(timeoutId);
+    
+    console.log('[getSession] Response status:', response.status);
+    console.log('[getSession] Response headers set-cookie:', response.headers.get('set-cookie'));
     
     if (!response.ok) {
       console.log('[getSession] Response not OK, status:', response.status);
