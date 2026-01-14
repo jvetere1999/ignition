@@ -125,10 +125,10 @@ export function SyncStateProvider({ children, disabled = false }: SyncStateProvi
       setForbidden(false);
       lastEtagRef.current = data.etag;
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (!isMountedRef.current) return;
       // Detect 403 Forbidden
-      if (err && (err.status === 403 || (err.message && err.message.toLowerCase().includes('forbidden')))) {
+      if (err && typeof err === 'object' && (('status' in err && err.status === 403) || ('message' in err && typeof err.message === 'string' && err.message.toLowerCase().includes('forbidden')))) {
         setForbidden(true);
       } else {
         setError(err instanceof Error ? err : new Error(String(err)));
