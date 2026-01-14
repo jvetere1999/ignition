@@ -4,7 +4,7 @@
  * Tests focus session logic and state management.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('Focus Session Logic', () => {
   describe('Timer Calculations', () => {

@@ -42,7 +42,7 @@ interface UseServerSettingsResult {
  * Handles polling fallback if WebSocket unavailable
  */
 export function useServerSettings(): UseServerSettingsResult {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [settings, setSettings] = useState<Partial<ServerSettings>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -79,6 +79,18 @@ export function useServerSettings(): UseServerSettingsResult {
       setIsLoading(false);
     }
   }, [user]);
+
+  // Polling fallback (30s interval for mobile, or if WS fails)
+  const startPolling = useCallback(() => {
+    if (pollingIntervalRef.current) return; // Already polling
+
+    pollingIntervalRef.current = setInterval(() => {
+      fetchSettings();
+    }, 30000); // 30 second poll interval
+
+    // Fetch immediately
+    fetchSettings();
+  }, [fetchSettings]);
 
   // Setup WebSocket connection (Hybrid: desktop only)
   useEffect(() => {
@@ -145,19 +157,7 @@ export function useServerSettings(): UseServerSettingsResult {
         clearInterval(pollingIntervalRef.current);
       }
     };
-  }, [user, fetchSettings]);
-
-  // Polling fallback (30s interval for mobile, or if WS fails)
-  const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) return; // Already polling
-
-    pollingIntervalRef.current = setInterval(() => {
-      fetchSettings();
-    }, 30000); // 30 second poll interval
-
-    // Fetch immediately
-    fetchSettings();
-  }, [fetchSettings]);
+  }, [user, fetchSettings, startPolling]);
 
   // Update a single setting
   const updateSetting = useCallback(
