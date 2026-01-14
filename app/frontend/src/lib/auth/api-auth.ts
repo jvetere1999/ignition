@@ -124,7 +124,15 @@ export async function getSession(): Promise<SessionResponse> {
     clearTimeout(timeoutId);
     
     console.log('[getSession] Response status:', response.status);
-    console.log('[getSession] Response headers set-cookie:', response.headers.get('set-cookie'));
+    try {
+      const setCookieHeader = response.headers.get('set-cookie');
+      console.log('[getSession] Response headers set-cookie:', setCookieHeader);
+    } catch (headersError) {
+      console.warn(
+        '[getSession] Unable to read set-cookie header (CORS restrictions):',
+        headersError
+      );
+    }
     
     if (!response.ok) {
       console.log('[getSession] Response not OK, status:', response.status);
