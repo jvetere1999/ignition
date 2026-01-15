@@ -15,6 +15,10 @@ import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { QuickModeHeader } from "@/components/ui/QuickModeHeader";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import { encryptString, decryptString, isEncryptedPayload, type EncryptedPayload } from "@/lib/e2ee/crypto";
+import { SearchBox } from "@/components/Search/SearchBox";
+import { IndexProgress } from "@/components/Search/IndexProgress";
+import { useRouter } from "next/navigation";
+import { type SearchResult } from "@/lib/search/SearchIndexManager";
 import styles from "./page.module.css";
 
 interface InfoEntry {
@@ -40,6 +44,7 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export function InfobaseClient() {
+  const router = useRouter();
   const [entries, setEntries] = useState<InfoEntry[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All Entries");
   const [searchQuery, setSearchQuery] = useState("");
@@ -323,6 +328,11 @@ export function InfobaseClient() {
     [selectedEntry]
   );
 
+  const handleSearchResult = useCallback((result: SearchResult) => {
+    const entryId = result.id.replace('infobase:', '');
+    router.push(`/infobase/${entryId}`);
+  }, [router]);
+
   return (
     <div className={styles.page}>
       {/* Quick Mode Header */}
@@ -332,6 +342,14 @@ export function InfobaseClient() {
         <h1 className={styles.title}>Infobase</h1>
         <p className={styles.subtitle}>Your personal knowledge base.</p>
       </header>
+
+      <IndexProgress />
+      <div style={{ marginBottom: "24px" }}>
+        <SearchBox 
+          onResultClick={handleSearchResult}
+          placeholder="Search your infobase entries..."
+        />
+      </div>
 
       {!vaultUnlocked && (
         <div className={styles.vaultBanner}>

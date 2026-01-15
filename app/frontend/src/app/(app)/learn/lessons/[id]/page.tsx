@@ -12,10 +12,11 @@ export const metadata: Metadata = {
   description: "Lesson content and quiz.",
 };
 
-export default function LessonPage({ params }: { params: { id: string } }) {
+export default async function LessonPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
     <div className={styles.page}>
-      <LessonClient lessonId={params.id} />
+      <LessonClient lessonId={id} />
     </div>
   );
 }

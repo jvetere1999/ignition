@@ -95,8 +95,10 @@ export async function replayQueue(): Promise<void> {
         });
         await deleteMutation(mutation.id);
       };
-      if ("locks" in navigator && (navigator as any).locks?.request) {
-        await (navigator as any).locks.request("offline-queue", run);
+      // Type assertion for Web Locks API (not yet universally typed)
+      const navWithLocks = navigator as unknown as { locks?: { request: (name: string, callback: () => Promise<void>) => Promise<void> } };
+      if ("locks" in navigator && navWithLocks.locks?.request) {
+        await navWithLocks.locks.request("offline-queue", run);
       } else {
         await run();
       }

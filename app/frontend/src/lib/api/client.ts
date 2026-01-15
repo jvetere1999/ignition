@@ -211,8 +211,11 @@ function isQueueableMutation(url: string): boolean {
 }
 
 async function withMutationLock<T>(work: () => Promise<T>): Promise<T> {
-  if (typeof navigator !== 'undefined' && 'locks' in navigator && (navigator as any).locks?.request) {
-    return (navigator as any).locks.request('api-mutation', work);
+  if (typeof navigator !== 'undefined' && 'locks' in navigator) {
+    const navWithLocks = navigator as Navigator & { locks?: { request: (name: string, fn: () => Promise<T>) => Promise<T> } };
+    if (navWithLocks.locks?.request) {
+      return navWithLocks.locks.request('api-mutation', work);
+    }
   }
   return work();
 }
@@ -255,6 +258,34 @@ async function executeFetch<T>(
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase())) {
     if (typeof window !== 'undefined') {
       headers['Origin'] = window.location.origin;
+    }
+  }
+
+  // Check vault protection for sensitive write operations
+  if (['POST', 'PUT', 'DELETE'].includes(method.toUpperCase())) {
+    try {
+      // Dynamically import to avoid circular dependencies
+      const { checkVaultProtection } = await import('@/lib/auth/vaultProtection');
+      const vaultPath = new URL(url).pathname;
+      
+      // Get vault lock state from context if available
+      if (typeof window !== 'undefined') {
+        try {
+          const { useVaultLockStore } = await import('@/lib/auth/VaultLockContext');
+          const store = useVaultLockStore.getState();
+          const isVaultLocked = store.isLocked;
+          
+          checkVaultProtection(method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', vaultPath, isVaultLocked);
+        } catch {
+          // Store not available (SSR), skip vault check
+        }
+      }
+    } catch (error) {
+      // If vault protection throws, re-throw as API error
+      if (error instanceof Error && error.constructor.name === 'VaultLockedError') {
+        throw error;
+      }
+      // Other errors are silently ignored to not break normal operation
     }
   }
 

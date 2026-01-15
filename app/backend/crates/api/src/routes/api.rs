@@ -66,6 +66,12 @@ pub fn router() -> Router<Arc<AppState>> {
         .nest("/settings", super::settings::router())
         // Today module - dashboard data aggregation (Wave 5)
         .nest("/today", super::today::router())
+        // Crypto policy module - E2EE algorithm versioning & management
+        .nest("/crypto-policy", super::crypto_policy::router())
+        // Search module - client-side encrypted search index
+        .nest("/search", super::search::router())
+        // Vault module - E2EE vault lock/unlock
+        .nest("/vault", super::vault::router())
     // Apply middleware (CSRF and auth will be added at top level)
 }
 
@@ -80,27 +86,30 @@ async fn api_info() -> Json<ApiInfo> {
     Json(ApiInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),
         modules: vec![
-            "focus".to_string(),
-            "quests".to_string(),
-            "habits".to_string(),
-            "goals".to_string(),
+            "books".to_string(),
+            "blobs".to_string(),
             "calendar".to_string(),
+            "crypto-policy".to_string(),
             "daily-plan".to_string(),
             "exercise".to_string(),
-            "market".to_string(),
-            "reference".to_string(),
-            "learn".to_string(),
-            "user".to_string(),
-            "onboarding".to_string(),
-            "infobase".to_string(),
-            "ideas".to_string(),
             "feedback".to_string(),
-            "analysis".to_string(),
-            "books".to_string(),
+            "focus".to_string(),
             "gamification".to_string(),
-            "blobs".to_string(),
-            "sync".to_string(),
+            "goals".to_string(),
+            "habits".to_string(),
+            "ideas".to_string(),
+            "infobase".to_string(),
+            "learn".to_string(),
+            "market".to_string(),
+            "onboarding".to_string(),
+            "quests".to_string(),
+            "reference".to_string(),
+            "search".to_string(),
             "settings".to_string(),
+            "sync".to_string(),
+            "user".to_string(),
+            "vault".to_string(),
+            "analysis".to_string(),
         ],
     })
 }

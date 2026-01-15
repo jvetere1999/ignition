@@ -25,6 +25,7 @@
 | **Section 3 (How We Use)** | Added usage-based UI personalization |
 | **New Section 3.1** | Added "Personalized Experience" subsection |
 | **Section 7 (Cookies/Storage)** | Added session storage for UI state |
+| **New Section 4.2 (Encrypted Content)** | Added E2EE scope, limitations, and metadata handling |
 
 ### Why These Changes
 
@@ -151,6 +152,27 @@ We use:
 Session storage data is automatically cleared when you close your browser.
 
 We do not use third-party tracking cookies or advertising cookies.
+```
+
+---
+
+### 2.4 Section 4.2 (Encrypted Content) - NEW
+
+**New Text:**
+```
+4.2 Encrypted Content (End-to-End Encryption)
+Certain types of content are encrypted on your device before they are sent to our servers.
+This includes private work such as Infobase entries, Ideas, Journal entries, and Reference
+Tracks marked for encryption.
+
+We do not store your passphrase and we cannot decrypt this content on our servers. We only
+store encrypted data (ciphertext). If you lose your passphrase, we cannot recover your
+encrypted content.
+
+Encrypted content does not mean all metadata is hidden. Some metadata (such as timestamps,
+item IDs, and titles or tags if not marked private) may remain in plaintext so the Service
+can function properly. We use metadata only to provide the Service and do not inspect
+encrypted content.
 ```
 
 ---
@@ -294,4 +316,3 @@ notice if applicable to California users.]
 ---
 
 **End of Document**
-

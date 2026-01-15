@@ -22,6 +22,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
 import { encryptString, decryptString, isEncryptedPayload, type EncryptedPayload } from "@/lib/e2ee/crypto";
+import { useVaultLockPolicy } from "@/lib/e2ee/useVaultLockPolicy";
+import { SearchBox } from "@/components/Search/SearchBox";
+import { IndexProgress } from "@/components/Search/IndexProgress";
+import { useRouter } from "next/navigation";
+import { type SearchResult } from "@/lib/search/SearchIndexManager";
 import styles from "./page.module.css";
 
 interface Idea {
@@ -46,6 +51,7 @@ const MOODS = ["Energetic", "Chill", "Dark", "Uplifting", "Melancholic", "Aggres
 const BPM_PRESETS = [80, 100, 120, 140, 160];
 
 export function IdeasClient({}: IdeasClientProps = {}) {
+  const router = useRouter();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [newIdea, setNewIdea] = useState("");
@@ -62,61 +68,86 @@ export function IdeasClient({}: IdeasClientProps = {}) {
   const audioChunksRef = useRef<Blob[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load ideas from D1 on mount
-  useEffect(() => {
-    async function fetchIdeas() {
-      try {
-        const response = await safeFetch(`${API_BASE_URL}/api/ideas`);
-        if (response.ok) {
-          const data = await response.json() as { ideas?: Array<{
-            id: string;
-            title: string;
-            content: string | null;
-            category: string;
-            tags: string[];
-            is_pinned: boolean;
-            created_at: string;
-          }> };
-          const mapped: Idea[] = await Promise.all((data.ideas || []).map(async (idea) => {
-            let title = idea.title;
-            try {
-              const maybe = JSON.parse(idea.title);
-              if (isEncryptedPayload(maybe) && vaultUnlocked && passphrase) {
-                title = await decryptString(maybe as EncryptedPayload, passphrase);
-              }
-            } catch {
-              // leave as plaintext
-            }
-            return {
-              id: idea.id,
-              type: "text" as const,
-              content: title,
-              key: undefined,
-              bpm: undefined,
-              mood: idea.tags?.[0] || undefined,
-              createdAt: idea.created_at,
-            };
-          }));
-          setIdeas(mapped);
-        }
-      } catch (error) {
-        console.error("Failed to fetch ideas:", error);
-        // Fallback to localStorage only if deprecation is disabled
-        if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+  const loadIdeas = useCallback(async (decryptPassphrase?: string) => {
+    const trimmedPassphrase = decryptPassphrase?.trim();
+    setIsLoading(true);
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/api/ideas`);
+      if (response.ok) {
+        const data = await response.json() as { ideas?: Array<{
+          id: string;
+          title: string;
+          content: string | null;
+          category: string;
+          tags: string[];
+          is_pinned: boolean;
+          created_at: string;
+        }> };
+        const mapped: Idea[] = await Promise.all((data.ideas || []).map(async (idea) => {
+          let title = idea.title;
           try {
-            const stored = localStorage.getItem("music_ideas");
-            if (stored) {
-              setIdeas(JSON.parse(stored));
+            const maybe = JSON.parse(idea.title);
+            if (isEncryptedPayload(maybe)) {
+              if (trimmedPassphrase) {
+                try {
+                  title = await decryptString(maybe as EncryptedPayload, trimmedPassphrase);
+                } catch {
+                  title = "Encrypted idea (locked)";
+                }
+              } else {
+                title = "Encrypted idea (locked)";
+              }
             }
-          } catch (error) {
-            console.warn("Failed to load ideas from localStorage:", error);
+          } catch {
+            // leave as plaintext
           }
+          return {
+            id: idea.id,
+            type: "text" as const,
+            content: title,
+            key: undefined,
+            bpm: undefined,
+            mood: idea.tags?.[0] || undefined,
+            createdAt: idea.created_at,
+          };
+        }));
+        setIdeas(mapped);
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to fetch ideas:", error);
+      // Fallback to localStorage only if deprecation is disabled
+      if (!DISABLE_MASS_LOCAL_PERSISTENCE) {
+        try {
+          const stored = localStorage.getItem("music_ideas");
+          if (stored) {
+            setIdeas(JSON.parse(stored));
+            return;
+          }
+        } catch (fallbackError) {
+          console.warn("Failed to load ideas from localStorage:", fallbackError);
         }
       }
+    } finally {
       setIsLoading(false);
     }
-    fetchIdeas();
   }, []);
+
+  // Load ideas from D1 on mount
+  useEffect(() => {
+    loadIdeas();
+  }, [loadIdeas]);
+
+  const handleVaultLock = useCallback(() => {
+    setVaultUnlocked(false);
+    setPassphrase("");
+    loadIdeas();
+  }, [loadIdeas]);
+
+  useVaultLockPolicy({
+    isUnlocked: vaultUnlocked,
+    onLock: handleVaultLock,
+  });
 
   // Save idea to D1
   const saveIdea = useCallback(async (idea: Idea) => {
@@ -244,7 +275,10 @@ export function IdeasClient({}: IdeasClientProps = {}) {
           className={styles.vaultButton}
           onClick={() => {
             if (!passphrase.trim()) return;
+            const trimmed = passphrase.trim();
+            if (!trimmed) return;
             setVaultUnlocked(true);
+            loadIdeas(trimmed);
           }}
         >
           Unlock
@@ -264,6 +298,12 @@ export function IdeasClient({}: IdeasClientProps = {}) {
       console.error("Failed to delete idea:", error);
     }
   }, []);
+
+  // Handle search result navigation
+  const handleSearchResult = useCallback((result: SearchResult) => {
+    const ideaId = result.id.replace('idea:', '');
+    router.push(`/ideas/${ideaId}`);
+  }, [router]);
 
   // Handle key press
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -309,7 +349,10 @@ export function IdeasClient({}: IdeasClientProps = {}) {
               className={styles.vaultButton}
               onClick={() => {
                 if (!passphrase.trim()) return;
+                const trimmed = passphrase.trim();
+                if (!trimmed) return;
                 setVaultUnlocked(true);
+                loadIdeas(trimmed);
               }}
             >
               Unlock
@@ -321,6 +364,17 @@ export function IdeasClient({}: IdeasClientProps = {}) {
         <h1 className={styles.title}>Ideas</h1>
         <p className={styles.subtitle}>Capture it before it disappears.</p>
       </header>
+
+      {/* Search Index Progress */}
+      <IndexProgress />
+
+      {/* Search */}
+      <div style={{ marginBottom: "24px" }}>
+        <SearchBox 
+          onResultClick={handleSearchResult}
+          placeholder="Search your ideas..."
+        />
+      </div>
 
       {/* Quick Capture */}
       <div className={styles.captureSection}>

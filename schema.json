@@ -419,6 +419,204 @@
       "rust_type": "Authenticators",
       "ts_type": "Authenticators"
     },
+    "vaults": {
+      "fields": {
+        "id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": true,
+          "unique": false,
+          "foreign_key": false,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": true,
+          "foreign_key": true
+        },
+        "passphrase_salt": {
+          "type": "BYTEA",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "passphrase_hash": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "key_derivation_params": {
+          "type": "JSONB",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "crypto_policy_version": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "locked_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "lock_reason": {
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "enforce_tier": {
+          "type": "INT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "0"
+        },
+        "last_rotated_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "When crypto was last upgraded to current policy version"
+        },
+        "next_rotation_due": {
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "When user should be notified to rotate passphrase/policy"
+        },
+        "created_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        },
+        "updated_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        }
+      },
+      "rust_type": "Vaults",
+      "ts_type": "Vaults"
+    },
+    "crypto_policies": {
+      "fields": {
+        "version": {
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary": true,
+          "unique": true,
+          "foreign_key": false,
+          "comment": "Semantic version string (e.g., '1.0.0', '2.0.0')"
+        },
+        "algorithm": {
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "Encryption algorithm (e.g., 'AES-256-GCM', 'ChaCha20-Poly1305')"
+        },
+        "kdf_algorithm": {
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "Key derivation function (e.g., 'PBKDF2-SHA256', 'Argon2id')"
+        },
+        "kdf_iterations": {
+          "type": "INT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "Number of KDF iterations for PBKDF2"
+        },
+        "kdf_memory_mb": {
+          "type": "INT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "Memory cost for Argon2id (MB)"
+        },
+        "tls_minimum": {
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "'TLS1.3'",
+          "comment": "Minimum TLS version required (e.g., 'TLS1.3')"
+        },
+        "effective_date": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "When this policy becomes active"
+        },
+        "deprecated_date": {
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "When this policy is deprecated (NULL if current)"
+        },
+        "migration_deadline": {
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "When old version is no longer accepted"
+        },
+        "rationale": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "Why this version was chosen/deprecated"
+        },
+        "created_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        }
+      },
+      "rust_type": "CryptoPolicies",
+      "ts_type": "CryptoPolicies"
+    },
     "oauth_states": {
       "fields": {
         "state_key": {
@@ -7684,6 +7882,30 @@
         "columns": ["config_json"],
         "type": "gin",
         "unique": false
+      }
+    ],
+    "vaults": [
+      {
+        "name": "idx_vaults_locked_at",
+        "columns": ["user_id", "locked_at"],
+        "type": "btree",
+        "unique": false
+      }
+    ],
+    "crypto_policies": [
+      {
+        "name": "idx_crypto_policies_effective_date",
+        "columns": ["effective_date"],
+        "type": "btree",
+        "unique": false,
+        "comment": "For querying current/active policies by date"
+      },
+      {
+        "name": "idx_crypto_policies_deprecated_date",
+        "columns": ["deprecated_date"],
+        "type": "btree",
+        "unique": false,
+        "comment": "For finding deprecated versions"
       }
     ]
   }

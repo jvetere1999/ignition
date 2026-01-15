@@ -13,6 +13,8 @@ pub mod admin_models;
 pub mod admin_repos;
 pub mod books_models;
 pub mod books_repos;
+pub mod crypto_policy_models;
+pub mod crypto_policy_repos;
 pub mod exercise_models;
 pub mod exercise_repos;
 pub mod focus_models;
@@ -43,8 +45,12 @@ pub mod reference_repos;
 pub mod references_models;
 pub mod references_repos;
 pub mod repos;
+pub mod search_models;
+pub mod search_repos;
 pub mod template_models;
 pub mod template_repos;
+pub mod vault_models;
+pub mod vault_repos;
 
 // Re-export core utilities for convenience
 pub use core::{QueryContext, db_error, execute_query, fetch_optional, fetch_all};

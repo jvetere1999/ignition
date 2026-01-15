@@ -63,10 +63,19 @@ pub struct PollResponse {
     pub plan: PlanStatusData,
     /// User profile data
     pub user: UserData,
+    /// Vault lock state for cross-device sync
+    pub vault_lock: Option<VaultLockData>,
     /// Server timestamp for sync verification
     pub server_time: String,
     /// ETag for conditional polling
     pub etag: String,
+}
+
+/// Vault lock state for cross-device enforcement
+#[derive(Serialize)]
+pub struct VaultLockData {
+    pub locked_at: Option<String>,
+    pub lock_reason: Option<String>,
 }
 
 /// User profile data for UI caching
@@ -134,12 +143,13 @@ async fn poll_all(
     let user_id = auth.user_id;
     
     // Fetch all data in parallel
-    let (progress, badges, focus, plan, user) = tokio::try_join!(
+    let (progress, badges, focus, plan, user, vault_lock) = tokio::try_join!(
         fetch_progress(&state.db, user_id),
         fetch_badges(&state.db, user_id),
         fetch_focus_status(&state.db, user_id),
         fetch_plan_status(&state.db, user_id),
         fetch_user_data(&state.db, user_id),
+        fetch_vault_lock_state(&state.db, user_id),
     )?;
 
     // TOS acceptance check
@@ -158,6 +168,7 @@ async fn poll_all(
         focus,
         plan,
         user,
+        vault_lock,
         server_time,
         etag: etag.clone(),
     };
@@ -463,6 +474,22 @@ async fn fetch_overdue_items_count(pool: &PgPool, user_id: Uuid) -> Result<i32, 
 fn calculate_xp_for_level(level: i32) -> i32 {
     // Standard formula: 100 * level^1.5
     (100.0 * (level as f64).powf(1.5)) as i32
+}
+
+/// Fetch vault lock state for cross-device sync
+async fn fetch_vault_lock_state(pool: &PgPool, user_id: Uuid) -> Result<Option<VaultLockData>, AppError> {
+    use crate::db::vault_repos::VaultRepo;
+    
+    match VaultRepo::get_lock_state(pool, user_id).await {
+        Ok(Some(lock_state)) => {
+            Ok(Some(VaultLockData {
+                locked_at: lock_state.locked_at.map(|dt| dt.to_rfc3339()),
+                lock_reason: lock_state.lock_reason,
+            }))
+        }
+        Ok(None) => Ok(None),
+        Err(_) => Ok(None), // If vault doesn't exist, return None (not an error)
+    }
 }
 
 /// Generate ETag from response data
