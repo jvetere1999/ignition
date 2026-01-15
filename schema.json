@@ -472,7 +472,7 @@
           "foreign_key": false
         },
         "lock_reason": {
-          "type": "VARCHAR(50)",
+          "type": "VARCHAR",
           "nullable": true,
           "primary": false,
           "unique": false,
@@ -525,7 +525,7 @@
     "crypto_policies": {
       "fields": {
         "version": {
-          "type": "VARCHAR(10)",
+          "type": "VARCHAR",
           "nullable": false,
           "primary": true,
           "unique": true,
@@ -533,7 +533,7 @@
           "comment": "Semantic version string (e.g., '1.0.0', '2.0.0')"
         },
         "algorithm": {
-          "type": "VARCHAR(50)",
+          "type": "VARCHAR",
           "nullable": false,
           "primary": false,
           "unique": false,
@@ -541,7 +541,7 @@
           "comment": "Encryption algorithm (e.g., 'AES-256-GCM', 'ChaCha20-Poly1305')"
         },
         "kdf_algorithm": {
-          "type": "VARCHAR(50)",
+          "type": "VARCHAR",
           "nullable": false,
           "primary": false,
           "unique": false,
@@ -565,7 +565,7 @@
           "comment": "Memory cost for Argon2id (MB)"
         },
         "tls_minimum": {
-          "type": "VARCHAR(10)",
+          "type": "VARCHAR",
           "nullable": false,
           "primary": false,
           "unique": false,
