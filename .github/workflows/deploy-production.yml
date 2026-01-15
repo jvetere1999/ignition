@@ -64,11 +64,46 @@ jobs:
           command: check
           args: --manifest-path app/backend/Cargo.toml
 
+  build-checks:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      
+      - name: Verify frontend builds
+        working-directory: ./app/frontend
+        run: |
+          rm -rf node_modules package-lock.json
+          npm cache clean --force
+          npm install
+          npm run build:worker --no-telemetry || {
+            echo "✗ Frontend build failed"
+            exit 1
+          }
+          echo "✓ Frontend builds successfully"
+      
+      - name: Verify admin builds
+        working-directory: ./app/admin
+        run: |
+          rm -rf node_modules package-lock.json
+          npm cache clean --force
+          npm install
+          npm run build:worker --no-telemetry || {
+            echo "✗ Admin build failed"
+            exit 1
+          }
+          echo "✓ Admin builds successfully"
+
   wipe-and-rebuild-neon:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push'
-    needs: pre-deployment-checks
+    needs: [pre-deployment-checks, build-checks]
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -136,7 +171,7 @@ jobs:
 
   build-and-deploy-backend:
     if: needs.wipe-and-rebuild-neon.result == 'success'
-    needs: [pre-deployment-checks, wipe-and-rebuild-neon]
+    needs: [build-checks, wipe-and-rebuild-neon]
     env:
       SKIP_MIGRATIONS: 'true'
     runs-on: ubuntu-latest
@@ -155,9 +190,6 @@ jobs:
         run: |
           echo "Deploying backend to Fly.io..."
           flyctl deploy --app ignition-api --remote-only --strategy immediate
-      
-      - name: Wait for deployment
-        run: sleep 30
       
       - name: Verify backend health
         run: |
@@ -328,7 +360,7 @@ jobs:
 
   notification:
     if: always()
-    needs: [post-deployment-tests]
+    needs: [build-and-deploy-backend, deploy-frontend, deploy-admin, post-deployment-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Deployment Summary
