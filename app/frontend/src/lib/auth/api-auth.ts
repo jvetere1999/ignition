@@ -92,6 +92,24 @@ export async function getProviders(): Promise<AuthProvider[]> {
 }
 
 /**
+ * Clear the session cookie from the browser
+ * Used when the backend rejects a session as invalid/expired
+ */
+function clearSessionCookie(): void {
+  if (typeof document === 'undefined') return;
+  
+  try {
+    // Set cookie with empty value and immediate expiration
+    document.cookie = 'session=; Max-Age=0; Path=/; Domain=.ecent.online; Secure; SameSite=None;';
+    // Also try localhost for development
+    document.cookie = 'session=; Max-Age=0; Path=/;';
+    console.log('[clearSessionCookie] Cleared invalid session cookie');
+  } catch (err) {
+    console.warn('[clearSessionCookie] Error clearing cookie:', err);
+  }
+}
+
+/**
  * Get current session from backend
  * Cookie-based auth - session cookie is automatically sent
  */
@@ -136,16 +154,25 @@ export async function getSession(): Promise<SessionResponse> {
     
     if (!response.ok) {
       console.log('[getSession] Response not OK, status:', response.status);
+      clearSessionCookie();
       return { user: null };
     }
     
     const data = await response.json() as { user: RawAuthUser | null };
     console.log('[getSession] Got response:', data);
+    
+    // If backend returns no user, the session is invalid - clear the cookie
+    if (!data.user) {
+      console.log('[getSession] Backend returned null user, clearing invalid session cookie');
+      clearSessionCookie();
+    }
+    
     return {
       user: data.user ? normalizeAuthUser(data.user) : null,
     };
   } catch (err) {
     console.error('[getSession] Error:', err);
+    clearSessionCookie();
     return { user: null };
   }
 }
