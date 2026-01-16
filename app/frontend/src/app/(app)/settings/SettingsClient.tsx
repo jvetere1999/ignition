@@ -26,7 +26,7 @@ interface SettingsClientProps {
 export function SettingsClient({ user: propUser }: SettingsClientProps = {}) {
   const { user: authUser } = useAuth();
   const user = propUser || authUser;
-  const { showModal, openModal } = useVaultRecovery();
+  const { isModalOpen, openModal, closeModal, codes, modalMode } = useVaultRecovery();
   
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -283,7 +283,13 @@ export function SettingsClient({ user: propUser }: SettingsClientProps = {}) {
       </section>
 
       {/* Recovery Code Modal */}
-      {showModal && <VaultRecoveryModal mode="generate" />}
+      <VaultRecoveryModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onAcknowledge={closeModal}
+        codes={codes}
+        mode={modalMode}
+      />
     </div>
   );
 }

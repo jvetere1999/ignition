@@ -2,7 +2,7 @@
 //!
 //! Database operations for focus timer sessions.
 
-use chrono::{Duration, Utc};
+use chrono::{Duration, NaiveDate, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -12,17 +12,82 @@ use super::gamification_repos::GamificationRepo;
 use crate::error::AppError;
 
 // ============================================================================
+// FOCUS STREAK HELPER
+// ============================================================================
+
+/// Update focus streak for user
+/// Called when a focus session is completed (only 'focus' mode, not breaks)
+async fn update_focus_streak(
+    pool: &PgPool,
+    user_id: Uuid,
+    completed_date: NaiveDate,
+) -> Result<(i32, i32), AppError> {
+    // Get or create focus streak record
+    let existing = sqlx::query_as::<_, (Uuid, i32, i32, Option<NaiveDate>)>(
+        r#"SELECT id, current_streak, longest_streak, last_activity_date
+           FROM user_streaks
+           WHERE user_id = $1 AND streak_type = 'focus'
+           LIMIT 1"#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
+
+    let (new_current, new_longest) = if let Some((streak_id, current, longest, last_date)) = existing {
+        // Calculate new streak
+        let new_current = if let Some(last) = last_date {
+            let yesterday = completed_date.pred_opt().unwrap_or(completed_date);
+            if last == yesterday {
+                current + 1 // Continue streak
+            } else if last == completed_date {
+                current // Already counted today
+            } else {
+                1 // Streak broken, restart
+            }
+        } else {
+            1
+        };
+
+        let new_longest = new_current.max(longest);
+
+        // Update existing streak
+        sqlx::query(
+            r#"UPDATE user_streaks
+               SET current_streak = $1, longest_streak = $2, last_activity_date = $3, updated_at = NOW()
+               WHERE id = $4"#,
+        )
+        .bind(new_current)
+        .bind(new_longest)
+        .bind(completed_date)
+        .bind(streak_id)
+        .execute(pool)
+        .await?;
+
+        (new_current, new_longest)
+    } else {
+        // Create new streak record
+        sqlx::query(
+            r#"INSERT INTO user_streaks (user_id, streak_type, current_streak, longest_streak, last_activity_date)
+               VALUES ($1, 'focus', 1, 1, $2)"#,
+        )
+        .bind(user_id)
+        .bind(completed_date)
+        .execute(pool)
+        .await?;
+
+        (1, 1)
+    };
+
+    Ok((new_current, new_longest))
+}
+
+// ============================================================================
 // FOCUS SESSION REPOSITORY
 // ============================================================================
 
 pub struct FocusSessionRepo;
 
 impl FocusSessionRepo {
-    // TODO [BACK-004]: Fix pause/resume state transitions - validate state machine
-    // Reference: debug/analysis/MASTER_TASK_LIST.md#back-004-fix-focus-repository-pauseresume-logic
-    // Roadmap: Step 1 of 6 - Add state machine validation, guard functions, state transitions
-    // Status: NOT_STARTED
-
     /// Start a new focus session
     pub async fn start_session(
         pool: &PgPool,
@@ -160,6 +225,21 @@ impl FocusSessionRepo {
             .bind(user_id)
             .execute(pool)
             .await?;
+
+        // Update focus streak (only for 'focus' mode, not breaks)
+        let streak_updated = if session.mode == "focus" {
+            let today = Utc::now().date_naive();
+            match update_focus_streak(pool, user_id, today).await {
+                Ok((current, longest)) => Some((current, longest)),
+                Err(e) => {
+                    // Log error but don't fail the completion
+                    eprintln!("Failed to update focus streak: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         // Award points with idempotency
         let idempotency_key = format!("focus_complete_{}", session_id);

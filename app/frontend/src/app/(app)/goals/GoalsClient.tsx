@@ -268,7 +268,7 @@ export function GoalsClient() {
             const updatedMilestones = g.milestones.map((m) =>
               m.id === milestoneId ? { ...m, completed: true } : m
             );
-            return { ...g, milestones: updatedMilestones, completed: response_data.data?.result?.goal_completed ?? g.completed };
+            return { ...g, milestones: updatedMilestones, completed: data?.result?.goal_completed ?? g.completed };
           });
           setMemoryCache(GOALS_CACHE_KEY, { goals: next });
           return next;

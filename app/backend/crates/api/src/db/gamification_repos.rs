@@ -832,3 +832,87 @@ impl GamificationRepo {
         Ok(result)
     }
 }
+
+// ============================================================================
+// LEARNING PROGRESS HELPER
+// ============================================================================
+
+pub struct LearningProgressRepo;
+
+impl LearningProgressRepo {
+    /// Update skill progress based on learning activity
+    /// Tracks minutes spent learning and awards skill stars when thresholds are met
+    pub async fn update_learning_progress(
+        pool: &PgPool,
+        user_id: Uuid,
+        skill_key: &str,
+        minutes_learned: i32,
+    ) -> Result<(i32, i32), AppError> {
+        // Ensure user has skill record
+        let skill = sqlx::query_as::<_, (Uuid, i32, i32)>(
+            r#"SELECT id, current_stars, current_level FROM user_skills
+               WHERE user_id = $1 AND skill_key = $2"#,
+        )
+        .bind(user_id)
+        .bind(skill_key)
+        .fetch_optional(pool)
+        .await?;
+
+        let (skill_id, current_stars, current_level) = if let Some(s) = skill {
+            s
+        } else {
+            // Create new skill record
+            let new_skill = sqlx::query_as::<_, (Uuid, i32, i32)>(
+                r#"INSERT INTO user_skills (user_id, skill_key, current_stars, current_level)
+                   VALUES ($1, $2, 0, 1)
+                   RETURNING id, current_stars, current_level"#,
+            )
+            .bind(user_id)
+            .bind(skill_key)
+            .fetch_one(pool)
+            .await?;
+            new_skill
+        };
+
+        // Calculate skill stars earned: 1 star per 60 minutes
+        let stars_earned = minutes_learned / 60;
+
+        if stars_earned <= 0 {
+            return Ok((current_stars, current_level));
+        }
+
+        // Update skill with new stars
+        let new_stars = current_stars + stars_earned;
+
+        // Check if level should increase (10 stars per level)
+        let new_level = if new_stars >= (current_level * 10) {
+            current_level + 1
+        } else {
+            current_level
+        };
+
+        sqlx::query(
+            r#"UPDATE user_skills
+               SET current_stars = $1, current_level = $2, updated_at = NOW()
+               WHERE id = $3"#,
+        )
+        .bind(new_stars)
+        .bind(new_level)
+        .bind(skill_id)
+        .execute(pool)
+        .await?;
+
+        // Update total skill stars in user_progress
+        sqlx::query(
+            r#"UPDATE user_progress
+               SET total_skill_stars = total_skill_stars + $1, updated_at = NOW()
+               WHERE user_id = $2"#,
+        )
+        .bind(stars_earned)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+
+        Ok((new_stars, new_level))
+    }
+}
