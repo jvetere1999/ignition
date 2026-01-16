@@ -6767,6 +6767,90 @@
       "rust_type": "UserSettings",
       "ts_type": "UserSettings"
     },
+    "recovery_codes": {
+      "fields": {
+        "id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": true,
+          "unique": false,
+          "foreign_key": false,
+          "default": "gen_random_uuid()",
+          "comment": "Unique identifier for recovery code"
+        },
+        "vault_id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true,
+          "comment": "Reference to vault - links recovery codes to user's vault"
+        },
+        "code": {
+          "type": "TEXT",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "Recovery code in format XXXX-XXXX-XXXX (alphanumeric, 14 chars)"
+        },
+        "used": {
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "FALSE",
+          "comment": "Whether this recovery code has been used (one-time only)"
+        },
+        "created_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()",
+          "comment": "When recovery code was generated"
+        },
+        "used_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "comment": "When recovery code was used (if ever)"
+        },
+        "created_by": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true,
+          "comment": "User ID who generated the code (admin or vault owner)"
+        }
+      },
+      "rust_type": "RecoveryCodes",
+      "ts_type": "RecoveryCodes",
+      "constraints": [
+        {
+          "type": "unique",
+          "columns": ["vault_id", "code"],
+          "comment": "Each recovery code is unique per vault"
+        },
+        {
+          "type": "foreign_key",
+          "column": "vault_id",
+          "references": "vaults(id)",
+          "on_delete": "CASCADE"
+        },
+        {
+          "type": "foreign_key",
+          "column": "created_by",
+          "references": "users(id)",
+          "on_delete": "CASCADE"
+        }
+      ]
+    },
     "inbox_items": {
       "fields": {
         "id": {
@@ -7883,6 +7967,36 @@
         "columns": ["user_id", "locked_at"],
         "type": "btree",
         "unique": false
+      }
+    ],
+    "recovery_codes": [
+      {
+        "name": "idx_recovery_codes_vault_id",
+        "columns": ["vault_id"],
+        "type": "btree",
+        "unique": false,
+        "comment": "Lookup codes by vault (to fetch all codes for a vault)"
+      },
+      {
+        "name": "idx_recovery_codes_code",
+        "columns": ["code"],
+        "type": "btree",
+        "unique": false,
+        "comment": "Lookup code by value (for validation during passphrase reset)"
+      },
+      {
+        "name": "idx_recovery_codes_unused",
+        "columns": ["vault_id", "used"],
+        "type": "btree",
+        "unique": false,
+        "comment": "Efficiently find unused codes for a vault (filtered index optimization)"
+      },
+      {
+        "name": "idx_recovery_codes_used_at",
+        "columns": ["used_at"],
+        "type": "btree",
+        "unique": false,
+        "comment": "Track usage timestamps for security audit logs"
       }
     ],
     "crypto_policies": [

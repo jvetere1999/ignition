@@ -1053,6 +1053,17 @@ export interface RecipeTemplates {
   updated_at: string;
 }
 
+/** Database model for `recovery_codes` table */
+export interface RecoveryCodes {
+  id: string;
+  vault_id: string;
+  code: string;
+  used: boolean;
+  created_at: string;
+  used_at?: string;
+  created_by: string;
+}
+
 /** Database model for `reference_tracks` table */
 export interface ReferenceTracks {
   id: string;
@@ -1360,6 +1371,7 @@ export type ProgramWeek = ProgramWeeks;
 export type ProgramWorkout = ProgramWorkouts;
 export type ReadingSession = ReadingSessions;
 export type RecipeTemplat = RecipeTemplates;
+export type RecoveryCod = RecoveryCodes;
 export type ReferenceTrack = ReferenceTracks;
 export type RoleEntitlement = RoleEntitlements;
 export type Rol = Roles;

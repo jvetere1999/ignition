@@ -48,6 +48,8 @@ pub mod platform_models;
 pub mod platform_repos;
 pub mod quests_models;
 pub mod quests_repos;
+pub mod recovery_codes_models;
+pub mod recovery_codes_repos;
 pub mod reference_models;
 pub mod reference_repos;
 pub mod references_models;

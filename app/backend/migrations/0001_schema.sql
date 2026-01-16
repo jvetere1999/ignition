@@ -104,7 +104,6 @@ CREATE TABLE users (
     image TEXT,
     role TEXT NOT NULL,
     approved BOOLEAN NOT NULL,
-    age_verified BOOLEAN NOT NULL,
     tos_accepted BOOLEAN NOT NULL,
     tos_accepted_at TIMESTAMPTZ,
     tos_version TEXT,
@@ -983,6 +982,16 @@ CREATE TABLE recipe_templates (
     recipe_json JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE recovery_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vault_id UUID NOT NULL,
+    code TEXT NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    used_at TIMESTAMPTZ,
+    created_by UUID NOT NULL
 );
 
 CREATE TABLE reference_tracks (

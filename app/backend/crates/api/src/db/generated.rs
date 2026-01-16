@@ -1127,6 +1127,18 @@ pub struct RecipeTemplates {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+/// Database model for `recovery_codes` table
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct RecoveryCodes {
+    pub id: Uuid,
+    pub vault_id: Uuid,
+    pub code: String,
+    pub used: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub used_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_by: Uuid,
+}
+
 /// Database model for `reference_tracks` table
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct ReferenceTracks {
@@ -1452,6 +1464,7 @@ pub type ProgramWeek = ProgramWeeks;
 pub type ProgramWorkout = ProgramWorkouts;
 pub type ReadingSession = ReadingSessions;
 pub type RecipeTemplat = RecipeTemplates;
+pub type RecoveryCod = RecoveryCodes;
 pub type ReferenceTrack = ReferenceTracks;
 pub type RoleEntitlement = RoleEntitlements;
 pub type Rol = Roles;
