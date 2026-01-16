@@ -1,83 +1,35 @@
 //! Focus session models
 //!
 //! Models for focus timer sessions (Pomodoro-style).
+//!
+// TODO [BACK-006]: Consolidate test fixtures and database setup
+// Reference: debug/analysis/MASTER_TASK_LIST.md#back-006-test-organization-fixtures
+// Roadmap: Step 1 of 5 - Create tests/fixtures directory with shared database initialization
+// Status: NOT_STARTED
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use crate::named_enum;
 
 // ============================================================================
 // ENUMS
 // ============================================================================
 
-/// Focus session mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum FocusMode {
-    Focus,
-    Break,
-    LongBreak,
-}
+named_enum!(FocusMode {
+    Focus => "focus",
+    Break => "break",
+    LongBreak => "long_break"
+});
 
-impl FocusMode {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            FocusMode::Focus => "focus",
-            FocusMode::Break => "break",
-            FocusMode::LongBreak => "long_break",
-        }
-    }
-}
-
-impl std::str::FromStr for FocusMode {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "focus" => Ok(FocusMode::Focus),
-            "break" => Ok(FocusMode::Break),
-            "long_break" => Ok(FocusMode::LongBreak),
-            _ => Err(format!("Unknown focus mode: {}", s)),
-        }
-    }
-}
-
-/// Focus session status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum FocusStatus {
-    Active,
-    Paused,
-    Completed,
-    Abandoned,
-    Expired,
-}
-
-impl FocusStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            FocusStatus::Active => "active",
-            FocusStatus::Paused => "paused",
-            FocusStatus::Completed => "completed",
-            FocusStatus::Abandoned => "abandoned",
-            FocusStatus::Expired => "expired",
-        }
-    }
-}
-
-impl std::str::FromStr for FocusStatus {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "active" => Ok(FocusStatus::Active),
-            "paused" => Ok(FocusStatus::Paused),
-            "completed" => Ok(FocusStatus::Completed),
-            "abandoned" => Ok(FocusStatus::Abandoned),
-            "expired" => Ok(FocusStatus::Expired),
-            _ => Err(format!("Unknown focus status: {}", s)),
-        }
-    }
-}
+named_enum!(FocusStatus {
+    Active => "active",
+    Paused => "paused",
+    Completed => "completed",
+    Abandoned => "abandoned",
+    Expired => "expired"
+});
 
 // ============================================================================
 // DATABASE MODELS

@@ -7,8 +7,16 @@
 //! - `core`: Centralized database utilities with observability
 //! - `*_models`: Database entity structs (FromRow)
 //! - `*_repos`: Repository pattern for CRUD operations
+//!
+//! ## Import Conventions
+//!
+//! See [IMPORT_CONVENTIONS.md](../../IMPORT_CONVENTIONS.md) for module import standards.
 
-pub mod core;  // Centralized DB utilities with observability
+// PUBLIC MODULES - Core utilities
+pub mod core;   // Centralized DB utilities with observability
+pub mod macros; // Boilerplate reduction macros for common patterns
+
+// PUBLIC MODULES - Domain-specific models and repositories
 pub mod admin_models;
 pub mod admin_repos;
 pub mod books_models;
@@ -24,7 +32,7 @@ pub mod frames_repos;
 pub mod gamification_models;
 pub mod gamification_repos;
 #[allow(dead_code)]
-pub mod generated;  // Schema-generated types - source of truth
+pub mod generated; // Schema-generated types - source of truth
 pub mod habits_goals_models;
 pub mod habits_goals_repos;
 pub mod inbox_models;
@@ -52,5 +60,6 @@ pub mod template_repos;
 pub mod vault_models;
 pub mod vault_repos;
 
-// Re-export core utilities for convenience
-pub use core::{QueryContext, db_error, execute_query, fetch_optional, fetch_all};
+// RE-EXPORTS: Convenience for route handlers and services
+pub use core::{QueryContext, db_error};
+

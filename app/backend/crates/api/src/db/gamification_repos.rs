@@ -14,9 +14,23 @@ use crate::error::AppError;
 // CONSTANTS
 // ============================================================================
 
-/// XP required for a level (simple formula: 100 * level^1.5)
+/// Maximum user level (prevents integer overflow in XP formula)
+const MAX_LEVEL: i32 = 100;
+
+/// XP required for a level with overflow protection
+/// Formula: 100 * level^1.5
+/// Capped at level 100 to prevent integer overflow (would overflow i32 at ~46340)
 fn xp_for_level(level: i32) -> i32 {
-    (100.0 * (level as f64).powf(1.5)).floor() as i32
+    if level <= 0 {
+        return 0;
+    }
+    
+    if level >= MAX_LEVEL {
+        return i32::MAX;  // Cap at maximum to prevent overflow
+    }
+    
+    let xp = (100.0 * (level as f64).powf(1.5)).floor() as i32;
+    xp.max(0)  // Ensure non-negative
 }
 
 // ============================================================================
@@ -224,7 +238,8 @@ impl UserWalletRepo {
         // Ensure wallet exists
         Self::get_or_create(pool, user_id).await?;
 
-        // Update wallet
+        // Update wallet with atomic operation (single UPDATE statement)
+        // All concurrent requests correctly add coins - database ensures isolation
         let new_balance = sqlx::query_scalar::<_, i64>(
             r#"UPDATE user_wallet
                SET coins = coins + $1,
@@ -262,7 +277,7 @@ impl UserWalletRepo {
         })
     }
 
-    /// Spend coins (with balance check)
+    /// Spend coins (race-condition safe with atomic balance check and deduction)
     pub async fn spend_coins(
         pool: &PgPool,
         user_id: Uuid,
@@ -270,47 +285,56 @@ impl UserWalletRepo {
         reason: &str,
         purchase_id: Option<Uuid>,
     ) -> Result<SpendResult, AppError> {
-        // Get current balance with lock
-        let wallet = Self::get_or_create(pool, user_id).await?;
-
-        if wallet.coins < amount as i64 {
-            return Ok(SpendResult {
-                success: false,
-                error: Some("Insufficient coins".to_string()),
-                new_balance: wallet.coins,
-            });
-        }
-
-        // Deduct coins
-        let new_balance = sqlx::query_scalar::<_, i64>(
+        // Atomic operation: check balance AND deduct coins in single UPDATE statement
+        // This prevents race condition where concurrent requests can cause negative balance
+        // The CASE statement ensures coins are only deducted if balance is sufficient
+        let result = sqlx::query_as::<_, (i64, bool)>(
             r#"UPDATE user_wallet
-               SET coins = coins - $1, total_spent = total_spent + $1, updated_at = NOW()
+               SET coins = CASE 
+                     WHEN coins >= $1::bigint THEN coins - $1::bigint
+                     ELSE coins
+                   END,
+                   total_spent = CASE 
+                     WHEN coins >= $1::bigint THEN total_spent + $1::bigint
+                     ELSE total_spent
+                   END,
+                   updated_at = NOW()
                WHERE user_id = $2
-               RETURNING coins::bigint"#,
+               RETURNING coins::bigint, (coins >= $1::bigint)::boolean"#,
         )
-        .bind(amount)
+        .bind(amount as i64)
         .bind(user_id)
         .fetch_one(pool)
         .await?;
 
-        // Record in ledger (negative amount)
-        sqlx::query(
-            r#"INSERT INTO points_ledger (user_id, event_type, event_id, coins, xp, reason)
-               VALUES ($1, 'spend', $2, $3, $4, $5)"#,
-        )
-        .bind(user_id)
-        .bind(purchase_id)
-        .bind(-amount)
-        .bind(0)
-        .bind(reason)
-        .execute(pool)
-        .await?;
+        let (new_balance, success) = result;
 
-        Ok(SpendResult {
-            success: true,
-            error: None,
-            new_balance,
-        })
+        if success {
+            // Record in ledger only if deduction succeeded
+            sqlx::query(
+                r#"INSERT INTO points_ledger (user_id, event_type, event_id, coins, xp, reason)
+                   VALUES ($1, 'spend', $2, $3, $4, $5)"#,
+            )
+            .bind(user_id)
+            .bind(purchase_id)
+            .bind(-amount)
+            .bind(0)
+            .bind(reason)
+            .execute(pool)
+            .await?;
+
+            Ok(SpendResult {
+                success: true,
+                error: None,
+                new_balance,
+            })
+        } else {
+            Ok(SpendResult {
+                success: false,
+                error: Some(format!("Insufficient coins (have {}, need {})", new_balance, amount)),
+                new_balance,
+            })
+        }
     }
 }
 
@@ -490,7 +514,7 @@ impl AchievementsRepo {
         Ok(count > 0)
     }
 
-    /// Unlock achievement
+    /// Unlock achievement and award associated rewards
     pub async fn unlock_achievement(
         pool: &PgPool,
         user_id: Uuid,
@@ -501,7 +525,15 @@ impl AchievementsRepo {
             return Ok(false);
         }
 
-        // Insert
+        // Fetch achievement definition to get reward amounts
+        let achievement = sqlx::query_as::<_, (i32, i32)>(
+            "SELECT reward_xp, reward_coins FROM achievement_definitions WHERE key = $1",
+        )
+        .bind(achievement_key)
+        .fetch_optional(pool)
+        .await?;
+
+        // Insert achievement record
         sqlx::query(
             r#"INSERT INTO user_achievements (user_id, achievement_key, earned_at, notified)
                VALUES ($1, $2, NOW(), false)"#,
@@ -510,6 +542,37 @@ impl AchievementsRepo {
         .bind(achievement_key)
         .execute(pool)
         .await?;
+
+        // Award rewards from achievement definition if found
+        if let Some((reward_xp, reward_coins)) = achievement {
+            let idempotency_key = format!("achievement_{}", achievement_key);
+
+            if reward_xp > 0 {
+                UserProgressRepo::award_xp(
+                    pool,
+                    user_id,
+                    reward_xp,
+                    "achievement_unlock",
+                    None,
+                    Some(&format!("Achievement: {}", achievement_key)),
+                    Some(&idempotency_key),
+                )
+                .await?;
+            }
+
+            if reward_coins > 0 {
+                UserWalletRepo::award_coins(
+                    pool,
+                    user_id,
+                    reward_coins,
+                    "achievement_unlock",
+                    None,
+                    Some(&format!("Achievement: {}", achievement_key)),
+                    Some(&idempotency_key),
+                )
+                .await?;
+            }
+        }
 
         Ok(true)
     }

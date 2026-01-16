@@ -1,6 +1,6 @@
 //! Habits routes
 //!
-//! Routes for habit tracking.
+//! Routes for habit tracking: create, list, complete, delete, analytics.
 
 use std::sync::Arc;
 
@@ -10,13 +10,15 @@ use axum::{
     routing::{delete, get, post},
     Json, Router,
 };
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::db::habits_goals_models::*;
+use crate::db::habits_goals_models::{
+    CompleteHabitResult, CreateHabitRequest, HabitAnalyticsResponse, HabitResponse, HabitsListResponse,
+};
 use crate::db::habits_goals_repos::HabitsRepo;
 use crate::db::models::User;
 use crate::error::AppError;
+use crate::shared::http::response::{ApiResponse, Created, Deleted, PaginatedResponse};
 use crate::state::AppState;
 
 /// Create habits routes
@@ -30,31 +32,6 @@ pub fn router() -> Router<Arc<AppState>> {
 }
 
 // ============================================================================
-// RESPONSE WRAPPERS
-// ============================================================================
-
-#[derive(Serialize)]
-struct HabitResponseWrapper {
-    habit: HabitResponse,
-}
-
-#[derive(Serialize)]
-struct HabitsListWrapper {
-    habits: Vec<HabitResponse>,
-    total: i64,
-}
-
-#[derive(Serialize)]
-struct CompleteResultWrapper {
-    result: CompleteHabitResult,
-}
-
-#[derive(Serialize)]
-struct HabitAnalyticsWrapper {
-    analytics: HabitAnalyticsResponse,
-}
-
-// ============================================================================
 // HANDLERS
 // ============================================================================
 
@@ -63,10 +40,10 @@ struct HabitAnalyticsWrapper {
 async fn list_habits(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<User>,
-) -> Result<Json<HabitsListWrapper>, AppError> {
+) -> Result<Json<PaginatedResponse<HabitResponse>>, AppError> {
     let result = HabitsRepo::list_active(&state.db, user.id).await?;
 
-    Ok(Json(HabitsListWrapper { habits: result.habits, total: result.total }))
+    Ok(Json(PaginatedResponse::new(result.habits, result.total, 1, result.total)))
 }
 
 /// GET /habits/archived
@@ -74,10 +51,10 @@ async fn list_habits(
 async fn list_archived_habits(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<User>,
-) -> Result<Json<HabitsListWrapper>, AppError> {
+) -> Result<Json<PaginatedResponse<HabitResponse>>, AppError> {
     let result = HabitsRepo::list_archived(&state.db, user.id).await?;
 
-    Ok(Json(HabitsListWrapper { habits: result.habits, total: result.total }))
+    Ok(Json(PaginatedResponse::new(result.habits, result.total, 1, result.total)))
 }
 
 /// POST /habits
@@ -86,31 +63,26 @@ async fn create_habit(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<User>,
     Json(req): Json<CreateHabitRequest>,
-) -> Result<(StatusCode, Json<HabitResponseWrapper>), AppError> {
+) -> Result<(StatusCode, Json<Created<HabitResponse>>), AppError> {
     let habit = HabitsRepo::create(&state.db, user.id, &req).await?;
 
-    Ok((StatusCode::CREATED, Json(HabitResponseWrapper {
-        habit: HabitResponse {
-            id: habit.id,
-            name: habit.name,
-            description: habit.description,
-            frequency: habit.frequency,
-            target_count: habit.target_count,
-            icon: habit.icon,
-            color: habit.color,
-            is_active: habit.is_active,
-            current_streak: habit.current_streak,
-            longest_streak: habit.longest_streak,
-            last_completed_at: habit.last_completed_at,
-            completed_today: false,
-            sort_order: habit.sort_order,
-        },
-    })))
-}
+    let response = HabitResponse {
+        id: habit.id,
+        name: habit.name,
+        description: habit.description,
+        frequency: habit.frequency,
+        target_count: habit.target_count,
+        icon: habit.icon,
+        color: habit.color,
+        is_active: habit.is_active,
+        current_streak: habit.current_streak,
+        longest_streak: habit.longest_streak,
+        last_completed_at: habit.last_completed_at,
+        completed_today: false,
+        sort_order: habit.sort_order,
+    };
 
-#[derive(Debug, Deserialize)]
-struct CompleteHabitBody {
-    notes: Option<String>,
+    Ok((StatusCode::CREATED, Json(Created::new(response))))
 }
 
 /// POST /habits/:id/complete
@@ -119,12 +91,9 @@ async fn complete_habit(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<User>,
     Path(id): Path<Uuid>,
-    body: Option<Json<CompleteHabitBody>>,
-) -> Result<Json<CompleteResultWrapper>, AppError> {
-    let notes = body.and_then(|b| b.notes.clone());
-    let result = HabitsRepo::complete_habit(&state.db, id, user.id, notes.as_deref()).await?;
-
-    Ok(Json(CompleteResultWrapper { result }))
+) -> Result<Json<ApiResponse<CompleteHabitResult>>, AppError> {
+    let result = HabitsRepo::complete_habit(&state.db, id, user.id, None).await?;
+    Ok(Json(ApiResponse::ok(result)))
 }
 
 /// DELETE /habits/:id
@@ -133,9 +102,9 @@ async fn delete_habit(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<User>,
     Path(id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<Deleted>, AppError> {
     HabitsRepo::archive(&state.db, id, user.id).await?;
-    Ok(Json(serde_json::json!({ "success": true, "id": id })))
+    Ok(Json(Deleted::ok()))
 }
 
 /// GET /habits/analytics
@@ -143,7 +112,7 @@ async fn delete_habit(
 async fn get_habit_analytics(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<User>,
-) -> Result<Json<HabitAnalyticsWrapper>, AppError> {
+) -> Result<Json<ApiResponse<HabitAnalyticsResponse>>, AppError> {
     let analytics = HabitsRepo::get_analytics(&state.db, user.id).await?;
-    Ok(Json(HabitAnalyticsWrapper { analytics }))
+    Ok(Json(ApiResponse::ok(analytics)))
 }

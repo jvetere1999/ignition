@@ -6,60 +6,29 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use crate::named_enum;
 
 // ============================================================================
 // ENUMS
 // ============================================================================
 
-/// Quest status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum QuestStatus {
-    Available,
-    Accepted,
-    InProgress,
-    Completed,
-    Claimed,
-    Abandoned,
-    Expired,
-}
+named_enum!(QuestStatus {
+    Available => "available",
+    Accepted => "accepted",
+    InProgress => "in_progress",
+    Completed => "completed",
+    Claimed => "claimed",
+    Abandoned => "abandoned",
+    Expired => "expired"
+});
 
-impl QuestStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            QuestStatus::Available => "available",
-            QuestStatus::Accepted => "accepted",
-            QuestStatus::InProgress => "in_progress",
-            QuestStatus::Completed => "completed",
-            QuestStatus::Claimed => "claimed",
-            QuestStatus::Abandoned => "abandoned",
-            QuestStatus::Expired => "expired",
-        }
-    }
-}
-
-/// Quest difficulty
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum QuestDifficulty {
-    Starter,
-    Easy,
-    Medium,
-    Hard,
-    Epic,
-}
-
-impl QuestDifficulty {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            QuestDifficulty::Starter => "starter",
-            QuestDifficulty::Easy => "easy",
-            QuestDifficulty::Medium => "medium",
-            QuestDifficulty::Hard => "hard",
-            QuestDifficulty::Epic => "epic",
-        }
-    }
-}
+named_enum!(QuestDifficulty {
+    Starter => "starter",
+    Easy => "easy",
+    Medium => "medium",
+    Hard => "hard",
+    Epic => "epic"
+});
 
 // ============================================================================
 // DATABASE MODELS

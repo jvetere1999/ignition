@@ -10,35 +10,7 @@ mod tests {
     use crate::db::gamification_repos::{UserProgressRepo, UserWalletRepo};
     use crate::db::quests_models::CreateQuestRequest;
     use crate::db::quests_repos::QuestsRepo;
-
-    // ========================================================================
-    // TEST HELPERS
-    // ========================================================================
-
-    async fn create_test_user(pool: &PgPool) -> Uuid {
-        let user_id = Uuid::new_v4();
-        let email = format!("test-quests-{}@example.com", user_id);
-
-        sqlx::query(
-            r#"INSERT INTO users (id, email, name, role)
-               VALUES ($1, $2, 'Test Quests User', 'user')"#,
-        )
-        .bind(user_id)
-        .bind(&email)
-        .execute(pool)
-        .await
-        .expect("Failed to create test user");
-
-        // Initialize gamification
-        UserProgressRepo::get_or_create(pool, user_id)
-            .await
-            .expect("Failed to init progress");
-        UserWalletRepo::get_or_create(pool, user_id)
-            .await
-            .expect("Failed to init wallet");
-
-        user_id
-    }
+    use crate::tests::fixtures::create_test_user;
 
     // ========================================================================
     // CREATE TESTS

@@ -6,31 +6,18 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use crate::named_enum;
 
 // ============================================================================
 // ENUMS
 // ============================================================================
 
-/// Book status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BookStatus {
-    WantToRead,
-    Reading,
-    Completed,
-    Abandoned,
-}
-
-impl BookStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            BookStatus::WantToRead => "want_to_read",
-            BookStatus::Reading => "reading",
-            BookStatus::Completed => "completed",
-            BookStatus::Abandoned => "abandoned",
-        }
-    }
-}
+named_enum!(BookStatus {
+    WantToRead => "want_to_read",
+    Reading => "reading",
+    Completed => "completed",
+    Abandoned => "abandoned"
+});
 
 // ============================================================================
 // DATABASE MODELS

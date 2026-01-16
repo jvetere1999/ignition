@@ -22,6 +22,62 @@ use crate::middleware::auth::{create_logout_cookie, create_session_cookie, AuthC
 use crate::services::{AuthService, OAuthService};
 use crate::state::AppState;
 
+/// Allowed redirect URIs - must match frontend deployment URLs
+/// These are the only valid destinations after OAuth completes.
+/// Any other redirect URI will be rejected to prevent open redirect attacks.
+const ALLOWED_REDIRECT_URIS: &[&str] = &[
+    // Production
+    "https://ignition.ecent.online/today",
+    "https://ignition.ecent.online/",
+    "https://admin.ignition.ecent.online/dashboard",
+    "https://admin.ignition.ecent.online/",
+    // Development & Local
+    "http://localhost:3000/today",
+    "http://localhost:3000/",
+    "http://localhost:3001/dashboard",
+    "http://localhost:3001/",
+    "http://127.0.0.1:3000/today",
+    "http://127.0.0.1:3000/",
+    "http://127.0.0.1:3001/dashboard",
+    "http://127.0.0.1:3001/",
+];
+
+/// Validate redirect URI is on security allowlist
+///
+/// SEC-001: Prevents open redirect vulnerability by validating all redirect URIs
+/// against a configured whitelist before storing them.
+///
+/// # Arguments
+/// * `uri` - The redirect URI provided by the client (optional)
+/// * `config` - Application configuration for fallback URL
+///
+/// # Returns
+/// * Ok(String) - The validated redirect URI (either from allowlist or default)
+/// * Err(AppError) - If URI is not on allowlist
+fn validate_redirect_uri(uri: Option<&str>, config: &crate::config::AppConfig) -> AppResult<String> {
+    let default = format!("{}/today", config.server.frontend_url);
+    let uri = uri.unwrap_or(&default);
+    
+    // Check if URI matches one of the allowed patterns
+    let is_valid = ALLOWED_REDIRECT_URIS.iter().any(|allowed| {
+        uri == *allowed || uri.starts_with(&format!("{}/", allowed))
+    });
+    
+    if !is_valid {
+        tracing::warn!(
+            redirect_uri = %uri,
+            allowed_list = ?ALLOWED_REDIRECT_URIS,
+            "Rejected redirect URI - not on allowlist (open redirect attack prevented)"
+        );
+        return Err(AppError::Unauthorized(
+            "Invalid redirect URI - not on approved list".to_string(),
+        ));
+    }
+    
+    tracing::debug!(redirect_uri = %uri, "Redirect URI validated successfully");
+    Ok(uri.to_string())
+}
+
 /// Query parameters for signin endpoints
 #[derive(Deserialize)]
 struct SigninQuery {
@@ -97,16 +153,20 @@ async fn signin_google(
 
     let (auth_url, oauth_state) = google.authorization_url();
 
-    // Store state in database for distributed access, with optional redirect_uri
+    // SEC-001: Validate redirect_uri against ALLOWED_REDIRECT_URIS whitelist
+    // Prevents open redirect vulnerability - only approved URLs allowed
+    let validated_redirect = validate_redirect_uri(query.redirect_uri.as_deref(), &state.config)?;
+    
+    // Store state in database for distributed access, with validated redirect_uri
     OAuthStateRepo::insert(
         &state.db,
         &oauth_state.csrf_token,
         &oauth_state.pkce_verifier,
-        query.redirect_uri.as_deref(),
+        Some(&validated_redirect),
     )
     .await?;
 
-    tracing::debug!(state = %oauth_state.csrf_token, redirect_uri = ?query.redirect_uri, "Stored OAuth state in database");
+    tracing::debug!(state = %oauth_state.csrf_token, redirect_uri = %validated_redirect, "Stored OAuth state in database");
 
     Ok(Redirect::temporary(&auth_url).into_response())
 }
@@ -132,16 +192,20 @@ async fn signin_azure(
 
     let (auth_url, oauth_state) = azure.authorization_url();
 
-    // Store state in database for distributed access, with optional redirect_uri
+    // SEC-001: Validate redirect_uri against ALLOWED_REDIRECT_URIS whitelist
+    // Prevents open redirect vulnerability - only approved URLs allowed
+    let validated_redirect = validate_redirect_uri(query.redirect_uri.as_deref(), &state.config)?;
+
+    // Store state in database for distributed access, with validated redirect_uri
     OAuthStateRepo::insert(
         &state.db,
         &oauth_state.csrf_token,
         &oauth_state.pkce_verifier,
-        query.redirect_uri.as_deref(),
+        Some(&validated_redirect),
     )
     .await?;
 
-    tracing::debug!(state = %oauth_state.csrf_token, redirect_uri = ?query.redirect_uri, "Stored OAuth state in database");
+    tracing::debug!(state = %oauth_state.csrf_token, redirect_uri = %validated_redirect, "Stored OAuth state in database");
 
     Ok(Redirect::temporary(&auth_url).into_response())
 }

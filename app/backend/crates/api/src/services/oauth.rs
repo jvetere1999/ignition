@@ -283,14 +283,21 @@ impl OAuthService {
             if let Some(ref google_config) = oauth_config.google {
                 // Skip if credentials are empty
                 if google_config.client_id.is_empty() || google_config.client_secret.is_empty() {
-                    tracing::info!("Google OAuth credentials not configured. Google login disabled.");
+                    tracing::info!(
+                        provider = "google",
+                        "OAuth provider not configured - feature disabled"
+                    );
                     None
                 } else {
                     let redirect_uri = format!("{}/auth/callback/google", base_url);
                     match GoogleOAuth::new(google_config, &redirect_uri) {
                         Ok(google_oauth) => Some(google_oauth),
                         Err(e) => {
-                            tracing::warn!("Google OAuth setup failed: {}. Google login disabled.", e);
+                            tracing::warn!(
+                                error = %e,
+                                provider = "google",
+                                "OAuth initialization failed - feature disabled"
+                            );
                             None
                         }
                     }
@@ -311,16 +318,28 @@ impl OAuthService {
                         match AzureOAuth::new(azure_config, tenant_id, &redirect_uri) {
                             Ok(azure_oauth) => Some(azure_oauth),
                             Err(e) => {
-                                tracing::warn!("Azure OAuth setup failed: {}. Azure login disabled.", e);
+                                tracing::warn!(
+                                    error = %e,
+                                    provider = "azure",
+                                    "OAuth initialization failed - feature disabled"
+                                );
                                 None
                             }
                         }
                     } else {
-                        tracing::info!("Azure OAuth tenant_id is empty. Azure login disabled.");
+                        tracing::info!(
+                            provider = "azure",
+                            reason = "tenant_id_empty",
+                            "OAuth provider not configured - feature disabled"
+                        );
                         None
                     }
                 } else {
-                    tracing::info!("Azure OAuth tenant_id not configured. Azure login disabled.");
+                    tracing::info!(
+                        provider = "azure",
+                        reason = "tenant_id_missing",
+                        "OAuth provider not configured - feature disabled"
+                    );
                     None
                 }
             } else {

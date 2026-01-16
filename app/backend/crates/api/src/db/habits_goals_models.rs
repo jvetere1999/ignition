@@ -6,6 +6,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use crate::named_enum;
 
 // ============================================================================
 // HABITS
@@ -119,26 +120,12 @@ pub struct HabitAnalyticsResponse {
 // GOALS
 // ============================================================================
 
-/// Goal status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GoalStatus {
-    Active,
-    Completed,
-    Abandoned,
-    Paused,
-}
-
-impl GoalStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            GoalStatus::Active => "active",
-            GoalStatus::Completed => "completed",
-            GoalStatus::Abandoned => "abandoned",
-            GoalStatus::Paused => "paused",
-        }
-    }
-}
+named_enum!(GoalStatus {
+    Active => "active",
+    Completed => "completed",
+    Abandoned => "abandoned",
+    Paused => "paused"
+});
 
 /// Goal database model
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]

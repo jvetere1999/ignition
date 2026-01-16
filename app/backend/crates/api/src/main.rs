@@ -160,6 +160,7 @@ fn build_router(state: Arc<AppState>) -> Router {
 
     // Apply state and middleware
     app.with_state(state.clone())
+        .layer(axum::middleware::from_fn(middleware::security_headers::add_security_headers))
         .layer(middleware::cors::cors_layer(&state.config))
         .layer(TraceLayer::new_for_http())
         .layer(PropagateRequestIdLayer::x_request_id())

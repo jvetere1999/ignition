@@ -1,6 +1,9 @@
 //! Test modules
 
 #[cfg(test)]
+pub mod fixtures;
+
+#[cfg(test)]
 mod auth_tests;
 
 #[cfg(test)]

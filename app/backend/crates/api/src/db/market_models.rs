@@ -6,31 +6,18 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use crate::named_enum;
 
 // ============================================================================
 // ENUMS
 // ============================================================================
 
-/// Purchase status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PurchaseStatus {
-    Purchased,
-    Redeemed,
-    Refunded,
-    Expired,
-}
-
-impl PurchaseStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            PurchaseStatus::Purchased => "purchased",
-            PurchaseStatus::Redeemed => "redeemed",
-            PurchaseStatus::Refunded => "refunded",
-            PurchaseStatus::Expired => "expired",
-        }
-    }
-}
+named_enum!(PurchaseStatus {
+    Purchased => "purchased",
+    Redeemed => "redeemed",
+    Refunded => "refunded",
+    Expired => "expired"
+});
 
 // ============================================================================
 // DATABASE MODELS

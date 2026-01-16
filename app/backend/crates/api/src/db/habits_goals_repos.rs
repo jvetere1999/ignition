@@ -12,6 +12,50 @@ use super::habits_goals_models::*;
 use crate::error::AppError;
 
 // ============================================================================
+// COMMON OPERATION HELPERS (Extracted for Reusability)
+// ============================================================================
+
+/// Generate idempotency key for habit completion events
+fn generate_habit_idempotency_key(habit_id: Uuid, date: NaiveDate) -> String {
+    format!("habit_complete_{}_{}", habit_id, date)
+}
+
+/// Generate idempotency key for milestone completion events
+fn generate_milestone_idempotency_key(milestone_id: Uuid) -> String {
+    format!("milestone_complete_{}", milestone_id)
+}
+
+/// Award points for a completion event with idempotency key
+/// Consolidates common pattern of GamificationRepo::award_points calls
+async fn award_points_for_event(
+    pool: &PgPool,
+    user_id: Uuid,
+    event_type: &str,
+    event_id: Uuid,
+    xp: Option<i32>,
+    coins: Option<i32>,
+    idempotency_key: String,
+    reason: String,
+) -> Result<(), AppError> {
+    let _ = GamificationRepo::award_points(
+        pool,
+        user_id,
+        &AwardPointsInput {
+            xp,
+            coins,
+            skill_stars: None,
+            skill_key: None,
+            event_type: event_type.to_string(),
+            event_id: Some(event_id),
+            reason: Some(reason),
+            idempotency_key: Some(idempotency_key),
+        },
+    )
+    .await?;
+    Ok(())
+}
+
+// ============================================================================
 // HABITS REPOSITORY
 // ============================================================================
 
@@ -83,6 +127,7 @@ impl HabitsRepo {
         .await?;
 
         // Get today's completions
+        // Using explicit ::date casting to ensure proper NaiveDate type comparison
         let completions = sqlx::query_scalar::<_, Uuid>(
             r#"SELECT habit_id FROM habit_completions
                WHERE user_id = $1 AND completed_date = $2::date"#,
@@ -314,21 +359,17 @@ impl HabitsRepo {
         .fetch_one(pool)
         .await?;
 
-        // Award XP
-        let idempotency_key = format!("habit_complete_{}_{}", habit_id, today);
-        GamificationRepo::award_points(
+        // Award XP using extracted helper function
+        let idempotency_key = generate_habit_idempotency_key(habit_id, today);
+        award_points_for_event(
             pool,
             user_id,
-            &AwardPointsInput {
-                xp: Some(xp),
-                coins: None,
-                skill_stars: None,
-                skill_key: None,
-                event_type: "habit_complete".to_string(),
-                event_id: Some(habit_id),
-                reason: Some(format!("Completed habit: {}", updated.name)),
-                idempotency_key: Some(idempotency_key),
-            },
+            "habit_complete",
+            habit_id,
+            Some(xp),
+            None,
+            idempotency_key,
+            format!("Completed habit: {}", updated.name),
         )
         .await?;
 
@@ -633,21 +674,17 @@ impl GoalsRepo {
         .execute(pool)
         .await?;
 
-        // Award XP for milestone completion
-        let idempotency_key = format!("milestone_complete_{}", milestone_id);
-        GamificationRepo::award_points(
+        // Award XP for milestone completion using extracted helper
+        let idempotency_key = generate_milestone_idempotency_key(milestone_id);
+        award_points_for_event(
             pool,
             user_id,
-            &AwardPointsInput {
-                xp: Some(10),
-                coins: if goal_completed { Some(20) } else { None },
-                skill_stars: None,
-                skill_key: None,
-                event_type: "milestone_complete".to_string(),
-                event_id: Some(milestone_id),
-                reason: Some(format!("Completed milestone: {}", updated.title)),
-                idempotency_key: Some(idempotency_key),
-            },
+            "milestone_complete",
+            milestone_id,
+            Some(10),
+            if goal_completed { Some(20) } else { None },
+            idempotency_key,
+            format!("Completed milestone: {}", updated.title),
         )
         .await?;
 

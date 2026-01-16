@@ -11,32 +11,7 @@ mod tests {
     use crate::db::focus_models::CreateFocusRequest;
     use crate::db::focus_repos::FocusSessionRepo;
     use crate::db::gamification_repos::UserProgressRepo;
-
-    // ========================================================================
-    // TEST HELPERS
-    // ========================================================================
-
-    async fn create_test_user(pool: &PgPool) -> Uuid {
-        let user_id = Uuid::new_v4();
-        let email = format!("test-focus-{}@example.com", user_id);
-
-        sqlx::query(
-            r#"INSERT INTO users (id, email, name, role)
-               VALUES ($1, $2, 'Test Focus User', 'user')"#,
-        )
-        .bind(user_id)
-        .bind(&email)
-        .execute(pool)
-        .await
-        .expect("Failed to create test user");
-
-        // Initialize gamification progress
-        UserProgressRepo::get_or_create(pool, user_id)
-            .await
-            .expect("Failed to init progress");
-
-        user_id
-    }
+    use crate::tests::fixtures::create_test_user;
 
     // ========================================================================
     // SMOKE TESTS

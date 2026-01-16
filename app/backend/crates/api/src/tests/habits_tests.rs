@@ -10,32 +10,9 @@ mod tests {
     use crate::db::gamification_repos::UserProgressRepo;
     use crate::db::habits_goals_models::CreateHabitRequest;
     use crate::db::habits_goals_repos::HabitsRepo;
-
-    // ========================================================================
-    // TEST HELPERS
-    // ========================================================================
-
-    async fn create_test_user(pool: &PgPool) -> Uuid {
-        let user_id = Uuid::new_v4();
-        let email = format!("test-habits-{}@example.com", user_id);
-
-        sqlx::query(
-            r#"INSERT INTO users (id, email, name, role)
-               VALUES ($1, $2, 'Test Habits User', 'user')"#,
-        )
-        .bind(user_id)
-        .bind(&email)
-        .execute(pool)
-        .await
-        .expect("Failed to create test user");
-
-        // Initialize gamification progress (required for point awards)
-        UserProgressRepo::get_or_create(pool, user_id)
-            .await
-            .expect("Failed to init progress");
-
-        user_id
-    }
+    use crate::tests::fixtures::{
+        create_test_user, create_test_habit, assert_habit_exists,
+    };
 
     // ========================================================================
     // CREATE TESTS

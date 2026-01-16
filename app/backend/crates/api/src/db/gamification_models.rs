@@ -11,6 +11,11 @@ use uuid::Uuid;
 // USER PROGRESS (XP/Level)
 // ============================================================================
 
+// TODO [BACK-005]: Consolidate database model macro duplication
+// Reference: debug/analysis/MASTER_TASK_LIST.md#back-005-database-model-macro-duplication
+// Roadmap: Step 1 of 5 - Create schema_enums! and status_enum! macros
+// Status: NOT_STARTED
+
 /// User progress - XP and level tracking
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct UserProgress {

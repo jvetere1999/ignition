@@ -78,7 +78,9 @@ impl UserRepo {
         Ok(user)
     }
 
-    /// Update user's last activity
+    /// Update user's last activity timestamp
+    /// This is called whenever a user makes an authenticated request.
+    /// Combined with SessionRepo::is_inactive(), this enables session timeout enforcement.
     pub async fn update_last_activity(pool: &PgPool, user_id: Uuid) -> Result<(), AppError> {
         sqlx::query("UPDATE users SET last_activity_at = NOW() WHERE id = $1")
             .bind(user_id)
@@ -290,6 +292,17 @@ impl SessionRepo {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(())
+    }
+
+    /// Check if session has exceeded inactivity timeout
+    /// Returns true if session is stale (inactive for too long)
+    pub fn is_inactive(session: &Session, inactivity_timeout_minutes: u64) -> bool {
+        use chrono::Duration;
+        let timeout_duration = Duration::minutes(inactivity_timeout_minutes as i64);
+        let now = chrono::Utc::now();
+        let time_since_activity = now - session.last_activity_at;
+        
+        time_since_activity > timeout_duration
     }
 
     /// Delete session (logout)

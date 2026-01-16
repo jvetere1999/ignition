@@ -6,38 +6,23 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use crate::named_enum;
 
 // ============================================================================
 // ENUMS
 // ============================================================================
 
-/// Lesson status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LessonStatus {
-    NotStarted,
-    InProgress,
-    Completed,
-}
+named_enum!(LessonStatus {
+    NotStarted => "not_started",
+    InProgress => "in_progress",
+    Completed => "completed"
+});
 
-/// Difficulty level
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Difficulty {
-    Beginner,
-    Intermediate,
-    Advanced,
-}
-
-impl Difficulty {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Difficulty::Beginner => "beginner",
-            Difficulty::Intermediate => "intermediate",
-            Difficulty::Advanced => "advanced",
-        }
-    }
-}
+named_enum!(Difficulty {
+    Beginner => "beginner",
+    Intermediate => "intermediate",
+    Advanced => "advanced"
+});
 
 // ============================================================================
 // DATABASE MODELS

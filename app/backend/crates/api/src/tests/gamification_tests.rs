@@ -11,27 +11,7 @@ mod tests {
     use crate::db::gamification_repos::{
         AchievementsRepo, GamificationRepo, StreaksRepo, UserProgressRepo, UserWalletRepo,
     };
-
-    // ========================================================================
-    // TEST HELPERS
-    // ========================================================================
-
-    async fn create_test_user(pool: &PgPool) -> Uuid {
-        let user_id = Uuid::new_v4();
-        let email = format!("test-{}@example.com", user_id);
-
-        sqlx::query(
-            r#"INSERT INTO users (id, email, name, role)
-               VALUES ($1, $2, 'Test User', 'user')"#,
-        )
-        .bind(user_id)
-        .bind(&email)
-        .execute(pool)
-        .await
-        .expect("Failed to create test user");
-
-        user_id
-    }
+    use crate::tests::fixtures::create_test_user;
 
     // ========================================================================
     // XP AWARD TESTS

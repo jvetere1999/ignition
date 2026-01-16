@@ -213,3 +213,126 @@ impl IntoResponse for AppError {
 
 /// Result type alias for application errors
 pub type AppResult<T> = Result<T, AppError>;
+
+// ============================================================================
+// ERROR TYPE CONSTANTS (for API contract consistency)
+// ============================================================================
+
+#[allow(dead_code)]
+pub mod error_types {
+    /// Not found - resource does not exist
+    pub const NOT_FOUND: &str = "not_found";
+    /// Unauthorized - authentication required
+    pub const UNAUTHORIZED: &str = "unauthorized";
+    /// Forbidden - authenticated but access denied
+    pub const FORBIDDEN: &str = "forbidden";
+    /// CSRF validation failed
+    pub const CSRF_VIOLATION: &str = "csrf_violation";
+    /// Invalid origin header
+    pub const INVALID_ORIGIN: &str = "invalid_origin";
+    /// Bad request - client error
+    pub const BAD_REQUEST: &str = "bad_request";
+    /// Validation error - input validation failed
+    pub const VALIDATION_ERROR: &str = "validation_error";
+    /// OAuth/authentication provider error
+    pub const OAUTH_ERROR: &str = "oauth_error";
+    /// Session has expired
+    pub const SESSION_EXPIRED: &str = "session_expired";
+    /// Database operation failed
+    pub const DATABASE_ERROR: &str = "database_error";
+    /// Internal server error
+    pub const INTERNAL_ERROR: &str = "internal_error";
+    /// Configuration error
+    pub const CONFIG_ERROR: &str = "config_error";
+    /// Storage/R2 operation failed
+    pub const STORAGE_ERROR: &str = "storage_error";
+}
+
+// ============================================================================
+// CONSTRUCTOR HELPERS (for ergonomic error creation)
+// ============================================================================
+
+impl AppError {
+    /// Create NotFound error
+    pub fn not_found(msg: impl Into<String>) -> Self {
+        AppError::NotFound(msg.into())
+    }
+
+    /// Create Unauthorized error
+    pub fn unauthorized(msg: impl Into<String>) -> Self {
+        AppError::Unauthorized(msg.into())
+    }
+
+    /// Create Forbidden error
+    pub fn forbidden() -> Self {
+        AppError::Forbidden
+    }
+
+    /// Create BadRequest error
+    pub fn bad_request(msg: impl Into<String>) -> Self {
+        AppError::BadRequest(msg.into())
+    }
+
+    /// Create Validation error
+    pub fn validation(msg: impl Into<String>) -> Self {
+        AppError::Validation(msg.into())
+    }
+
+    /// Create OAuthError
+    pub fn oauth_error(msg: impl Into<String>) -> Self {
+        AppError::OAuthError(msg.into())
+    }
+
+    /// Create Internal error
+    pub fn internal(msg: impl Into<String>) -> Self {
+        AppError::Internal(msg.into())
+    }
+
+    /// Create Database error (legacy format, for simple cases)
+    pub fn database(msg: impl Into<String>) -> Self {
+        AppError::Database(msg.into())
+    }
+
+    /// Create Database error with detailed context
+    pub fn database_with_context(
+        operation: impl Into<String>,
+        table: impl Into<String>,
+        message: impl Into<String>,
+        user_id: Option<Uuid>,
+    ) -> Self {
+        AppError::DatabaseWithContext {
+            operation: operation.into(),
+            table: table.into(),
+            message: message.into(),
+            user_id,
+            entity_id: None,
+        }
+    }
+
+    /// Create Database error with context and entity ID
+    pub fn database_with_entity(
+        operation: impl Into<String>,
+        table: impl Into<String>,
+        message: impl Into<String>,
+        user_id: Option<Uuid>,
+        entity_id: Option<Uuid>,
+    ) -> Self {
+        AppError::DatabaseWithContext {
+            operation: operation.into(),
+            table: table.into(),
+            message: message.into(),
+            user_id,
+            entity_id,
+        }
+    }
+
+    /// Create Configuration error
+    pub fn config(msg: impl Into<String>) -> Self {
+        AppError::Config(msg.into())
+    }
+
+    /// Create Storage error
+    pub fn storage(msg: impl Into<String>) -> Self {
+        AppError::Storage(msg.into())
+    }
+}

@@ -1,0 +1,860 @@
+# OPTIMIZATION & CLEANUP PROCESS - MASTER INSTRUCTIONS
+
+**Version**: 1.0  
+**Created**: January 15, 2026  
+**Status**: Framework Ready  
+**Process**: Analysis → Tasks → Code → Tracking → Completion  
+
+---
+
+## 🎯 MISSION STATEMENT
+
+Transform codebase analysis findings into actual clean, efficient code through a systematic, tracked, observable optimization process that:
+
+1. ✅ **Identifies** exact code locations that need changes (TODOs)
+2. ✅ **Aligns** tasks with debugging system (DEBUGGING.md)
+3. ✅ **Links** to MASTER_FEATURE_SPEC for intended design
+4. ✅ **Tracks** progress from analysis → implementation → completion
+5. ✅ **Ensures** final code is clean, efficient, documented
+6. ✅ **Provides** clear next actions at every stage
+
+---
+
+## 📋 CORE FRAMEWORK
+
+### Flow: Analysis → Tasks → Code → Done
+
+```
+ANALYSIS DOCUMENTS (27 files)
+        ↓
+   IDENTIFY ISSUES
+        ↓
+MASTER_TASK_LIST (145 tasks)
+        ↓
+   ADD TODOS TO CODE
+        ↓
+OPTIMIZATION_TRACKER (this file)
+        ↓
+   EXECUTE TASK
+        ↓
+UPDATE DEBUGGING.md
+        ↓
+   VALIDATE & TEST
+        ↓
+MARK COMPLETE
+        ↓
+FEATURE_SPEC VERIFIED
+```
+
+---
+
+## 📍 PHASE 1: CODE INSTRUMENTATION
+
+### What: Add TODO markers at every location that needs change
+
+Each code location that appears in task analysis gets:
+
+```rust
+// TODO [TASK-ID]: [Brief description]
+// Reference: [AnalysisFile#IssueSection]
+// Roadmap: [Step N of M]
+// Status: NOT_STARTED|IN_PROGRESS|BLOCKED|COMPLETE
+```
+
+### Where: Code files
+
+**File**: Any file mentioned in analysis documents (40+ files total)
+
+**Pattern**:
+
+```rust
+// Example location from backend_security_patterns.md
+// TODO [SEC-001]: Validate redirect_uri against ALLOWED_REDIRECT_URIS
+// Reference: backend_security_patterns.md#oauth-1-incomplete-redirect-uri-validation
+// Roadmap: Step 1 of 4
+// Status: NOT_STARTED
+
+async fn signin_google(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<SigninQuery>,
+) -> AppResult<Response> {
+    // ← INSERT CODE HERE
+}
+```
+
+### Task: Add TODOs to Code
+
+**Action Items**:
+
+1. **For each CRITICAL task** (SEC-001 through SEC-006):
+   - Locate exact file and line number from analysis
+   - Add TODO comment with task ID
+   - Include reference to analysis document
+   - Set Status: NOT_STARTED
+   - Create tracking entry
+
+2. **For each HIGH task** (BACK-001 through FRONT-006):
+   - Same as above
+   - Mark as secondary priority if not in Week 1
+
+3. **For MEDIUM/LOW tasks**:
+   - Add TODOs for architectural changes
+   - Keep cleanup-focused todos low-noise
+
+**Locations to Instrument** (from task analysis):
+
+**CRITICAL Security** (6 locations):
+- `app/backend/crates/api/src/routes/auth.rs` (SEC-001, SEC-004)
+- `app/backend/crates/api/src/db/gamification_repos.rs` (SEC-002, SEC-003)
+- `app/backend/crates/api/src/middleware/security.rs` (SEC-005)
+- `app/backend/crates/api/src/db/user_repos.rs` (SEC-006)
+
+**HIGH Priority** (26 locations across backend/frontend):
+- [See OPTIMIZATION_TRACKER.md for full list]
+
+---
+
+## 📊 PHASE 2: ALIGN WITH DEBUGGING SYSTEM
+
+### What: Register tasks in debug/DEBUGGING.md
+
+Each task gets an entry in `debug/DEBUGGING.md`:
+
+**Format**:
+
+```markdown
+## [TASK_ID]: [Task Name]
+
+**Status**: Phase 1: DOCUMENT  
+**Severity**: CRITICAL/HIGH/MEDIUM/LOW  
+**Effort**: X hours  
+**Location**: file.rs:line  
+**Analysis**: [AnalysisFile#IssueSection](link)  
+**Tracker**: [OPTIMIZATION_TRACKER.md#TASK_ID](link)  
+
+### Issue
+[Issue description from analysis]
+
+### Solution
+[Solution approach]
+
+### Validation
+[Acceptance criteria]
+
+---
+```
+
+### Action: Create DEBUGGING.md Entry
+
+**For each task**:
+
+1. Copy task details from MASTER_TASK_LIST.md
+2. Add to `debug/DEBUGGING.md` in priority order
+3. Link to OPTIMIZATION_TRACKER.md for execution tracking
+4. Mark status as "Phase 1: DOCUMENT"
+5. Include reference to code location
+
+**Example**:
+
+```markdown
+## SEC-001: OAuth Redirect Open Redirect Vulnerability
+
+**Status**: Phase 1: DOCUMENT  
+**Severity**: CRITICAL (10/10)  
+**Effort**: 0.2 hours  
+**Location**: app/backend/crates/api/src/routes/auth.rs:100-115  
+**Analysis**: [backend_security_patterns.md](debug/analysis/backend_security_patterns.md#oauth-1-incomplete-redirect-uri-validation)  
+**Tracker**: [OPTIMIZATION_TRACKER.md#SEC-001](OPTIMIZATION_TRACKER.md#sec-001-oauth-redirect)  
+
+### Issue
+Client can specify any redirect_uri after authentication, enabling open redirect attack.
+
+### Solution
+Validate redirect URIs against ALLOWED_REDIRECT_URIS whitelist before storing.
+
+### Validation
+- Redirect URIs validated against whitelist
+- No arbitrary redirects accepted
+- Integration tests cover redirect attack scenarios
+
+---
+```
+
+---
+
+## 🎯 PHASE 3: LINK TO FEATURE SPEC
+
+### What: Connect tasks to intended design in MASTER_FEATURE_SPEC
+
+**For each component** that has tasks:
+
+1. **Find** matching section in MASTER_FEATURE_SPEC
+2. **Note** intended design from spec
+3. **Identify** gap between current code and intended design
+4. **Add** reference to FEATURE_SPEC in task tracking
+5. **Verify** implementation matches spec
+
+### Integration Points
+
+**Example**: SEC-001 (OAuth validation)
+
+```markdown
+**MASTER_FEATURE_SPEC Reference**:
+- Section: "Authentication / OAuth Security"
+- Intended Design: "All OAuth redirect URIs validated against configured whitelist"
+- Current State: "No validation; client-provided URIs stored as-is"
+- Gap: 0.2h work to add validation
+
+**Link**: [MASTER_FEATURE_SPEC.md](../MASTER_FEATURE_SPEC.md#oauth-security-requirements)
+```
+
+### Components with FEATURE_SPEC Links
+
+**Security Components**:
+- OAuth flows → MASTER_FEATURE_SPEC.md#authentication
+- Session management → MASTER_FEATURE_SPEC.md#session-security
+- CSRF protection → MASTER_FEATURE_SPEC.md#csrf-prevention
+
+**Backend Components**:
+- Database models → MASTER_FEATURE_SPEC.md#data-model
+- Error handling → MASTER_FEATURE_SPEC.md#error-handling
+- Configuration → MASTER_FEATURE_SPEC.md#configuration
+
+**Frontend Components**:
+- Component organization → MASTER_FEATURE_SPEC.md#component-architecture
+- State management → MASTER_FEATURE_SPEC.md#state-management
+- Form handling → MASTER_FEATURE_SPEC.md#forms
+
+---
+
+## 🔄 PHASE 4: EXECUTION FRAMEWORK
+
+### Step 1: Select Task (Daily)
+
+**From OPTIMIZATION_TRACKER.md**:
+1. Pick next NOT_STARTED task
+2. Verify no blockers
+3. Mark as IN_PROGRESS
+4. Update tracker with start time
+
+**Command**:
+```bash
+# Update OPTIMIZATION_TRACKER.md status to IN_PROGRESS
+# Record: start_time, assigned_to, notes
+```
+
+### Step 2: Read Analysis
+
+**From source analysis document**:
+1. Click link in OPTIMIZATION_TRACKER.md
+2. Read issue section
+3. Review code examples
+4. Understand root cause
+5. Read solution approach
+
+**Time**: 5-10 minutes
+
+### Step 3: Follow Implementation Roadmap
+
+**From analysis document**:
+1. IMPLEMENTATION ROADMAP section
+2. Step-by-step instructions
+3. Code examples provided
+4. Follow exactly as written
+
+**Time**: Depends on task (0.2h - 6h)
+
+### Step 4: Validate
+
+**From analysis document**:
+1. VALIDATION CHECKLIST section
+2. Run each check
+3. Verify acceptance criteria
+4. Ensure all tests pass
+
+**Time**: 10-20 minutes
+
+### Step 5: Update Tracker
+
+**In OPTIMIZATION_TRACKER.md**:
+1. Mark task COMPLETE
+2. Record actual effort (vs. estimate)
+3. Note any blockers or learnings
+4. Record completion timestamp
+5. Link to PR/commit
+
+**Command**:
+```bash
+# Update OPTIMIZATION_TRACKER.md
+# Mark: COMPLETE
+# Record: end_time, actual_effort, notes, pr_link
+```
+
+### Step 6: Update Debugging System
+
+**In debug/DEBUGGING.md**:
+1. Change status from "Phase 1: DOCUMENT" to "Phase 5: FIX"
+2. Add completion details
+3. Link to merged PR
+4. Update validation results
+
+---
+
+## 📝 PHASE 5: TRACKING & OBSERVABILITY
+
+### What: OPTIMIZATION_TRACKER.md
+
+Editable file that tracks every task through:
+1. Discovery → Code locations identified
+2. Analysis → Understanding complete
+3. Implementation → Work in progress
+4. Validation → Quality checks
+5. Completion → Merged and verified
+
+**Structure**:
+
+```markdown
+# OPTIMIZATION_TRACKER.md
+
+## Status Summary
+- NOT_STARTED: 145
+- IN_PROGRESS: 0
+- BLOCKED: 0
+- COMPLETE: 0
+
+## CRITICAL TASKS (Week 1)
+
+### SEC-001: OAuth Redirect Validation
+**Status**: NOT_STARTED
+**Code Location**: app/backend/crates/api/src/routes/auth.rs:100-115
+**Effort**: 0.2h
+**Analysis**: [backend_security_patterns.md#oauth-1](...)
+**Tracker**: [SEC-001 details below](#sec-001-oauth-redirect-validation)
+
+### [More tasks...]
+
+## DETAILED TRACKING
+
+### SEC-001: OAuth Redirect Validation
+
+**Status**: NOT_STARTED → IN_PROGRESS → BLOCKED → COMPLETE
+
+**Timeline**:
+- Created: Jan 15, 2026
+- Started: [date]
+- Blocked: [date, reason]
+- Completed: [date]
+
+**Code Changes**:
+- [ ] Create ALLOWED_REDIRECT_URIS constant
+- [ ] Implement validate_redirect_uri() function
+- [ ] Update signin_google()
+- [ ] Update signin_azure()
+- [ ] Add unit tests
+- [ ] Add integration tests
+
+**Validation**:
+- [ ] Redirect URIs validated against whitelist
+- [ ] No arbitrary redirects accepted
+- [ ] Integration tests pass
+- [ ] Code review approved
+- [ ] Tests pass on CI
+
+**Effort Actual**: 0.2h (estimate: 0.2h)
+**Status Reason**: [Complete | Blocked on X | In progress]
+**PR Link**: [github.com/...]
+**Learnings**: [What we learned]
+**Blockers**: [None | X prevents Y]
+
+---
+```
+
+### Structure of OPTIMIZATION_TRACKER.md
+
+```
+SECTION 1: Status Summary (Overall progress)
+├─ NOT_STARTED: [count]
+├─ IN_PROGRESS: [count]
+├─ BLOCKED: [count]
+├─ COMPLETE: [count]
+└─ Completion %: X%
+
+SECTION 2: CRITICAL Tasks (6 tasks)
+├─ SEC-001 through SEC-006
+└─ Quick reference for Week 1
+
+SECTION 3: HIGH Tasks (26 tasks)
+├─ BACK-001 through BACK-012
+├─ FRONT-001 through FRONT-006
+└─ HIGH priority work
+
+SECTION 4: MEDIUM & LOW (11+ tasks)
+├─ MID-001 through MID-005
+└─ LOW-001 through LOW-003
+
+SECTION 5: DETAILED TRACKING
+├─ Full timeline for each task
+├─ Code changes checklist
+├─ Validation checklist
+├─ Links to PRs/commits
+└─ Effort tracking & learnings
+```
+
+---
+
+## 🚨 ALIGNMENT REQUIREMENTS
+
+### Requirement 1: Every Task has Code Location
+
+**Must Have**:
+- Exact file path
+- Line numbers
+- Function/method name
+- TODO marker in code
+
+**Example**:
+```
+SEC-001: OAuth Redirect Validation
+Location: app/backend/crates/api/src/routes/auth.rs:100-115 (fn signin_google)
+TODO: [SEC-001] Validate redirect_uri against ALLOWED_REDIRECT_URIS
+```
+
+### Requirement 2: Every Task Linked to Analysis
+
+**Must Have**:
+- Link to source analysis document
+- Reference to specific issue section
+- Code example from analysis
+- Implementation roadmap from analysis
+
+**Example**:
+```
+Analysis: backend_security_patterns.md#oauth-1-incomplete-redirect-uri-validation
+Roadmap: Phase 1: Create ALLOWED_REDIRECT_URIS (0.2h)
+Code Example: Provided in analysis, lines 100-150
+```
+
+### Requirement 3: Every Task Tracked in DEBUGGING.md
+
+**Must Have**:
+- Entry in debug/DEBUGGING.md
+- Status tracking (Phase 1-6)
+- Linked to OPTIMIZATION_TRACKER.md
+- Validation results recorded
+
+**Example**:
+```
+## SEC-001: OAuth Redirect Validation
+
+**Status**: Phase 2: DOCUMENT
+**Location**: app/backend/crates/api/src/routes/auth.rs:100
+**Analysis**: [backend_security_patterns.md](...)
+**Tracker**: [OPTIMIZATION_TRACKER.md#SEC-001](...)
+**Validation**: [Checklist from analysis]
+```
+
+### Requirement 4: FEATURE_SPEC Alignment
+
+**Must Have**:
+- Cross-reference to MASTER_FEATURE_SPEC.md
+- Verify implementation matches intended design
+- Note any design changes needed
+- Document deviation if any
+
+**Example**:
+```
+**FEATURE_SPEC**:
+- Section: Authentication / OAuth Security
+- Requirement: "Validate all redirect URIs against configured whitelist"
+- Status: ✅ Aligned (implementation matches spec)
+```
+
+### Requirement 5: Code is "Clean & Efficient"
+
+**Definition**: Code satisfies all of:
+
+1. **Clean**:
+   - [ ] Passes cargo check (0 errors)
+   - [ ] Passes clippy linting
+   - [ ] Follows Rust conventions
+   - [ ] Has explanatory comments (for complex logic)
+   - [ ] No debug code left behind
+
+2. **Efficient**:
+   - [ ] Uses appropriate data structures
+   - [ ] No unnecessary allocations
+   - [ ] No O(n²) loops where O(n) possible
+   - [ ] Caching used where beneficial
+   - [ ] Database queries optimized
+
+3. **Well-Tested**:
+   - [ ] Unit tests for new code
+   - [ ] Integration tests for interactions
+   - [ ] Edge cases covered
+   - [ ] Error paths tested
+   - [ ] >80% code coverage
+
+4. **Documented**:
+   - [ ] Public API documented
+   - [ ] Complex logic explained
+   - [ ] Design decisions noted
+   - [ ] TODO comments completed (removed)
+   - [ ] MASTER_FEATURE_SPEC up-to-date
+
+---
+
+## 🔍 EXECUTION CHECKLIST
+
+### Daily Execution Checklist
+
+- [ ] **Select** next task from OPTIMIZATION_TRACKER.md
+- [ ] **Read** source analysis document (5-10 min)
+- [ ] **Understand** issue and solution (3-5 min)
+- [ ] **Follow** implementation roadmap (varies)
+- [ ] **Validate** using provided checklist (10 min)
+- [ ] **Update** OPTIMIZATION_TRACKER.md (2 min)
+- [ ] **Update** debug/DEBUGGING.md (2 min)
+- [ ] **Commit** with task ID reference (1 min)
+- [ ] **Submit** PR with links and validation (2 min)
+
+### Weekly Execution Checklist
+
+- [ ] **Monday**: Assign Week's tasks from OPTIMIZATION_TRACKER.md
+- [ ] **Daily**: Update task status in tracker
+- [ ] **Wednesday**: Mid-week check-in on blockers
+- [ ] **Friday**: Review weekly progress
+  - [ ] How many tasks completed?
+  - [ ] Actual vs. estimated effort?
+  - [ ] Any learnings for next week?
+  - [ ] Are blockers resolved?
+- [ ] **Friday**: Update team on progress
+
+### Monthly Execution Checklist
+
+- [ ] **Week 1**: All 6 CRITICAL tasks should be COMPLETE
+- [ ] **Week 2-3**: 20+ HIGH priority tasks started
+- [ ] **Week 4**: 70%+ of HIGH priority COMPLETE
+- [ ] **Month 1**: Review overall progress
+  - [ ] What's been learned?
+  - [ ] Estimate accuracy?
+  - [ ] Team velocity?
+  - [ ] Any patterns in blockers?
+- [ ] **Month 2-3**: Continue MEDIUM priority work
+- [ ] **Month 3**: Final push on remaining tasks
+
+---
+
+## 📄 DOCUMENTATION REQUIREMENTS
+
+### What Documentation Must Exist
+
+1. **Code TODOs**
+   - Every location that needs change has TODO comment
+   - Format: `// TODO [TASK-ID]: Description`
+   - Status field in comment
+
+2. **DEBUGGING.md**
+   - Entry for every task
+   - Phase tracking (1-6)
+   - Linked to OPTIMIZATION_TRACKER.md
+
+3. **OPTIMIZATION_TRACKER.md**
+   - Status for every task
+   - Timeline (start, end)
+   - Effort actual vs. estimate
+   - PR/commit links
+   - Learnings & blockers
+
+4. **MASTER_FEATURE_SPEC.md**
+   - Updated as needed
+   - Deviations documented
+   - Design decisions noted
+
+5. **Code Comments**
+   - TODO → COMPLETE comments removed (or marked DONE)
+   - Complex logic explained
+   - Design decisions noted
+   - Edge cases documented
+
+---
+
+## 🎓 WORKFLOWS BY ROLE
+
+### For Developer
+
+```
+1. Check OPTIMIZATION_TRACKER.md
+2. Find NOT_STARTED task (highest priority first)
+3. Read source analysis document (click link)
+4. Follow implementation roadmap
+5. Code the solution
+6. Validate using checklist
+7. Update OPTIMIZATION_TRACKER.md (status COMPLETE)
+8. Update debug/DEBUGGING.md (link PR)
+9. Commit with task ID
+10. Submit PR
+11. Get code review
+12. Merge when approved
+```
+
+**Time per task**: 0.2h - 6h (depending on task)  
+**Tracking**: OPTIMIZATION_TRACKER.md
+
+### For Code Reviewer
+
+```
+1. Read task context in OPTIMIZATION_TRACKER.md
+2. Check that analysis was followed
+3. Verify validation checklist was completed
+4. Ensure no TODO comments left behind
+5. Verify FEATURE_SPEC alignment
+6. Check code is clean and efficient
+7. Approve or request changes
+8. After merge: mark COMPLETE in DEBUGGING.md
+```
+
+### For Tech Lead
+
+```
+1. Daily: Check OPTIMIZATION_TRACKER.md summary
+   - Any blockers?
+   - Any slow tasks?
+   - Are we on pace?
+
+2. Weekly: Review progress
+   - % complete (should be 10-20% per week)
+   - Effort accuracy (are estimates good?)
+   - Team velocity (tasks/person/week)
+   - Blockers (how to unblock?)
+
+3. Monthly: Strategic review
+   - Are we hitting milestones?
+   - Should timeline adjust?
+   - Any process improvements?
+   - What learnings apply to future work?
+```
+
+### For Project Manager
+
+```
+1. Weekly: Generate progress report
+   - Tasks complete: X/145
+   - Effort spent: Xh / 27-34h
+   - % complete: X%
+   - On track? Yes/No
+
+2. Blockers: Any risks?
+   - What's preventing progress?
+   - How to resolve?
+   - Do we need to adjust schedule?
+
+3. Stakeholders: Report status
+   - Completion %
+   - Security fixes status
+   - Expected completion date
+   - Any risks or issues
+```
+
+---
+
+## 🎯 SUCCESS CRITERIA
+
+### Task Completion = Success When
+
+For **every task**, all of:
+
+1. ✅ **Code is written**
+   - [ ] Changes made to actual codebase (not just docs)
+   - [ ] Follows implementation roadmap
+   - [ ] Clean & efficient
+
+2. ✅ **Code is tested**
+   - [ ] All validation checklist items pass
+   - [ ] Tests added/updated
+   - [ ] No regressions
+
+3. ✅ **Code is reviewed**
+   - [ ] PR created with context links
+   - [ ] Code review completed
+   - [ ] Approved for merge
+
+4. ✅ **Code is merged**
+   - [ ] PR merged to main
+   - [ ] Tests pass on CI
+   - [ ] No blockers
+
+5. ✅ **Everything is documented**
+   - [ ] OPTIMIZATION_TRACKER.md updated
+   - [ ] debug/DEBUGGING.md updated
+   - [ ] TODO comments removed or marked DONE
+   - [ ] Any design changes noted in FEATURE_SPEC
+
+6. ✅ **Task is closed**
+   - [ ] Status: COMPLETE
+   - [ ] Effort: Recorded (actual vs. estimate)
+   - [ ] PR link: Recorded
+   - [ ] Learnings: Documented
+
+---
+
+## 📊 METRICS & REPORTING
+
+### Weekly Metrics
+
+```markdown
+## Week of [DATE]
+
+**Progress**:
+- Tasks Complete: X/145 (X%)
+- Hours Spent: Xh / 32h total
+- Velocity: X tasks/person/week
+
+**By Priority**:
+- CRITICAL: X/6 complete
+- HIGH: X/26 complete
+- MEDIUM: X/8 complete
+- LOW: X/3 complete
+
+**Quality**:
+- Test Pass Rate: X%
+- Code Review Approval: X%
+- Blocker Count: X
+
+**Forecast**:
+- Estimated Completion: [DATE]
+- On Track: [Yes/No]
+```
+
+### Monthly Metrics
+
+```markdown
+## Month of [DATE]
+
+**Completion**:
+- Tasks: X/145 (X%)
+- Effort: Xh / 32h (X%)
+- Velocity Trend: [Increasing/Stable/Decreasing]
+
+**Quality Trend**:
+- Code quality: [Improving/Stable/Declining]
+- Test coverage: [Up/Down] X%
+- Blocker resolution: [Fast/Slow]
+
+**Learnings**:
+- Estimate accuracy: [Good/Ok/Poor]
+- Process improvements: [List]
+- Risks identified: [List]
+
+**Next Month**:
+- Expected completion: [DATE]
+- Focus areas: [List priority]
+- Resource needs: [Any changes?]
+```
+
+---
+
+## 🚀 GETTING STARTED
+
+### Today: Setup Phase (1-2 hours)
+
+1. **Create files** (this is being done now):
+   - [ ] OPTIMIZATION.instructions (you're reading it)
+   - [ ] OPTIMIZATION_TRACKER.md (next file)
+   
+2. **Instrument code**:
+   - [ ] Add TODO markers for CRITICAL tasks (0.5h)
+   - [ ] Add TODO markers for HIGH tasks (1h)
+   
+3. **Create DEBUGGING.md entries**:
+   - [ ] Add CRITICAL tasks (0.3h)
+   - [ ] Add HIGH tasks (0.7h)
+   
+4. **Link to FEATURE_SPEC**:
+   - [ ] Review MASTER_FEATURE_SPEC.md
+   - [ ] Note alignment for each task component
+
+### Week 1: Execution Phase (4 hours)
+
+1. **Work on CRITICAL tasks** (6 tasks, 4 hours)
+   - SEC-001, SEC-002, SEC-003, SEC-004, SEC-005, SEC-006
+   - Follow instructions above for each
+
+2. **Track progress** (30 min/day)
+   - Update OPTIMIZATION_TRACKER.md status
+   - Update debug/DEBUGGING.md
+
+3. **Daily standup** (15 min/day)
+   - What's done?
+   - What's blocked?
+   - What's next?
+
+### Weeks 2-4: Execution Phase (16 hours)
+
+1. **Work on HIGH tasks** (26 tasks, 16 hours)
+   - Backend and frontend
+   - Continue tracking
+
+2. **Monitor progress**
+   - Track actual vs. estimated effort
+   - Identify patterns in blockers
+   - Adjust next week's plan
+
+### Month 1-2+: Completion Phase (remaining)
+
+1. **MEDIUM priority tasks**
+2. **LOW priority tasks**
+3. **Final cleanup**
+4. **Verification**
+5. **Close out project**
+
+---
+
+## 📞 SUPPORT & ESCALATION
+
+### If You Get Stuck
+
+1. **Re-read the analysis** - Most answers there
+2. **Check validation checklist** - Hints at missing steps
+3. **Look at code examples** - Solution often in analysis
+4. **Review implementation roadmap** - Step-by-step guide
+5. **Ask for pairing** - Complex tasks can pair
+
+### If Blocked
+
+1. **Document blocker** in OPTIMIZATION_TRACKER.md
+2. **Note reason** (dependency, unclear spec, tech issue)
+3. **Identify unblock path** (what needs to happen first?)
+4. **Escalate to tech lead** (if blocking others)
+5. **Work on different task** (while waiting)
+
+### If Estimate is Wrong
+
+1. **Record actual effort** in OPTIMIZATION_TRACKER.md
+2. **Note variance** (why was estimate off?)
+3. **Use learning** for future estimates
+4. **Don't stop work** - record and continue
+
+---
+
+## ✅ FINAL CHECKLIST: Ready to Execute
+
+Before starting any work, verify:
+
+- [ ] This file (OPTIMIZATION.instructions) has been read
+- [ ] OPTIMIZATION_TRACKER.md exists and is accessible
+- [ ] DEBUGGING.md exists in debug/ directory
+- [ ] All code files have TODO markers for their tasks
+- [ ] MASTER_FEATURE_SPEC.md cross-references added
+- [ ] Team understands the workflow
+- [ ] First task (SEC-001) is ready to start
+- [ ] Tracking system is setup and working
+
+---
+
+**Process Ready for Execution** ✅
+
+**Next File**: OPTIMIZATION_TRACKER.md (executable tracking)
+
+**Next Step**: Select first CRITICAL task and begin
+
+**Support**: Refer to this instructions file for process clarity

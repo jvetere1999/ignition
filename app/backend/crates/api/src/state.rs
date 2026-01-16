@@ -25,10 +25,16 @@ impl AppState {
     pub async fn new(config: &AppConfig) -> anyhow::Result<Self> {
         // Log the database URL (redacted for security)
         let db_url = &config.database.url;
-        tracing::info!("DATABASE_URL received: {} chars", db_url.len());
+        tracing::debug!(
+            db_url_length = db_url.len(),
+            "DATABASE_URL received"
+        );
         
         if db_url.is_empty() || db_url == "postgres://localhost/ignition" {
-            tracing::error!("DATABASE_URL not set or using fallback: {}", db_url);
+            tracing::error!(
+                db_url = %db_url,
+                "DATABASE_URL not configured"
+            );
             return Err(anyhow::anyhow!("DATABASE_URL environment variable not configured"));
         }
         
@@ -38,7 +44,10 @@ impl AppState {
         } else {
             "***".to_string()
         };
-        tracing::info!("Connecting to database: {}", redacted_url);
+        tracing::info!(
+            redacted_url = %redacted_url,
+            "Connecting to database"
+        );
 
         // Create database pool with explicit timeout settings
         // Cloudflare containers may have network latency, so we use conservative timeouts
@@ -49,32 +58,45 @@ impl AppState {
             .connect(&config.database.url)
             .await
             .map_err(|e| {
-                tracing::error!("Failed to connect to database: {}", e);
-                tracing::error!("DATABASE_URL (redacted): {}", redacted_url);
+                tracing::error!(
+                    error = %e,
+                    operation = "database_connection",
+                    "Failed to connect to database"
+                );
                 e
             })?;
 
-        tracing::info!("Database connection pool created");
+        tracing::info!(
+            pool_size = config.database.pool_size,
+            "Database connection pool created"
+        );
 
         // ✓ Migrations are now handled by the deployment pipeline (wipe-and-rebuild-neon job)
         // ✓ Backend no longer runs migrations on startup to avoid conflicts
         // ✓ Database schema is verified and ready before container deployment
-        tracing::info!("Database ready (migrations pre-applied by deployment pipeline)");
+        tracing::info!("Database ready - migrations pre-applied by deployment pipeline");
 
         // Create storage client if configured
         let storage = if config.storage.endpoint.is_some() {
             match StorageClient::new(&config.storage).await {
                 Ok(client) => {
-                    tracing::info!("Storage client initialized");
+                    tracing::debug!("Storage client initialized successfully");
                     Some(client)
                 }
                 Err(e) => {
-                    tracing::warn!("Storage client not available: {}", e);
+                    tracing::warn!(
+                        error = %e,
+                        feature = "storage_client",
+                        "Storage client initialization failed - using fallback"
+                    );
                     None
                 }
             }
         } else {
-            tracing::info!("Storage not configured");
+            tracing::info!(
+                feature = "storage_client",
+                "Storage not configured - feature disabled"
+            );
             None
         };
 

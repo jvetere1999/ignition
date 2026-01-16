@@ -68,6 +68,10 @@ pub struct AuthConfig {
     /// Session TTL in seconds (default: 30 days)
     #[serde(default = "default_session_ttl")]
     pub session_ttl_seconds: u64,
+    /// Session inactivity timeout in minutes (default: 30)
+    /// After this duration of no activity, session is considered stale
+    #[serde(default = "default_session_inactivity_timeout")]
+    pub session_inactivity_timeout_minutes: u64,
     /// OAuth providers configuration
     #[serde(default)]
     pub oauth: Option<OAuthConfig>,
@@ -142,6 +146,10 @@ fn default_session_ttl() -> u64 {
     60 * 60 * 24 * 30 // 30 days in seconds
 }
 
+fn default_session_inactivity_timeout() -> u64 {
+    30 // 30 minutes
+}
+
 fn default_allowed_origins() -> Vec<String> {
     vec![
         "http://localhost:3000".to_string(),
@@ -172,18 +180,12 @@ impl AppConfig {
             .filter(|s| !s.is_empty() && s != "undefined")
             .unwrap_or_else(|| "postgres://localhost/ignition".to_string());
 
-        // Debug: Log all AUTH_* and STORAGE_* env vars at startup
+        // Debug: Log all AUTH_* and STORAGE_* env vars at startup (with secrets redacted)
         tracing::info!("=== Config Loading: Environment Variables ===");
         for (key, value) in std::env::vars() {
             if key.starts_with("AUTH_") || key.starts_with("STORAGE_") || key.starts_with("DATABASE") || key.starts_with("SERVER_") {
-                let display_value = if key.contains("SECRET") || key.contains("PASSWORD") || key.contains("KEY") {
-                    if value.is_empty() { "(empty)" } else { "(set)" }
-                } else if value.len() > 50 {
-                    &value[..50]
-                } else {
-                    &value
-                };
-                tracing::info!("  {}: {}", key, display_value);
+                let display_value = Self::redact_sensitive_value(&key, &value);
+                tracing::debug!("  {}: {}", key, display_value);
             }
         }
         tracing::info!("=== End Environment Variables ===");
@@ -200,6 +202,7 @@ impl AppConfig {
             .set_default("database.pool_size", 10)?
             .set_default("auth.cookie_domain", "localhost")?
             .set_default("auth.session_ttl_seconds", 60 * 60 * 24 * 30)?
+            .set_default("auth.session_inactivity_timeout_minutes", 30)?
             // Initialize OAuth structure with empty defaults so env vars can populate it
             .set_default("auth.oauth.google.client_id", "")?
             .set_default("auth.oauth.google.client_secret", "")?
@@ -314,6 +317,35 @@ impl AppConfig {
         }
 
         Ok(app_config)
+    }
+
+    /// Redact sensitive values from config logging
+    /// Prevents secrets like API keys, passwords, and database URLs from appearing in logs
+    fn redact_sensitive_value(key: &str, value: &str) -> String {
+        // List of key patterns that indicate sensitive values
+        let sensitive_patterns = [
+            "SECRET", "PASSWORD", "KEY", "TOKEN",
+            "CREDENTIAL", "API_KEY", "OAUTH",
+            "DATABASE_URL",  // Entire URL might have password
+        ];
+        
+        // Check if key matches any sensitive pattern
+        for pattern in &sensitive_patterns {
+            if key.contains(pattern) {
+                return if value.is_empty() {
+                    "(empty)".to_string()
+                } else {
+                    "(set, redacted)".to_string()
+                };
+            }
+        }
+        
+        // Non-sensitive values can be shown (with truncation for long values)
+        if value.len() > 100 {
+            format!("{}...{}", &value[..50], &value[value.len()-50..])
+        } else {
+            value.to_string()
+        }
     }
 
     /// Check if running in production

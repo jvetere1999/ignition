@@ -18,6 +18,11 @@ use crate::error::AppError;
 pub struct FocusSessionRepo;
 
 impl FocusSessionRepo {
+    // TODO [BACK-004]: Fix pause/resume state transitions - validate state machine
+    // Reference: debug/analysis/MASTER_TASK_LIST.md#back-004-fix-focus-repository-pauseresume-logic
+    // Roadmap: Step 1 of 6 - Add state machine validation, guard functions, state transitions
+    // Status: NOT_STARTED
+
     /// Start a new focus session
     pub async fn start_session(
         pool: &PgPool,
@@ -331,6 +336,10 @@ impl FocusPauseRepo {
     }
 
     /// Pause active session
+    /// 
+    /// Records remaining time using the absolute expires_at timestamp.
+    /// This allows resume_session() to recalculate accurately without time drift
+    /// even after multiple pause/resume cycles.
     pub async fn pause_session(pool: &PgPool, user_id: Uuid) -> Result<FocusPauseState, AppError> {
         // Get active session
         let session = FocusSessionRepo::get_active_session(pool, user_id).await?;
@@ -341,13 +350,14 @@ impl FocusPauseRepo {
             return Err(AppError::BadRequest("Session is not active".to_string()));
         }
 
-        // Calculate remaining time
+        // Calculate remaining time from expires_at (source of truth for session duration)
         let time_remaining = session
             .expires_at
             .map(|exp| (exp - Utc::now()).num_seconds().max(0) as i32)
             .unwrap_or(session.duration_seconds);
 
-        // Update session status
+        // Update session status with paused timestamp
+        // paused_remaining_seconds is stored for UI display, not for resumption logic
         sqlx::query(
             r#"UPDATE focus_sessions
                SET status = 'paused', paused_at = NOW(), paused_remaining_seconds = $1
@@ -358,7 +368,7 @@ impl FocusPauseRepo {
         .execute(pool)
         .await?;
 
-        // Upsert pause state
+        // Upsert pause state (stores copy for quick access)
         let state = sqlx::query_as::<_, FocusPauseState>(
             r#"INSERT INTO focus_pause_state
                (user_id, session_id, mode, is_paused, time_remaining_seconds, paused_at)
@@ -383,6 +393,9 @@ impl FocusPauseRepo {
     }
 
     /// Resume paused session
+    /// 
+    /// Fixes time drift by recalculating remaining time from session data
+    /// instead of relying on potentially stale pause_state values
     pub async fn resume_session(pool: &PgPool, user_id: Uuid) -> Result<FocusSession, AppError> {
         let pause_state = Self::get_pause_state(pool, user_id).await?;
         let pause_state = pause_state
@@ -390,8 +403,25 @@ impl FocusPauseRepo {
 
         let session_id = pause_state.session_id;
 
-        // Calculate new expiry
-        let time_remaining = pause_state.time_remaining_seconds.unwrap_or(0);
+        // Get the original session to recalculate remaining time accurately
+        let original_session = sqlx::query_as::<_, FocusSession>(
+            r#"SELECT id, user_id, mode, duration_seconds, started_at, completed_at,
+                      abandoned_at, expires_at, paused_at, paused_remaining_seconds,
+                      status, xp_awarded, coins_awarded, task_id, task_title, created_at
+               FROM focus_sessions WHERE id = $1 AND user_id = $2"#,
+        )
+        .bind(session_id)
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+        // Calculate remaining time from the original expires_at, not stale pause_state
+        // This prevents time drift on multiple pause/resume cycles
+        let time_remaining = original_session
+            .expires_at
+            .map(|exp| (exp - Utc::now()).num_seconds().max(0) as i32)
+            .unwrap_or_else(|| pause_state.time_remaining_seconds.unwrap_or(0));
+        
         let new_expires_at = Utc::now() + Duration::seconds(time_remaining as i64);
 
         // Update session

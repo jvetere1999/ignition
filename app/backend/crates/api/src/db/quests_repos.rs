@@ -181,6 +181,7 @@ impl QuestsRepo {
         let today = Utc::now().date_naive();
 
         // Calculate streak for repeatable quests
+        // Using explicit ::date casting for accurate NaiveDate comparisons
         let new_streak = if quest.is_repeatable {
             let yesterday = today.pred_opt().unwrap_or(today);
             match quest.last_completed_date {

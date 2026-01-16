@@ -50,6 +50,42 @@ impl AuthContext {
     pub fn has_entitlement(&self, entitlement: &str) -> bool {
         self.entitlements.contains(&entitlement.to_string())
     }
+
+    /// Create AuthContext from database using session token
+    /// 
+    /// Consolidates the session lookup, user fetch, and entitlement loading
+    /// into a single operation with consistent error handling.
+    pub async fn from_token(
+        db: &sqlx::PgPool,
+        token: &str,
+    ) -> Result<Self, AppError> {
+        // Look up session in database
+        let session = SessionRepo::find_by_token(db, token)
+            .await?
+            .ok_or_else(|| AppError::unauthorized("Session not found"))?;
+
+        tracing::debug!(session_id = %session.id, "Session found");
+
+        // Fetch user
+        let user = UserRepo::find_by_id(db, session.user_id)
+            .await?
+            .ok_or_else(|| AppError::unauthorized("User not found"))?;
+
+        tracing::debug!(user_id = %user.id, "User found");
+
+        // Load entitlements from RBAC
+        let entitlements = RbacRepo::get_entitlements(db, user.id).await?;
+
+        Ok(AuthContext {
+            user_id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            session_id: session.id,
+            entitlements,
+            is_dev_bypass: false,
+        })
+    }
 }
 
 /// Session cookie name
@@ -88,63 +124,9 @@ pub async fn extract_session(
         return Ok(next.run(req).await);
     }
 
-    // Extract session token from cookies
-    let session_token = extract_session_token(&req);
-
-    if let Some(token) = session_token {
-        tracing::debug!(token_preview = %&token[..token.len().min(10)], "Looking up session in database");
-        
-        // Look up session in database
-        match SessionRepo::find_by_token(&state.db, &token).await {
-            Ok(Some(session)) => {
-                tracing::debug!(session_id = %session.id, user_id = %session.user_id, "Session found in database");
-                
-                // Get user
-                match UserRepo::find_by_id(&state.db, session.user_id).await {
-                    Ok(Some(user)) => {
-                        tracing::debug!(user_id = %user.id, email = %user.email, "User found");
-                        
-                        // Get entitlements from RBAC
-                        let entitlements = RbacRepo::get_entitlements(&state.db, user.id).await?;
-
-                        let auth_context = AuthContext {
-                            user_id: user.id,
-                            email: user.email,
-                            name: user.name,
-                            role: user.role,
-                            session_id: session.id,
-                            entitlements,
-                            is_dev_bypass: false,
-                        };
-
-                        // Update last activity (fire and forget)
-                        let db = state.db.clone();
-                        let sid = session.id;
-                        let uid = user.id;
-                        tokio::spawn(async move {
-                            let _ = SessionRepo::touch(&db, sid).await;
-                            let _ = UserRepo::update_last_activity(&db, uid).await;
-                        });
-
-                        req.extensions_mut().insert(auth_context);
-                    }
-                    Ok(None) => {
-                        tracing::warn!(user_id = %session.user_id, "User not found for valid session");
-                    }
-                    Err(e) => {
-                        tracing::error!(error = %e, "Error fetching user");
-                    }
-                }
-            }
-            Ok(None) => {
-                tracing::debug!("Session not found in database");
-            }
-            Err(e) => {
-                tracing::error!(error = %e, "Error looking up session");
-            }
-        }
-    } else {
-        tracing::debug!("No session token provided");
+    // Extract and process session
+    if let Some(token) = extract_session_token(&req) {
+        init_auth_context(&state, &mut req, &token).await;
     }
 
     Ok(next.run(req).await)
@@ -213,22 +195,90 @@ pub fn require_entitlement(
     }
 }
 
+/// Initialize AuthContext from session token
+/// 
+/// This function consolidates the session lookup, user fetch, and activity logging
+/// into a single point of logic. It replaces scattered session handling code.
+async fn init_auth_context(
+    state: &Arc<AppState>,
+    req: &mut Request,
+    token: &str,
+) {
+    tracing::debug!(
+        token_preview = %&token[..token.len().min(10)],
+        "Looking up session in database"
+    );
+
+    // Look up session in database
+    match SessionRepo::find_by_token(&state.db, token).await {
+        Ok(Some(session)) => {
+            tracing::debug!(
+                session_id = %session.id,
+                user_id = %session.user_id,
+                "Session found in database"
+            );
+
+            // Get user
+            match UserRepo::find_by_id(&state.db, session.user_id).await {
+                Ok(Some(user)) => {
+                    tracing::debug!(
+                        user_id = %user.id,
+                        email = %user.email,
+                        "User found"
+                    );
+
+                    // Get entitlements from RBAC
+                    match RbacRepo::get_entitlements(&state.db, user.id).await {
+                        Ok(entitlements) => {
+                            let auth_context = AuthContext {
+                                user_id: user.id,
+                                email: user.email,
+                                name: user.name,
+                                role: user.role,
+                                session_id: session.id,
+                                entitlements,
+                                is_dev_bypass: false,
+                            };
+
+                            // Update activity (fire and forget, logged internally)
+                            log_activity_update(&state.db, session.id, user.id);
+
+                            req.extensions_mut().insert(auth_context);
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                error = %e,
+                                user_id = %user.id,
+                                "Error fetching entitlements"
+                            );
+                        }
+                    }
+                }
+                Ok(None) => {
+                    tracing::warn!(
+                        user_id = %session.user_id,
+                        "User not found for valid session"
+                    );
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "Error fetching user");
+                }
+            }
+        }
+        Ok(None) => {
+            tracing::debug!("Session not found in database");
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Error looking up session");
+        }
+    }
+}
+
 /// Extract session token from cookie header
 fn extract_session_token(req: &Request) -> Option<String> {
     let cookie_header = req.headers().get(header::COOKIE);
     
-    // Debug log to trace cookie issues
-    match cookie_header {
-        Some(h) => {
-            let cookie_str = h.to_str().unwrap_or("<invalid>");
-            tracing::debug!(cookie_header = %cookie_str, "Received cookie header");
-        }
-        None => {
-            tracing::debug!("No cookie header in request");
-        }
-    }
-    
-    let token = cookie_header?
+    cookie_header?
         .to_str()
         .ok()?
         .split(';')
@@ -241,15 +291,38 @@ fn extract_session_token(req: &Request) -> Option<String> {
             } else {
                 None
             }
-        });
-    
-    if token.is_some() {
-        tracing::debug!("Session token extracted from cookie");
-    } else {
-        tracing::debug!("No session token found in cookies");
-    }
-    
-    token
+        })
+}
+
+/// Log session and user activity asynchronously with error handling
+/// 
+/// Updates are fire-and-forget but errors are logged for observability.
+/// This ensures activity tracking doesn't impact request latency.
+fn log_activity_update(
+    db: &sqlx::PgPool,
+    session_id: Uuid,
+    user_id: Uuid,
+) {
+    let db = db.clone();
+    tokio::spawn(async move {
+        // Update session last activity
+        if let Err(e) = SessionRepo::touch(&db, session_id).await {
+            tracing::warn!(
+                session_id = %session_id,
+                error = %e,
+                "Failed to update session activity"
+            );
+        }
+
+        // Update user last activity
+        if let Err(e) = UserRepo::update_last_activity(&db, user_id).await {
+            tracing::warn!(
+                user_id = %user_id,
+                error = %e,
+                "Failed to update user last activity"
+            );
+        }
+    });
 }
 
 /// Create session cookie header value
