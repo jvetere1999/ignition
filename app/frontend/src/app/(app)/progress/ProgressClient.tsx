@@ -63,13 +63,13 @@ export function ProgressClient() {
 
       if (focusRes.ok) {
         const focusData = await focusRes.json() as {
-          stats?: { total_focus_seconds?: number; completed_sessions?: number };
+          data?: { stats?: { total_focus_seconds?: number; completed_sessions?: number } };
         };
-        const totalFocusSeconds = focusData.stats?.total_focus_seconds ?? 0;
+        const totalFocusSeconds = focusData.data?.stats?.total_focus_seconds ?? 0;
         setStats((prev) => ({
           ...prev,
           focusHours: Math.round(totalFocusSeconds / 3600),
-          focusSessions: focusData.stats?.completed_sessions ?? 0,
+          focusSessions: focusData.data?.stats?.completed_sessions ?? 0,
         }));
       }
     } catch (e) {

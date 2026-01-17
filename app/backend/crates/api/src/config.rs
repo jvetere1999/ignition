@@ -348,6 +348,159 @@ impl AppConfig {
         }
     }
 
+    /// Validate configuration for required fields and combinations
+    /// 
+    /// **Purpose**: Fail fast at startup with clear error messages
+    /// instead of runtime failures later.
+    /// 
+    /// **Checks**:
+    /// 1. Database URL is not empty
+    /// 2. Server configuration is valid (host, port, URLs)
+    /// 3. Auth session config is reasonable (TTL > 0)
+    /// 4. CORS origins are configured
+    /// 5. In production: Public URL and frontend URL use HTTPS
+    /// 6. In production: OAuth is configured
+    /// 
+    /// **Returns**: Err with specific message for first validation failure
+    pub fn validate(&self) -> anyhow::Result<()> {
+        // TODO [SEC-004]: Validate all required field combinations
+        // Reference: backend_configuration_patterns.md#cfg-2-missing-validation-of-required-fields
+        // Roadmap: Step 1 of 3
+        // Status: IN_PROGRESS
+        
+        // 1. Database URL validation
+        if self.database.url.is_empty() || self.database.url == "undefined" {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: DATABASE_URL is empty or undefined. \
+                 Set DATABASE_URL environment variable or provide config/default.toml"
+            ));
+        }
+        
+        // Validate database URL format is PostgreSQL
+        if !self.database.url.starts_with("postgres://") && !self.database.url.starts_with("postgresql://") {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: DATABASE_URL must be PostgreSQL URI (postgres:// or postgresql://). \
+                 Got: {}",
+                AppConfig::redact_sensitive_value("DATABASE_URL", &self.database.url)
+            ));
+        }
+
+        // 2. Server configuration validation
+        if self.server.host.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: SERVER_HOST is empty. Default to 0.0.0.0"
+            ));
+        }
+
+        if self.server.port == 0 {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: SERVER_PORT must be > 0 (recommended: 8080)"
+            ));
+        }
+
+        if self.server.public_url.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: SERVER_PUBLIC_URL is empty. \
+                 Set to https://api.example.com in production"
+            ));
+        }
+
+        if self.server.frontend_url.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: SERVER_FRONTEND_URL is empty. \
+                 Set to https://example.com in production"
+            ));
+        }
+
+        // 3. Auth configuration validation
+        if self.auth.session_ttl_seconds == 0 {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: AUTH_SESSION_TTL_SECONDS must be > 0. \
+                 Default: {} seconds (30 days)",
+                60 * 60 * 24 * 30
+            ));
+        }
+
+        if self.auth.session_inactivity_timeout_minutes == 0 {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: AUTH_SESSION_INACTIVITY_TIMEOUT_MINUTES must be > 0. \
+                 Default: 30 minutes"
+            ));
+        }
+
+        if self.auth.session_inactivity_timeout_minutes > (self.auth.session_ttl_seconds / 60) {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: AUTH_SESSION_INACTIVITY_TIMEOUT_MINUTES ({}) \
+                 cannot be longer than session TTL ({}). \
+                 Inactivity timeout should be less than total session TTL.",
+                self.auth.session_inactivity_timeout_minutes,
+                self.auth.session_ttl_seconds / 60
+            ));
+        }
+
+        // 4. CORS validation
+        if self.cors.allowed_origins.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Invalid configuration: CORS_ALLOWED_ORIGINS is empty. \
+                 Must include at least frontend URL. Example: http://localhost:3000"
+            ));
+        }
+
+        // 5. Production-specific validation
+        if self.is_production() {
+            // In production, URLs must use HTTPS
+            if !self.server.public_url.starts_with("https://") {
+                return Err(anyhow::anyhow!(
+                    "Invalid configuration (production): SERVER_PUBLIC_URL must use HTTPS. \
+                     Got: {}",
+                    self.server.public_url
+                ));
+            }
+
+            if !self.server.frontend_url.starts_with("https://") {
+                return Err(anyhow::anyhow!(
+                    "Invalid configuration (production): SERVER_FRONTEND_URL must use HTTPS. \
+                     Got: {}",
+                    self.server.frontend_url
+                ));
+            }
+
+            // In production, at least one OAuth provider should be configured
+            if let Some(oauth) = &self.auth.oauth {
+                let has_google = oauth.google.as_ref()
+                    .map(|g| !g.client_id.is_empty() && !g.client_secret.is_empty())
+                    .unwrap_or(false);
+                
+                let has_azure = oauth.azure.as_ref()
+                    .map(|a| !a.client_id.is_empty() && !a.client_secret.is_empty())
+                    .unwrap_or(false);
+
+                if !has_google && !has_azure {
+                    tracing::warn!(
+                        "Configuration (production): No OAuth providers configured. \
+                         Users must provide both AUTH_OAUTH_GOOGLE_* or AUTH_OAUTH_AZURE_* env vars"
+                    );
+                }
+            } else {
+                tracing::warn!(
+                    "Configuration (production): OAuth not configured. \
+                     Users must provide AUTH_OAUTH_GOOGLE_* or AUTH_OAUTH_AZURE_* env vars"
+                );
+            }
+
+            // In production, cookie domain should not be localhost
+            if self.auth.cookie_domain == "localhost" || self.auth.cookie_domain == "127.0.0.1" {
+                return Err(anyhow::anyhow!(
+                    "Invalid configuration (production): AUTH_COOKIE_DOMAIN cannot be 'localhost'. \
+                     Set to your production domain (e.g., 'ecent.online')"
+                ));
+            }
+        }
+
+        tracing::info!("✅ Configuration validation passed");
+        Ok(())
+    }
+
     /// Check if running in production
     #[allow(dead_code)]
     pub fn is_production(&self) -> bool {

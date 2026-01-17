@@ -24,11 +24,16 @@ async fn lock_vault(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<LockVaultRequest>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    // Validate lock reason
+    if req.reason.is_empty() {
+        return Err(AppError::BadRequest("Lock reason cannot be empty".to_string()));
+    }
+
     let reason = LockReason::from_str(&req.reason)
         .ok_or(AppError::BadRequest("Invalid lock reason".to_string()))?;
 
     VaultRepo::lock_vault(&state.db, auth.user_id, reason).await
-        .map_err(|e| AppError::Internal(format!("Failed to lock vault: {}", e)))?;;
+        .map_err(|e| AppError::Internal(format!("Failed to lock vault: {}", e)))?;
 
     Ok((
         StatusCode::OK,

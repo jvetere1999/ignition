@@ -1,0 +1,372 @@
+/**
+ * CSS Variables & Theme System
+ * 
+ * Defines CSS custom properties for colors, spacing, typography
+ * that can be dynamically modified for theme switching.
+ * 
+ * Usage:
+ * - In CSS: color: var(--text-primary);
+ * - In JS: document.documentElement.style.setProperty('--text-primary', '#000000');
+ * 
+ * @since 2026-01-17
+ */
+
+:root {
+  /* ========================================================================
+     COLOR TOKENS - Define all colors as CSS variables
+     ========================================================================
+     
+     Note: These defaults will be overridden by theme system.
+     The theme system loads these values based on selected theme.
+     
+     Reference: lib/themes/types.ts for complete token list
+  */
+
+  /* Background Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #e8e8e8;
+  --bg-elevated: #fafafa;
+
+  /* Surface Colors */
+  --surface-default: #ffffff;
+  --surface-hover: #f5f5f5;
+  --surface-active: #e8e8e8;
+  --surface-selected: #e3f2fd;
+
+  /* Text Colors */
+  --text-primary: #1a1a1a;
+  --text-secondary: #424242;
+  --text-muted: #757575;
+  --text-inverse: #ffffff;
+
+  /* Border Colors */
+  --border-default: #e0e0e0;
+  --border-subtle: #eeeeee;
+  --border-strong: #bdbdbd;
+
+  /* Accent Colors */
+  --accent-primary: #1976d2;
+  --accent-secondary: #7c4dff;
+  --accent-success: #388e3c;
+  --accent-warning: #f57c00;
+  --accent-error: #d32f2f;
+
+  /* Selection & Focus */
+  --selection-bg: #e3f2fd;
+  --selection-text: #1976d2;
+  --focus-ring: rgba(25, 118, 210, 0.5);
+
+  /* Keycaps (Piano Keys) */
+  --keycap-bg: #ffffff;
+  --keycap-text: #000000;
+  --keycap-border: #cccccc;
+  --keycap-modifier-bg: #333333;
+  --keycap-modifier-text: #ffffff;
+
+  /* Waveform Colors */
+  --waveform-bg: #ffffff;
+  --waveform-wave: #1976d2;
+  --waveform-playhead: #d32f2f;
+  --waveform-region: rgba(25, 118, 210, 0.2);
+  --waveform-marker: #f57c00;
+
+  /* Player Controls */
+  --player-bg: #f5f5f5;
+  --player-controls: #1a1a1a;
+  --player-progress: #1976d2;
+
+  /* List Row States */
+  --row-odd: #ffffff;
+  --row-even: #f5f5f5;
+  --row-hover: #e3f2fd;
+  --row-selected: #bbdefb;
+
+  /* Tags & Badges */
+  --tag-bg: #e3f2fd;
+  --tag-text: #1976d2;
+  --badge-bg: #f5f5f5;
+  --badge-text: #1a1a1a;
+
+  /* ========================================================================
+     SPACING TOKENS
+     ======================================================================== */
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* ========================================================================
+     TYPOGRAPHY TOKENS
+     ======================================================================== */
+
+  --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-family-mono: 'Menlo', 'Courier New', monospace;
+
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 32px;
+  --font-size-4xl: 40px;
+
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --line-height-loose: 2;
+
+  /* ========================================================================
+     COMPONENT SPECIFIC TOKENS (Built from primitives above)
+     ======================================================================== */
+
+  /* Buttons */
+  --button-padding: 10px 18px;
+  --button-border-radius: 4px;
+  --button-font-size: var(--font-size-sm);
+  --button-font-weight: var(--font-weight-medium);
+
+  /* Input Fields */
+  --input-height: 40px;
+  --input-padding: 8px 12px;
+  --input-border-radius: 4px;
+  --input-border-width: 1px;
+  --input-font-size: var(--font-size-base);
+
+  /* Cards */
+  --card-padding: 16px;
+  --card-border-radius: 8px;
+  --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  /* Modals */
+  --modal-border-radius: 8px;
+  --modal-shadow: 0 19px 51px rgba(0, 0, 0, 0.3);
+  --modal-backdrop: rgba(0, 0, 0, 0.5);
+
+  /* ========================================================================
+     ANIMATION/TRANSITION TOKENS
+     ======================================================================== */
+
+  --transition-fast: 150ms ease-in-out;
+  --transition-normal: 250ms ease-in-out;
+  --transition-slow: 350ms ease-in-out;
+
+  /* ========================================================================
+     Z-INDEX SCALE
+     ======================================================================== */
+
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}
+
+/* ============================================================================
+   DARK MODE OVERRIDES
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Background Colors */
+    --bg-primary: #121212;
+    --bg-secondary: #1e1e1e;
+    --bg-tertiary: #2a2a2a;
+    --bg-elevated: #2a2a2a;
+
+    /* Surface Colors */
+    --surface-default: #1e1e1e;
+    --surface-hover: #2a2a2a;
+    --surface-active: #3f3f3f;
+    --surface-selected: #1e3a8a;
+
+    /* Text Colors */
+    --text-primary: #e5e5e5;
+    --text-secondary: #b3b3b3;
+    --text-muted: #808080;
+    --text-inverse: #1a1a1a;
+
+    /* Border Colors */
+    --border-default: #3f3f3f;
+    --border-subtle: #2a2a2a;
+    --border-strong: #5a5a5a;
+
+    /* Accent Colors (same, but may adjust lightness) */
+    --accent-primary: #64b5f6;
+    --accent-secondary: #b39ddb;
+    --accent-success: #81c784;
+    --accent-warning: #ffb74d;
+    --accent-error: #ef5350;
+
+    /* Selection & Focus */
+    --selection-bg: #1e3a8a;
+    --selection-text: #64b5f6;
+    --focus-ring: rgba(100, 181, 246, 0.5);
+
+    /* Keycaps */
+    --keycap-bg: #2a2a2a;
+    --keycap-text: #e5e5e5;
+    --keycap-border: #3f3f3f;
+    --keycap-modifier-bg: #1a1a1a;
+    --keycap-modifier-text: #e5e5e5;
+
+    /* Waveform */
+    --waveform-bg: #1e1e1e;
+    --waveform-wave: #64b5f6;
+    --waveform-playhead: #ef5350;
+    --waveform-region: rgba(100, 181, 246, 0.2);
+    --waveform-marker: #ffb74d;
+
+    /* Player */
+    --player-bg: #1e1e1e;
+    --player-controls: #e5e5e5;
+    --player-progress: #64b5f6;
+
+    /* List Rows */
+    --row-odd: #1e1e1e;
+    --row-even: #262626;
+    --row-hover: #1e3a8a;
+    --row-selected: #1e3a8a;
+
+    /* Tags & Badges */
+    --tag-bg: #1e3a8a;
+    --tag-text: #64b5f6;
+    --badge-bg: #2a2a2a;
+    --badge-text: #e5e5e5;
+  }
+}
+
+/* ============================================================================
+   THEME-SPECIFIC OVERRIDES (Applied by JavaScript)
+   ============================================================================
+   
+   The theme system (lib/theme/index.tsx) will apply theme-specific
+   values by setting CSS variables on the root element.
+   
+   Example:
+   document.documentElement.style.setProperty('--text-primary', '#000000');
+   
+   This approach allows:
+   - Runtime theme switching without page reload
+   - Smooth transitions between themes
+   - Easy CSS debugging (inspect element, look at computed styles)
+   - Backward compatibility with existing CSS
+*/
+
+/* ============================================================================
+   UTILITY CLASSES FOR COMMON PATTERNS
+   ============================================================================ */
+
+/* Text utilities using theme colors */
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-inverse {
+  color: var(--text-inverse);
+}
+
+/* Background utilities */
+.bg-primary {
+  background-color: var(--bg-primary);
+}
+
+.bg-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.bg-elevated {
+  background-color: var(--bg-elevated);
+}
+
+/* Accent text utilities */
+.text-accent-primary {
+  color: var(--accent-primary);
+}
+
+.text-accent-success {
+  color: var(--accent-success);
+}
+
+.text-accent-warning {
+  color: var(--accent-warning);
+}
+
+.text-accent-error {
+  color: var(--accent-error);
+}
+
+/* Surface utilities */
+.surface {
+  background-color: var(--surface-default);
+  color: var(--text-primary);
+}
+
+.surface-hover {
+  background-color: var(--surface-hover);
+}
+
+.surface-active {
+  background-color: var(--surface-active);
+}
+
+/* Border utilities */
+.border-default {
+  border-color: var(--border-default);
+}
+
+.border-subtle {
+  border-color: var(--border-subtle);
+}
+
+/* Spacing utilities */
+.p-xs { padding: var(--spacing-xs); }
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.p-lg { padding: var(--spacing-lg); }
+.p-xl { padding: var(--spacing-xl); }
+
+.m-xs { margin: var(--spacing-xs); }
+.m-sm { margin: var(--spacing-sm); }
+.m-md { margin: var(--spacing-md); }
+.m-lg { margin: var(--spacing-lg); }
+.m-xl { margin: var(--spacing-xl); }
+
+/* ============================================================================
+   TRANSITION SUPPORT
+   ============================================================================ */
+
+/* Smooth color transitions when theme changes */
+body {
+  transition: background-color var(--transition-normal),
+              color var(--transition-normal);
+}
+
+/* Exclude animations from reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
+}

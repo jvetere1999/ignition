@@ -45,6 +45,12 @@ async fn main() -> anyhow::Result<()> {
     let config = AppConfig::load()?;
     tracing::info!("Configuration loaded");
 
+    // Validate configuration - fail fast with clear error messages
+    // TODO [SEC-004]: Ensure all required field combinations are validated
+    // Reference: backend_configuration_patterns.md#cfg-2-missing-validation-of-required-fields
+    // Roadmap: Step 2 of 3 - Call validate() on loaded config
+    config.validate()?;
+
     // Create application state
     let state = AppState::new(&config).await?;
     let state = Arc::new(state);

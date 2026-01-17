@@ -30,6 +30,23 @@ export function WaveSurferPlayer({
   progressColor = "var(--color-accent-primary)",
   cursorColor = "var(--color-accent-primary)",
 }: WaveSurferPlayerProps) {
+  // ============================================
+  // STATE: Custom Hooks Pattern with External Library
+  // ============================================
+  // This component wraps WaveSurfer (external audio library).
+  // State pattern: Custom Hooks (LOCAL feature state)
+  // See: lib/STATE_ARCHITECTURE.md for pattern guidance
+  //
+  // Library instance (wavesurferRef) - WaveSurfer manages audio internally
+  // DOM container (containerRef) - for mounting WaveSurfer
+  // UI state (isReady, isLoading) - tracks initialization status
+  // Important: WaveSurfer handles its own playback state internally
+  //
+  // Data flows:
+  // - audioUrl/trackId: trigger initialization (useEffect)
+  // - isReady/isLoading: signal to parent when audio is playable
+  // - Callbacks (onPlayStateChange, onTimeUpdate): notify parent of events
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<import("wavesurfer.js").default | null>(null);
   const [isReady, setIsReady] = useState(false);

@@ -45,6 +45,17 @@ const VaultRecoveryContext = createContext<VaultRecoveryContextType | undefined>
 
 // Provider component
 export const VaultRecoveryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // ============================================
+  // STATE: Context API + useState Pattern
+  // ============================================
+  // This provider manages vault recovery modal state and API interactions.
+  // State pattern: React Context + useState (GLOBAL feature state)
+  // See: lib/STATE_ARCHITECTURE.md for pattern guidance
+  //
+  // Data state (codes) - fetched from API, only valid during modal session
+  // UI state (isLoading, error, isModalOpen) - ephemeral UI states
+  // Modal mode - controls which tab is shown (generate/reset/change)
+  // Important: Recovery codes are memory-only (cleared on modal close)
   const [codes, setCodes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

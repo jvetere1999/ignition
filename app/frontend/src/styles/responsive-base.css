@@ -1,0 +1,413 @@
+/**
+ * Responsive Design Base Styles
+ * 
+ * CSS custom properties and base styles for responsive design
+ * Import this in your root CSS or global styles
+ * 
+ * @since 2026-01-17
+ */
+
+:root {
+  /* ========================================================================
+     BREAKPOINT VARIABLES (for CSS use)
+     ======================================================================== */
+  
+  --breakpoint-mobile: 0px;
+  --breakpoint-tablet: 640px;
+  --breakpoint-tablet-large: 768px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-desktop-large: 1280px;
+  --breakpoint-desktop-xlarge: 1536px;
+
+  /* ========================================================================
+     RESPONSIVE SPACING
+     ======================================================================== */
+  
+  /* Mobile spacing (default) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+  
+  /* Responsive adjustments */
+  --container-padding: 16px;     /* Mobile: 16px */
+  --grid-gap: 12px;              /* Mobile: 12px */
+  --card-padding: 16px;          /* Mobile: 16px */
+  
+  /* ========================================================================
+     RESPONSIVE TYPOGRAPHY
+     ======================================================================== */
+  
+  /* Mobile font sizes (default) */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 32px;
+  --font-size-4xl: 40px;
+  
+  /* Line heights for readability */
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  
+  /* ========================================================================
+     RESPONSIVE TOUCH TARGETS
+     ======================================================================== */
+  
+  --touch-target-min: 44px;      /* Apple HIG minimum touch target */
+  --button-padding: 8px 16px;    /* Adjust for mobile in media query below */
+  --input-height: 40px;          /* Should be >= 44px on touch devices */
+}
+
+/* ============================================================================
+   TABLET & LARGER (640px+)
+   ============================================================================ */
+
+@media (min-width: 640px) {
+  :root {
+    --container-padding: 20px;
+    --grid-gap: 16px;
+    --card-padding: 20px;
+    --button-padding: 10px 18px;
+  }
+}
+
+/* ============================================================================
+   TABLET LARGE (768px+) - iPad
+   ============================================================================ */
+
+@media (min-width: 768px) {
+  :root {
+    --container-padding: 24px;
+    --grid-gap: 20px;
+    --card-padding: 24px;
+    
+    /* Slightly larger typography on tablet */
+    --font-size-sm: 15px;
+    --font-size-base: 17px;
+    --font-size-lg: 19px;
+  }
+}
+
+/* ============================================================================
+   DESKTOP (1024px+)
+   ============================================================================ */
+
+@media (min-width: 1024px) {
+  :root {
+    --container-padding: 32px;
+    --grid-gap: 24px;
+    --card-padding: 32px;
+    --button-padding: 10px 20px;
+    
+    /* Desktop font sizes */
+    --font-size-sm: 14px;
+    --font-size-base: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 20px;
+    --font-size-2xl: 28px;
+    --font-size-3xl: 36px;
+  }
+}
+
+/* ============================================================================
+   DESKTOP LARGE (1280px+)
+   ============================================================================ */
+
+@media (min-width: 1280px) {
+  :root {
+    --container-padding: 40px;
+    --grid-gap: 32px;
+    --card-padding: 40px;
+  }
+}
+
+/* ============================================================================
+   EXTRA LARGE (1536px+)
+   ============================================================================ */
+
+@media (min-width: 1536px) {
+  :root {
+    --container-padding: 48px;
+    --grid-gap: 40px;
+    --card-padding: 48px;
+  }
+}
+
+/* ============================================================================
+   BASE RESPONSIVE STYLES
+   ============================================================================ */
+
+html {
+  /* Better typography defaults */
+  font-feature-settings: "kern" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================================
+   RESPONSIVE CONTAINERS
+   ============================================================================ */
+
+.container {
+  width: 100%;
+  padding: 0 var(--container-padding);
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Constrained container for readability */
+.container-constrained {
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 var(--container-padding);
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+   RESPONSIVE GRID
+   ============================================================================ */
+
+.grid {
+  display: grid;
+  gap: var(--grid-gap);
+  width: 100%;
+}
+
+/* 1 column on mobile, 2 on tablet, 4 on desktop */
+.grid-auto {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* Explicit grid columns by breakpoint */
+.grid-mobile-1 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-mobile-1 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-mobile-1 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE TYPOGRAPHY
+   ============================================================================ */
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  line-height: var(--line-height-tight);
+  font-weight: 600;
+}
+
+h1 {
+  font-size: var(--font-size-3xl);
+}
+
+h2 {
+  font-size: var(--font-size-2xl);
+}
+
+h3 {
+  font-size: var(--font-size-xl);
+}
+
+h4 {
+  font-size: var(--font-size-lg);
+}
+
+h5 {
+  font-size: var(--font-size-base);
+}
+
+h6 {
+  font-size: var(--font-size-sm);
+}
+
+p {
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+/* Constrain line length for readability */
+@media (min-width: 768px) {
+  h1, h2, h3, p {
+    max-width: 80ch;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE IMAGES
+   ============================================================================ */
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+picture {
+  display: block;
+}
+
+/* ============================================================================
+   RESPONSIVE FORMS
+   ============================================================================ */
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: var(--font-size-base);
+}
+
+input,
+select,
+textarea {
+  min-height: var(--touch-target-min);
+  padding: 8px 12px;
+}
+
+button {
+  min-height: var(--touch-target-min);
+  padding: var(--button-padding);
+  cursor: pointer;
+}
+
+/* Mobile: larger touch targets */
+@media (hover: none) and (pointer: coarse) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  input, select, textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents auto-zoom on iOS */
+  }
+}
+
+/* Desktop: hover states available */
+@media (hover: hover) {
+  button:hover {
+    opacity: 0.8;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE UTILITIES
+   ============================================================================ */
+
+/* Hide on mobile, show on tablet+ */
+.hide-mobile {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .hide-mobile {
+    display: block;
+  }
+}
+
+/* Show on mobile, hide on tablet+ */
+.show-mobile {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .show-mobile {
+    display: none;
+  }
+}
+
+/* Flexbox responsive */
+.flex-responsive {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .flex-responsive {
+    flex-direction: row;
+    gap: var(--spacing-lg);
+  }
+}
+
+/* ============================================================================
+   ASPECT RATIO CONTAINERS (for images, videos)
+   ============================================================================ */
+
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}
+
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}
+
+.aspect-portrait {
+  aspect-ratio: 3 / 4;
+}
+
+/* ============================================================================
+   RESPONSIVE ACCESSIBILITY
+   ============================================================================ */
+
+/* Remove animations for users preferring reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Respect dark mode preference */
+@media (prefers-color-scheme: dark) {
+  /* Dark mode styles can go here if needed */
+}
+
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .no-print {
+    display: none;
+  }
+  
+  a {
+    text-decoration: none;
+    color: black;
+  }
+}

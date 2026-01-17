@@ -47,6 +47,16 @@ export function Waveform({
   unplayedColor: _unplayedColor = "var(--bg-tertiary, #444)",
   theme = "dark",
 }: WaveformProps) {
+  // ============================================
+  // STATE: Custom Hooks Pattern
+  // ============================================
+  // This component uses React Context + useState to manage local UI state.
+  // State pattern: Custom Hooks (LOCAL feature state)
+  // See: lib/STATE_ARCHITECTURE.md for pattern guidance
+  //
+  // Data state (waveformData, loading) - fetched once per track
+  // UI state (hoverPosition, containerWidth) - ephemeral, never persisted
+  // Refs (canvasRef, containerRef) - DOM access, not state
   const [waveformData, setWaveformData] = useState<WaveformData | null>(null);
   const [loading, setLoading] = useState(false);
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);

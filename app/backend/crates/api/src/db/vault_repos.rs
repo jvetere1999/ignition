@@ -3,6 +3,9 @@ use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+/// Default enforcement tier for new vaults (0 = no tier enforcement)
+const DEFAULT_ENFORCE_TIER: i32 = 0;
+
 pub struct VaultRepo;
 
 impl VaultRepo {
@@ -161,7 +164,7 @@ impl VaultRepo {
         .bind(None::<String>)
         .bind(None::<chrono::DateTime<chrono::Utc>>)
         .bind(None::<String>)
-        .bind(0i32)
+        .bind(DEFAULT_ENFORCE_TIER)
         .bind(now)
         .bind(now)
         .fetch_one(pool)

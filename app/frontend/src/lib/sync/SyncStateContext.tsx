@@ -79,6 +79,28 @@ interface SyncStateProviderProps {
 }
 
 export function SyncStateProvider({ children, disabled = false }: SyncStateProviderProps) {
+  // ============================================
+  // STATE: Context API + useState Pattern
+  // ============================================
+  // This provider manages global UI optimization data via polling.
+  // State pattern: React Context + useState (GLOBAL app state)
+  // See: lib/STATE_ARCHITECTURE.md for pattern guidance
+  //
+  // Core principle: Memory-only caching (NO localStorage)
+  // - User preference data (goals, habits, badges) stays fresh via polling
+  // - On browser reload, we fetch fresh data from API
+  // - This ensures UI always reflects current server state
+  //
+  // Data state: progress, badges, focus, plan, user (fetch results)
+  // Control state: isLoading, error, lastSyncAt, forbidden (polling metadata)
+  // Refs: pollIntervalRef, lastEtagRef, isMountedRef (internal polling control)
+  //
+  // Polling strategy:
+  // - 30-second interval (configurable)
+  // - Pauses when tab is hidden (visibility API)
+  // - Continues even on errors (resilient)
+  // - Uses eTag for bandwidth optimization
+  
   // State - memory only, no persistence
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [badges, setBadges] = useState<BadgeData | null>(null);

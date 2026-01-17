@@ -287,31 +287,14 @@ async fn fetch_progress(pool: &PgPool, user_id: Uuid) -> Result<ProgressData, Ap
     
     let (level, total_xp, coins, streak_days) = row;
     
-    // Calculate relative XP progress within current level
-    // Uses exponential XP formula: 100 * level^1.5
-    // Example: Level 10 requires 3,162 total XP, Level 11 requires 3,628 total XP
-    // If user has 3,300 total XP at level 10:
-    //   - xp_for_current_level = 3,162 (XP required to reach level 10)
-    //   - xp_for_next_level = 3,628 (XP required to reach level 11)
-    //   - xp_in_current_level = 3,300 - 3,162 = 138 XP (progress since level 10 started)
-    //   - xp_needed_for_level = 3,628 - 3,162 = 466 XP (total XP needed for this level)
-    //   - xp_progress_percent = (138 / 466) * 100 = 29.6% (% completion toward level 11)
+    // Calculate relative XP progress within current level using extracted helper
+    let xp_progress_percent = calculate_xp_progress(level, total_xp);
+    
+    // Calculate XP values for API response
     let xp_for_current_level = calculate_xp_for_level(level);
     let xp_for_next_level = calculate_xp_for_level(level + 1);
     let xp_in_current_level = total_xp - xp_for_current_level;
     let xp_needed_for_level = xp_for_next_level - xp_for_current_level;
-    
-    // Calculate percentage completion toward next level
-    // Use f64 for precision during calculation, then downcast to f32 for API response
-    // .min(100.0) clamps any floating-point overage (possible due to rounding)
-    let xp_progress_percent = if xp_needed_for_level > 0 {
-        let percent = (xp_in_current_level as f64 / xp_needed_for_level as f64 * 100.0);
-        percent.min(100.0) as f32
-    } else {
-        // Edge case: if xp_needed is 0 (shouldn't happen with exponential formula),
-        // report 0% progress to avoid division by zero
-        0.0
-    };
     
     Ok(ProgressData {
         level,
@@ -907,6 +890,48 @@ const DEFAULT_STREAK: i32 = 0;
 /// - Returns total cumulative XP (not XP needed for that specific level)
 /// - To get XP needed for level N: `calculate_xp_for_level(N) - calculate_xp_for_level(N-1)`
 /// - Negative levels return undefined behavior (cast to 0 via powf)
+
+/// Calculate XP progress within current level as percentage.
+///
+/// Given a user's current level and total XP, calculates:
+/// - XP already accumulated in current level
+/// - XP needed to reach next level
+/// - Progress as percentage (0-100%)
+///
+/// # Parameters
+/// - `level`: Current user level
+/// - `total_xp`: Total cumulative XP earned
+///
+/// # Returns
+/// XP progress as percentage (0.0-100.0), clamped to prevent floating-point overage.
+///
+/// # Example
+/// User at level 10 with 3,300 total XP:
+/// - Level 10 requires 3,162 XP
+/// - Level 11 requires 3,628 XP
+/// - Progress in current level: 3,300 - 3,162 = 138 XP
+/// - Total needed for level: 3,628 - 3,162 = 466 XP
+/// - Progress percent: (138 / 466) * 100 = 29.6%
+///
+/// # Notes
+/// - Uses f64 for precision during calculation, then casts to f32 for API response
+/// - `.min(100.0)` clamps any floating-point overage due to rounding
+/// - Edge case: If XP needed for level is 0 (shouldn't happen), returns 0%
+fn calculate_xp_progress(level: i32, total_xp: i32) -> f32 {
+    let xp_for_current_level = calculate_xp_for_level(level);
+    let xp_for_next_level = calculate_xp_for_level(level + 1);
+    let xp_in_current_level = total_xp - xp_for_current_level;
+    let xp_needed_for_level = xp_for_next_level - xp_for_current_level;
+    
+    if xp_needed_for_level > 0 {
+        let percent = (xp_in_current_level as f64 / xp_needed_for_level as f64 * 100.0);
+        percent.min(100.0) as f32
+    } else {
+        // Edge case: if xp_needed is 0, report 0% progress to avoid division by zero
+        0.0
+    }
+}
+
 fn calculate_xp_for_level(level: i32) -> i32 {
     // Validate bounds to prevent overflow and undefined behavior
     // Max safe level: 46,340 (100 * 46340^1.5 = 2,147,395,600, near i32::MAX of 2,147,483,647)

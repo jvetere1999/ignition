@@ -9,6 +9,37 @@ use super::admin_models::*;
 use crate::error::AppError;
 
 // ============================================
+// ERROR MESSAGE CONSTANTS
+// ============================================
+// TODO [BACK-002]: Replace all format! error messages with constants
+// Reference: backend_query_optimization.md#query-opt-2-format-macros
+// Roadmap: Step 1 of 3 - Define reusable error messages
+
+const ERR_ADMIN_COUNT: &str = "Failed to count admins";
+const ERR_ADMIN_CHECK: &str = "Failed to check admin status";
+const ERR_SET_ADMIN: &str = "Failed to set admin";
+const ERR_FETCH_USERS: &str = "Failed to fetch users";
+const ERR_FETCH_USER: &str = "Failed to fetch user";
+const ERR_UPDATE_APPROVAL: &str = "Failed to update approval";
+const ERR_DELETE_USER: &str = "Failed to delete user";
+const ERR_FETCH_FEEDBACK: &str = "Failed to fetch feedback";
+const ERR_UPDATE_FEEDBACK: &str = "Failed to update feedback";
+const ERR_FETCH_UPDATED_FEEDBACK: &str = "Failed to fetch updated feedback";
+const ERR_FETCH_QUESTS: &str = "Failed to fetch quests";
+const ERR_FETCH_QUEST: &str = "Failed to fetch quest";
+const ERR_CREATE_QUEST: &str = "Failed to create quest";
+const ERR_UPDATE_QUEST: &str = "Failed to update quest";
+const ERR_DELETE_QUEST: &str = "Failed to delete quest";
+const ERR_FETCH_SKILLS: &str = "Failed to fetch skills";
+const ERR_FETCH_SKILL: &str = "Failed to fetch skill";
+const ERR_UPSERT_SKILL: &str = "Failed to upsert skill";
+const ERR_UPDATE_SKILL: &str = "Failed to update skill";
+const ERR_DELETE_SKILL: &str = "Failed to delete skill";
+const ERR_DB_UNHEALTHY: &str = "Database unhealthy";
+const ERR_FETCH_AUDIT_LOG: &str = "Failed to fetch audit log";
+const ERR_FETCH_EVENT_TYPES: &str = "Failed to fetch event types";
+
+// ============================================
 // Admin Status & Claiming Repository
 // ============================================
 
@@ -22,7 +53,7 @@ impl AdminClaimRepo {
         )
         .fetch_one(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to count admins: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_ADMIN_COUNT, e)))?;
 
         Ok(count > 0)
     }
@@ -35,7 +66,7 @@ impl AdminClaimRepo {
         .bind(user_id)
         .fetch_optional(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to check admin status: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_ADMIN_CHECK, e)))?;
 
         Ok(is_admin.unwrap_or(false))
     }
@@ -46,7 +77,7 @@ impl AdminClaimRepo {
             .bind(user_id)
             .execute(pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to set admin: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("{}: {}", ERR_SET_ADMIN, e)))?;
 
         Ok(())
     }
@@ -58,7 +89,7 @@ impl AdminClaimRepo {
         )
         .fetch_one(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to count admins: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_ADMIN_COUNT, e)))?;
 
         Ok(count)
     }
@@ -95,7 +126,7 @@ impl AdminUserRepo {
         )
         .fetch_all(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to fetch users: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_USERS, e)))?;
 
         let total = rows.len() as i64;
         let users = rows.into_iter().map(|r| r.into()).collect();
@@ -130,7 +161,7 @@ impl AdminUserRepo {
         .bind(user_id)
         .fetch_optional(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to fetch user: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_USER, e)))?;
 
         Ok(row.map(|r| r.into()))
     }
@@ -164,7 +195,7 @@ impl AdminUserRepo {
         .bind(approved)
         .fetch_one(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to update approval: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_UPDATE_APPROVAL, e)))?;
 
         Ok(row.into())
     }
@@ -332,7 +363,7 @@ impl AdminUserRepo {
             .bind(user_id)
             .execute(pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to delete user: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("{}: {}", ERR_DELETE_USER, e)))?;
 
         Ok(DeleteUserResponse {
             success: true,
@@ -588,7 +619,7 @@ impl AdminFeedbackRepo {
         )
         .fetch_all(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to fetch feedback: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_FEEDBACK, e)))?;
 
         Ok(AdminFeedbackResponse { feedback })
     }
@@ -632,7 +663,7 @@ impl AdminFeedbackRepo {
             .bind(feedback_id)
             .execute(pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to update feedback: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("{}: {}", ERR_UPDATE_FEEDBACK, e)))?;
 
         let feedback = sqlx::query_as::<_, AdminFeedback>(
             r#"
@@ -648,7 +679,7 @@ impl AdminFeedbackRepo {
         .bind(feedback_id)
         .fetch_one(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to fetch updated feedback: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_UPDATED_FEEDBACK, e)))?;
 
         Ok(feedback)
     }
@@ -675,7 +706,7 @@ impl AdminQuestRepo {
         )
         .fetch_all(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to fetch quests: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_QUESTS, e)))?;
 
         Ok(AdminQuestsResponse { quests })
     }
@@ -694,7 +725,7 @@ impl AdminQuestRepo {
         .bind(quest_id)
         .fetch_optional(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to fetch quest: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_QUEST, e)))?;
 
         Ok(quest)
     }
@@ -736,7 +767,7 @@ impl AdminQuestRepo {
         .bind(&request.recurrence_period)
         .fetch_one(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to create quest: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_CREATE_QUEST, e)))?;
 
         Ok(quest)
     }
@@ -800,7 +831,7 @@ impl AdminQuestRepo {
             .bind(quest_id)
             .fetch_one(pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to update quest: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("{}: {}", ERR_UPDATE_QUEST, e)))?;
 
         Ok(quest)
     }
@@ -811,7 +842,7 @@ impl AdminQuestRepo {
             .bind(quest_id)
             .execute(pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to delete quest: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("{}: {}", ERR_DELETE_QUEST, e)))?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -837,7 +868,7 @@ impl AdminSkillRepo {
         )
         .fetch_all(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to fetch skills: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_SKILLS, e)))?;
 
         Ok(AdminSkillsResponse { skills })
     }
@@ -855,7 +886,7 @@ impl AdminSkillRepo {
         .bind(skill_id)
         .fetch_optional(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to fetch skill: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_SKILL, e)))?;
 
         Ok(skill)
     }
@@ -905,7 +936,7 @@ impl AdminSkillRepo {
         .bind(order_row)
         .fetch_one(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to upsert skill: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_UPSERT_SKILL, e)))?;
 
         Ok(skill)
     }
@@ -956,7 +987,7 @@ impl AdminSkillRepo {
             .bind(skill_id)
             .fetch_one(pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to update skill: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("{}: {}", ERR_UPDATE_SKILL, e)))?;
 
         Ok(skill)
     }
@@ -967,7 +998,7 @@ impl AdminSkillRepo {
             .bind(skill_id)
             .execute(pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to delete skill: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("{}: {}", ERR_DELETE_SKILL, e)))?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -1113,7 +1144,7 @@ impl AdminAuditRepo {
         let rows = sqlx::query_as::<_, AuditLogRow>(&entries_query)
             .fetch_all(pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to fetch audit log: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_AUDIT_LOG, e)))?;
 
         let entries = rows
             .into_iter()
@@ -1142,7 +1173,7 @@ impl AdminAuditRepo {
         )
         .fetch_all(pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to fetch event types: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("{}: {}", ERR_FETCH_EVENT_TYPES, e)))?;
 
         Ok(rows.into_iter().map(|r| r.0).collect())
     }

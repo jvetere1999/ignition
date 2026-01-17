@@ -13,8 +13,9 @@
 //! See [IMPORT_CONVENTIONS.md](../../IMPORT_CONVENTIONS.md) for module import standards.
 
 // PUBLIC MODULES - Core utilities
-pub mod core;   // Centralized DB utilities with observability
-pub mod macros; // Boilerplate reduction macros for common patterns
+pub mod core;     // Centralized DB utilities with observability
+pub mod defaults; // Centralized default values for request types
+pub mod macros;   // Boilerplate reduction macros for common patterns
 
 // PUBLIC MODULES - Domain-specific models and repositories
 pub mod admin_models;

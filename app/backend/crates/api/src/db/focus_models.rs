@@ -11,7 +11,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use crate::named_enum;
+use crate::{named_enum, db::defaults};
+
 
 // ============================================================================
 // ENUMS
@@ -78,20 +79,12 @@ pub struct FocusPauseState {
 /// Create focus session request
 #[derive(Debug, Clone, Deserialize)]
 pub struct CreateFocusRequest {
-    #[serde(default = "default_focus_mode")]
+    #[serde(default = "defaults::default_focus_mode")]
     pub mode: String,
-    #[serde(default = "default_duration")]
+    #[serde(default = "defaults::default_focus_duration")]
     pub duration_seconds: i32,
     pub task_id: Option<Uuid>,
     pub task_title: Option<String>,
-}
-
-fn default_focus_mode() -> String {
-    "focus".to_string()
-}
-
-fn default_duration() -> i32 {
-    1500 // 25 minutes
 }
 
 // ============================================================================

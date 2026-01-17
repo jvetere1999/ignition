@@ -33,6 +33,16 @@ export function TrueMiniPlayer() {
   const currentTime = useCurrentTime();
   const duration = useDuration();
 
+  // ============================================
+  // STATE: Custom Hooks Pattern
+  // ============================================
+  // This component manages local player UI state (expanded/collapsed, visualizer).
+  // State pattern: Custom Hooks (LOCAL feature state)
+  // See: lib/STATE_ARCHITECTURE.md for pattern guidance
+  //
+  // UI state (isExpanded, showVisualizer) - ephemeral UI toggles, never persisted
+  // Media playback is managed by WaveSurferPlayer child component
+  // Layout state: This component handles chrome, WaveSurfer handles audio
   const [isExpanded, setIsExpanded] = useState(false);
   const [showVisualizer, setShowVisualizer] = useState(false);
   const audioInitialized = useRef(false);

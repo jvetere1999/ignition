@@ -6,6 +6,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use crate::db::defaults;
 
 // ============================================================================
 // CALENDAR
@@ -42,7 +43,7 @@ pub struct CalendarEvent {
 pub struct CreateCalendarEventRequest {
     pub title: String,
     pub description: Option<String>,
-    #[serde(default = "default_event_type")]
+    #[serde(default = "defaults::default_event_type")]
     pub event_type: String,
     pub start_time: DateTime<Utc>,
     pub end_time: Option<DateTime<Utc>>,
@@ -59,10 +60,6 @@ pub struct CreateCalendarEventRequest {
     pub color: Option<String>,
     pub reminder_minutes: Option<i32>,
     pub metadata: Option<serde_json::Value>,
-}
-
-fn default_event_type() -> String {
-    "general".to_string()
 }
 
 /// Update calendar event request
@@ -195,12 +192,8 @@ pub struct CreateFeedbackRequest {
     pub feedback_type: String,
     pub title: String,
     pub description: String,
-    #[serde(default = "default_priority")]
+    #[serde(default = "defaults::default_feedback_priority")]
     pub priority: String,
-}
-
-fn default_priority() -> String {
-    "normal".to_string()
 }
 
 /// Feedback response
@@ -244,13 +237,9 @@ pub struct InfobaseEntry {
 pub struct CreateInfobaseEntryRequest {
     pub title: String,
     pub content: String,
-    #[serde(default = "default_category")]
+    #[serde(default = "defaults::default_infobase_category")]
     pub category: String,
     pub tags: Option<Vec<String>>,
-}
-
-fn default_category() -> String {
-    "Tips".to_string()
 }
 
 /// Update infobase entry request
@@ -303,17 +292,13 @@ pub struct Idea {
 pub struct CreateIdeaRequest {
     pub title: String,
     pub content: Option<String>,
-    #[serde(default = "default_idea_category")]
+    #[serde(default = "defaults::default_idea_category")]
     pub category: String,
     pub tags: Option<Vec<String>>,
     // Music-specific fields that get folded into content
     pub key: Option<String>,
     pub bpm: Option<i32>,
     pub mood: Option<String>,
-}
-
-fn default_idea_category() -> String {
-    "general".to_string()
 }
 
 /// Update idea request
