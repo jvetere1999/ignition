@@ -45,7 +45,6 @@ describe('Generated Types', () => {
         email: 'test@example.com',
         role: 'user',
         approved: true,
-        age_verified: false,
         tos_accepted: true,
         is_admin: false,
         created_at: '2025-01-01T00:00:00Z',
@@ -70,7 +69,6 @@ describe('Generated Types', () => {
         last_activity_at: '2025-01-01T00:00:00Z',
         role: 'admin',
         approved: true,
-        age_verified: true,
         tos_accepted: true,
         is_admin: true,
         created_at: '2025-01-01T00:00:00Z',
@@ -339,7 +337,6 @@ describe('Generated Types', () => {
         email: 'new@example.com',
         role: 'user',
         approved: false,
-        age_verified: false,
         tos_accepted: false,
         is_admin: false,
       };

@@ -1,20 +1,25 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Cloud, Music, AlertCircle, CheckCircle2, Upload, Loader } from "lucide-react";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Button,
+  Alert,
+  AlertDescription,
+  Input,
   Select,
-  SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { AlertCircle, CheckCircle2, Upload, Loader } from "lucide-react";
+  SelectContent,
+  SelectItem,
+  Textarea,
+  Progress,
+} from "@/components/ui";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://api.ecent.online";
@@ -99,11 +104,11 @@ export default function ProjectUpload({ onUploadComplete }: ProjectUploadProps) 
       });
 
       if (!response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as { error?: string };
         throw new Error(data.error || "Failed to initiate upload");
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { session_id: string };
       return data.session_id;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to initiate upload");
@@ -173,7 +178,7 @@ export default function ProjectUpload({ onUploadComplete }: ProjectUploadProps) 
       );
 
       if (!response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as { error?: string };
         throw new Error(data.error || "Failed to complete upload");
       }
 
@@ -291,7 +296,7 @@ export default function ProjectUpload({ onUploadComplete }: ProjectUploadProps) 
             </label>
             <Input
               value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProjectName(e.target.value)}
               placeholder="My Awesome Track"
               disabled={uploading}
               className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
@@ -330,7 +335,7 @@ export default function ProjectUpload({ onUploadComplete }: ProjectUploadProps) 
             </label>
             <Textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
               placeholder="Describe what changed in this version..."
               disabled={uploading}
               className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 resize-none"

@@ -604,18 +604,154 @@ For user IP (Infobase/Ideas/Inbox/DAW/private work), the frontend **must** encry
 ---
 
 ### 25. **Admin Console** (`/admin`)
-**Status:** ✅ Fully Implemented  
-**Purpose:** Administrative interface for system management
+**Status:** ✅ Fully Implemented → 🔄 Telemetry Dashboard Enhancement (Tier 2)  
+**Purpose:** Administrative interface for system management + real-time telemetry monitoring
 
 **Access:** Restricted to admin emails
 
-**Features:**
+**Current Features:**
 - User management
 - Universal quest management
 - Skill configuration
 - Feedback review
 - System statistics
 - E2EE opaque-content banner (encrypted data cannot be inspected)
+
+**NEW: Telemetry & Feature Monitoring Dashboard** (Tier 2 Enhancement)
+**Status:** 🔄 In-flight (scheduled for v1.1)
+
+**Monitoring Sections:**
+
+1. **E2EE Metrics Dashboard**
+   - Active vault users (real-time count)
+   - Recovery codes generated (last 7/30 days)
+   - Vault auto-lock triggers (per day, per inactivity bucket)
+   - Encryption algorithm adoption (v1.0 AES-GCM %)
+   - CryptoPolicy rotation history (manual rotations, scheduled rotations)
+   - Failed unlocks (patterns: wrong passphrase, session loss)
+   - **Data Points:** All sourced from audit tables (vaults, recovery_codes, crypto_audit_logs)
+
+2. **Feature Adoption & Engagement**
+   - Daily active users per feature (Today, Focus, Planner, Quests, Habits, Exercise, etc.)
+   - Weekly active users per feature (30-day rolling)
+   - Feature retention curves (day 1, day 7, day 30 adoption)
+   - Median session duration per feature
+   - Peak usage hours (heatmap by feature)
+   - Learning suite engagement (Courses, Review, Practice completion rates)
+   - **Data Points:** Sourced from sync_events, session_logs, feature_engagement table
+
+3. **System Health Monitoring**
+   - API response time (p50, p95, p99 latencies by endpoint)
+   - Database query performance (slow query log analysis)
+   - R2 storage bandwidth usage (GB uploaded/downloaded per day)
+   - Focus sessions created/completed (daily throughput)
+   - Habit streak integrity (audit for broken streaks)
+   - Goal milestone completion rates
+   - Offline sync queue depth (current queued mutations)
+   - **Data Points:** Prometheus metrics + PostgreSQL EXPLAIN ANALYZE + R2 CloudWatch logs
+
+4. **Privacy & Compliance Dashboard**
+   - Users with E2EE enabled (total + trend)
+   - GDPR data export requests (in-flight + completed)
+   - Content audit requests from support (with E2EE opacity notes)
+   - User consent audit trail (privacy policy acceptance)
+   - Encrypted content storage size (GB, approximate)
+   - Data retention compliance (expired data cleanup status)
+   - **Data Points:** Compliance table + audit_logs + encrypted_content_audit
+
+5. **DAW Watcher Agent Telemetry**
+   - Watcher installations active (per OS: macOS, Windows, Linux)
+   - File sync events (total files synced, trend)
+   - Upload bandwidth used (DAW files, total GB)
+   - Watcher health checks (last seen, status)
+   - Supported DAW detection (Ableton, Logic, FL Studio breakdown %)
+   - Sync errors (error types, frequency)
+   - **Data Points:** Watcher telemetry table + R2 metadata
+
+6. **Observability & Infrastructure Metrics**
+   - Server uptime % (last 7/30 days)
+   - TLS certificate expiry countdown
+   - Database connection pool utilization
+   - Cache hit rates (Redis, browser cache, Cloudflare edge)
+   - Error rate by type (4xx, 5xx, timeout, auth failures)
+   - Request volume trend (daily, weekly, monthly)
+   - **Data Points:** Prometheus + application logs + Cloudflare Analytics
+
+7. **Learning Recommendations Engine (Future)**
+   - Learning path progress (users started / completed)
+   - Course completion rates
+   - Review session frequency (per user segment)
+   - Practice drill accuracy trends
+   - Weak area identification (trending down concepts)
+   - **Data Points:** Learning telemetry table + Neo4j projections
+
+8. **Starter Engine V2 Ranking Intelligence (Future)**
+   - Quick Picks ranking signal contribution (frequency %, recency %, sequence %)
+   - Decision outcome tracking (exposure → click → action conversion)
+   - Ranking determinism validation (daily test)
+   - Neo4j projection staleness (< 6h requirement)
+   - **Data Points:** decision_logs + decision_outcomes + ranking_debug
+
+**Technical Architecture:**
+
+- **Backend Service** (`app/backend/crates/api/src/services/telemetry_service.rs` — NEW)
+  - Aggregates metrics from Postgres, Prometheus, R2
+  - Endpoints: `/api/admin/telemetry/overview`, `/api/admin/telemetry/e2ee`, etc.
+  - Caching layer (in-memory): 5-minute staleness window
+  - Time-series aggregation queries with configurable buckets
+
+- **Admin UI Dashboard** (`app/frontend/src/app/admin/telemetry.tsx` — NEW)
+  - Real-time metric cards (auto-refresh every 30s)
+  - Charts (Chart.js or Recharts): adoption curves, response time heatmaps, retention curves
+  - Drill-down capability: view user cohorts, feature-specific metrics
+  - Export to CSV for reporting
+
+- **Data Model (New Tables)**
+  - `telemetry_events` (minimal): event_id, metric_name, value, recorded_at
+  - `feature_engagement` (aggregated): user_id, feature_name, action_type, timestamp
+  - `sync_events` (audit): user_id, endpoint, method, status_code, latency_ms, timestamp
+  - `watcher_telemetry` (agent events): watcher_id, event_type, payload, timestamp
+  - `e2ee_audit_logs` (encryption events): vault_id, action (unlock, lock, rotate), result, timestamp
+  - `decision_logs` (ranking): exposure_id, candidates, scores, timestamp
+  - `decision_outcomes` (conversion): exposure_id, decision_id, action, timestamp
+
+- **Alerting Rules (via Prometheus)**
+  ```yaml
+  - alert: HighErrorRate
+    expr: rate(http_requests_errors_total[5m]) > 0.05
+    for: 5m
+    annotations:
+      summary: "Error rate > 5%"
+  
+  - alert: SlowDatabase
+    expr: pg_query_latency_ms{quantile="0.95"} > 500
+    for: 10m
+    annotations:
+      summary: "DB p95 latency > 500ms"
+  
+  - alert: VaultLockFailure
+    expr: vault_lock_failures_total > 10
+    for: 5m
+    annotations:
+      summary: "Vault lock failures"
+  ```
+
+**Implementation Timeline (Tier 2 — After E2EE Vault Lock Policy):**
+- Phase 1 (2 days): Schema + telemetry service
+- Phase 2 (2 days): UI dashboard + charts
+- Phase 3 (1 day): Alerting rules + thresholds
+- Phase 4 (1 day): Testing + documentation
+- **Total:** 6 days (follows Vault Lock Policy, ready before beta launch)
+
+**Deployment Strategy:**
+- Feature-flag: `admin_telemetry_v1` (default: false, enable for admin users)
+- Safe rollout: Enable for 1 admin user first, verify 24h, roll out to all admins
+- Graceful degradation: If telemetry service unavailable, show "Metrics unavailable" (no crash)
+
+**Dashboard View Access Control:**
+- Only users with role `admin` can access `/admin/telemetry`
+- Each admin user can only see anonymized metrics (no PII in drill-downs)
+- Audit log: Track which admin viewed what metrics (for compliance)
 
 ---
 

@@ -9,13 +9,17 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  Button,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Alert,
+  AlertDescription,
+} from "@/components/ui";
 import ProjectUpload from "@/components/daw/ProjectUpload";
 import ProjectList from "@/components/daw/ProjectList";
 import StorageUsage from "@/components/daw/StorageUsage";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Music, Upload } from "lucide-react";
 
 const API_BASE_URL =

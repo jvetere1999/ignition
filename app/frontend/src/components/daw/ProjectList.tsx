@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+  Alert,
+  AlertDescription,
+} from "@/components/ui";
 import { MoreVertical, Download, History, Trash2, Music, AlertCircle } from "lucide-react";
 
 const API_BASE_URL =
@@ -129,7 +131,7 @@ export default function ProjectList({
         throw new Error("Failed to generate download link");
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { download_url: string };
 
       // Redirect to presigned URL
       window.location.href = data.download_url;
@@ -239,7 +241,7 @@ export default function ProjectList({
                 {/* Actions */}
                 <div className="pt-2 border-t border-slate-800 flex gap-2">
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800"
                     onClick={() => handleDownload(project.id, project.current_version_id)}
@@ -248,7 +250,7 @@ export default function ProjectList({
                     {downloading === project.id ? "Downloading..." : "Download"}
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800"
                     asChild

@@ -98,7 +98,7 @@ export const PrivacyPreferencesForm: React.FC<PrivacyPreferencesFormProps> = ({
         credentials: 'include',
       });
       if (response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as PrivacyPreferencesData;
         setPrefs(data);
       }
     } catch (error) {

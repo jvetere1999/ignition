@@ -9,7 +9,7 @@ use crate::state::AppState;
 use axum::{
     extract::{Extension, Json, State},
     http::StatusCode,
-    routing::post,
+    routing::{get, post},
     Router,
 };
 use std::str::FromStr;
@@ -17,8 +17,30 @@ use std::sync::Arc;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
+        .route("/state", get(get_vault_state))
         .route("/lock", post(lock_vault))
         .route("/unlock", post(unlock_vault))
+}
+
+/// GET /api/vault/state
+/// Get current vault lock state
+///
+/// # Trust Boundary
+/// server_trusted!() - Returns state information about vault lock status.
+/// Used by frontend to determine if vault is locked without passing any secrets.
+async fn get_vault_state(
+    State(state): State<Arc<AppState>>,
+    Extension(auth): Extension<AuthContext>,
+) -> Result<Json<crate::db::vault_models::VaultLockState>, AppError> {
+    let lock_state = VaultRepo::get_vault_state_full(&state.db, auth.user_id)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to fetch vault state: {}", e);
+            AppError::Internal("Failed to fetch vault state".to_string())
+        })?
+        .ok_or(AppError::Unauthorized("Vault not found".to_string()))?;
+
+    Ok(Json(lock_state))
 }
 
 /// POST /api/vault/lock

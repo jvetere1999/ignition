@@ -32,3 +32,13 @@ export * from './ideas';
 export * from './infobase';
 export * from './onboarding';
 export * from './user';
+export * from './vault';
+export * from './cryptoPolicy';
+export * from './search';
+
+// Wave 5: Security & Sync (Phase 2)
+// Note: These modules have naming conflicts with existing modules
+// Import directly from ./userSettings, ./encryptedSync, ./crossDevice when needed
+// export * from './userSettings';
+// export * from './encryptedSync';
+// export * from './crossDevice';

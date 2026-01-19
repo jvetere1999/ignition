@@ -3,7 +3,7 @@
  * Primary action component with variants
  */
 
-import { forwardRef } from "react";
+import React, { forwardRef } from "react";
 import styles from "./Button.module.css";
 
 export interface ButtonProps
@@ -13,6 +13,7 @@ export interface ButtonProps
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  asChild?: boolean;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -26,11 +27,22 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       disabled,
       children,
       className = "",
+      asChild,
       ...props
     },
     ref
   ) => {
     const isDisabled = disabled || isLoading;
+
+    // If asChild, clone the child element
+    if (asChild && React.isValidElement(children)) {
+      const child = children as React.ReactElement<any>;
+      return React.cloneElement(child, {
+        ref,
+        className: `${styles.button} ${styles[variant]} ${styles[size]} ${className} ${child.props?.className || ""}`,
+        ...props,
+      });
+    }
 
     return (
       <button
