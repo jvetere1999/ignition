@@ -1,6 +1,8 @@
-//! Central Error Mapping
+//! Advanced HTTP error response builder with field validation
+//! Currently using basic error responses via AppError, this provides richer responses
 //!
-//! Provides standardized error responses and error type mappings.
+//! TODO: Integrate when better error messages needed
+#![allow(dead_code)]
 
 use axum::{
     http::StatusCode,

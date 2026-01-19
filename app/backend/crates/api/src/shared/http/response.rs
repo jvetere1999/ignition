@@ -1,6 +1,8 @@
-//! Response Helpers
+//! HTTP response builders for consistency
+//! Infrastructure for structured responses
 //!
-//! Standardized response types and helpers for consistent API responses.
+//! TODO: Integrate as default response format
+#![allow(dead_code)]
 
 use axum::{
     http::StatusCode,

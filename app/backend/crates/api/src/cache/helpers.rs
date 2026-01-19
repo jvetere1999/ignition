@@ -1,9 +1,8 @@
-/**
- * Advanced Caching Utilities & Strategies
- *
- * Extends core caching with advanced patterns: cache builders, invalidation
- * strategies, distributed cache management, and batch operations.
- */
+//! Cache management utilities: key building, invalidation strategies, metadata
+//! Companion infrastructure for cache/mod.rs
+//! 
+//! TODO: Activate in Phase 7 for performance optimization
+#![allow(dead_code)]
 
 use crate::cache::QueryCache;
 use serde_json::Value as JsonValue;

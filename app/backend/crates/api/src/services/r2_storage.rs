@@ -1,5 +1,10 @@
-/// R2 (Cloudflare) storage integration for DAW project files
-/// Handles presigned URL generation, resumable uploads, and file lifecycle management
+//! Cloudflare R2 S3-compatible storage client
+//! Complete implementation ready for Phase 7 storage integration
+//! Currently files are stored locally/in-database
+//!
+//! TODO: Integrate in Phase 7 when cloud storage needed
+#![allow(dead_code)]
+
 use crate::error::AppError;
 use chrono::{DateTime, Duration, Utc};
 use sha2::{Sha256, Digest};

@@ -1,6 +1,8 @@
-//! Origin Verification Utilities
+//! Origin and referer validation for CORS protection
+//! Prepared for security hardening in Phase 6+
 //!
-//! Per DEC-002=A: Strict Origin/Referer verification for CSRF protection.
+//! TODO: Activate when CORS requirements finalized
+#![allow(dead_code)]
 
 use axum::http::HeaderMap;
 

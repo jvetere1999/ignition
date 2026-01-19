@@ -1,6 +1,8 @@
-//! Transaction Utilities
+//! Database transaction and savepoint management
+//! Currently using simple queries, ready for multi-step operations
 //!
-//! Provides helpers for explicit transaction management.
+//! TODO: Use in Phase 6+ for complex transactional workflows
+#![allow(dead_code)]
 
 use sqlx::{PgPool, Postgres, Transaction};
 

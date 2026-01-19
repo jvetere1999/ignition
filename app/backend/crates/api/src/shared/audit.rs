@@ -1,7 +1,9 @@
-//! Audit Event Logging
+//! Audit Event Logging - Comprehensive event tracking and storage system
+//! Includes PostgreSQL, logging, and no-op sinks for flexible deployments.
+//! Prepared for compliance/logging requirements in Phase 6+
 //!
-//! Provides interface for recording audit events for admin monitoring.
-//! Uses Postgres-backed storage when schema exists.
+//! TODO: Activate in Phase 6 when audit requirements defined
+#![allow(dead_code)]
 
 use std::collections::HashMap;
 use std::future::Future;

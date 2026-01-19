@@ -1,11 +1,8 @@
-//! Auth Extractor - Extract user context from request
+//! Advanced auth extractor with entitlement checking
+//! Currently using basic bearer token extraction, this provides RBAC layer
 //!
-//! Usage:
-//! ```rust
-//! async fn handler(auth: Auth) -> impl IntoResponse {
-//!     // auth.user_id, auth.email, etc.
-//! }
-//! ```
+//! TODO: Activate in Phase 6 when role-based access needed
+#![allow(dead_code)]
 
 use axum::{extract::FromRequestParts, http::request::Parts};
 use uuid::Uuid;

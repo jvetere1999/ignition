@@ -1,9 +1,9 @@
 //! CSRF Protection Utilities
+//! Token generation and validation for form-based submissions
+//! Currently using header-based authentication, will activate for backward compatibility
 //!
-//! Per DEC-002=A: CSRF protection via strict Origin/Referer verification.
-//!
-//! These utilities can be used to issue and verify CSRF tokens if needed
-//! in addition to Origin verification.
+//! TODO: Integrate in security Phase 6
+#![allow(dead_code)]
 
 use base64::Engine;
 use rand::RngCore;

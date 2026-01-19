@@ -982,7 +982,7 @@ fn calculate_xp_progress(level: i32, total_xp: i32) -> f32 {
     let xp_needed_for_level = xp_for_next_level - xp_for_current_level;
 
     if xp_needed_for_level > 0 {
-        let percent = (xp_in_current_level as f64 / xp_needed_for_level as f64 * 100.0);
+        let percent = xp_in_current_level as f64 / xp_needed_for_level as f64 * 100.0;
         percent.min(100.0) as f32
     } else {
         // Edge case: if xp_needed is 0, report 0% progress to avoid division by zero
@@ -1028,7 +1028,7 @@ async fn fetch_vault_lock_state(
 ) -> Result<Option<VaultLockData>, AppError> {
     use crate::db::vault_repos::VaultRepo;
 
-    match VaultRepo::get_lock_state(pool, user_id).await {
+    match VaultRepo::get_vault_state_full(pool, user_id).await {
         Ok(Some(lock_state)) => Ok(Some(VaultLockData {
             locked_at: lock_state.locked_at.map(|dt| dt.to_rfc3339()),
             lock_reason: lock_state.lock_reason,

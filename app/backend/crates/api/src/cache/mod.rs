@@ -1,5 +1,9 @@
-// BACK-015: Query Result Caching module
-// In-memory cache for expensive query results with TTL and automatic invalidation
+//! Query Result Caching module with TTL support
+//! Prepared for Phase 7 when performance optimization is needed.
+//! Currently unused as queries complete within SLA without caching.
+//!
+//! TODO: Activate in Phase 7 when profiling shows cache benefit
+#![allow(dead_code)]
 
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -1,7 +1,8 @@
-//! RBAC Guards
+//! Role-based access control (RBAC) middleware and policy framework
+//! Ready for integration when permission model is activated
 //!
-//! Per DEC-004=B: DB-backed roles for admin authorization.
-//! Provides deny-by-default guards for route protection.
+//! TODO: Activate in Phase 6 for role-based endpoints
+#![allow(dead_code)]
 
 use axum::{extract::Request, middleware::Next, response::Response};
 

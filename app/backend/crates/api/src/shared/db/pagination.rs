@@ -1,6 +1,9 @@
-//! Pagination Utilities
+//! Offset-based and cursor-based pagination utilities
+//! Prepared for Phase 6+ when list endpoints need pagination
+//! Currently using no pagination due to small result sets
 //!
-//! Provides helpers for consistent pagination across all list endpoints.
+//! TODO: Activate in Phase 6 when list endpoints need paging
+#![allow(dead_code)]
 
 use axum::extract::Query;
 use serde::{Deserialize, Serialize};

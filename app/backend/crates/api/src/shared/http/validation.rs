@@ -1,6 +1,9 @@
-//! Common Validators
+//! Comprehensive input validation framework
+//! Prepared for complex validation requirements in Phase 6+
+//! Currently using simple validation inline
 //!
-//! Reusable validation functions for request data.
+//! TODO: Integrate in Phase 6 for consistent validation
+#![allow(dead_code)]
 
 use crate::shared::http::errors::{ApiError, FieldError};
 

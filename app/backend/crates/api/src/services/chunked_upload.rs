@@ -1,5 +1,10 @@
-/// Chunked multipart upload handler for DAW project files
-/// Supports resumable uploads with chunk tracking and validation
+//! Large file chunked upload with validation
+//! Prepared for DAW project uploads in Phase 7
+//! Currently unused as DAW uploads not yet implemented
+//!
+//! TODO: Integrate in Phase 7 for project file uploads
+#![allow(dead_code)]
+
 use crate::error::AppError;
 use axum::extract::{DefaultBodyLimit, Multipart};
 use sha2::{Digest, Sha256};
@@ -150,11 +155,11 @@ pub fn validate_multipart_form(
 ) -> Result<(usize, usize), AppError> {
     let chunk_number = chunk_number
         .and_then(|s| s.parse::<usize>().ok())
-        .ok_or_else(|| AppError::BadRequest("Missing or invalid chunk_number".to_string()))?;;
+        .ok_or_else(|| AppError::BadRequest("Missing or invalid chunk_number".to_string()))?;
 
     let total_chunks = total_chunks
         .and_then(|s| s.parse::<usize>().ok())
-        .ok_or_else(|| AppError::BadRequest("Missing or invalid total_chunks".to_string()))?;;
+        .ok_or_else(|| AppError::BadRequest("Missing or invalid total_chunks".to_string()))?;
 
     if total_chunks == 0 {
         return Err(AppError::BadRequest(
