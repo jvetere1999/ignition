@@ -395,7 +395,7 @@ jobs:
       - name: Install dependencies (macOS)
         if: runner.os == 'macos'
         run: |
-          brew install webkit2gtk
+          echo "macOS: Using system WebKit (no additional dependencies needed)"
 
       - name: Install dependencies (Windows)
         if: runner.os == 'windows'
