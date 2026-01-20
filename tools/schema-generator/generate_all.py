@@ -26,7 +26,7 @@ from typing import Any
 
 SCRIPT_DIR = Path(__file__).parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
-SCHEMA_FILE = REPO_ROOT / 'schema.json'
+SCHEMA_FILE = REPO_ROOT / 'app/database/config/schema.json'
 
 # Default output paths (all go directly to app folders)
 DEFAULT_PATHS = {
