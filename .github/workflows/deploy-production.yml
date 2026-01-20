@@ -215,52 +215,6 @@ jobs:
           path: app/watcher/target/release/
           retention-days: 1
 
-  release-watcher:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-    needs: build-watcher
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Download watcher build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: watcher-build
-          path: watcher-release
-      
-      - name: Get version from Cargo.toml
-        id: version
-        run: |
-          VERSION=$(grep '^version' app/watcher/Cargo.toml | head -1 | cut -d '"' -f 2)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Watcher version: $VERSION"
-      
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: watcher-v${{ steps.version.outputs.version }}-${{ github.run_number }}
-          name: DAW Watcher v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})
-          draft: false
-          prerelease: false
-          files: |
-            watcher-release/*
-          body: |
-            ## DAW Watcher Release
-            
-            **Version:** ${{ steps.version.outputs.version }}
-            **Build:** ${{ github.run_number }}
-            **Commit:** ${{ github.sha }}
-            
-            ### Changes
-            Auto-deployed from production branch.
-            
-            ### Installation
-            Download the binary for your platform and follow the README instructions.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   prebuild-tests:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     needs: build-checks
@@ -574,8 +528,7 @@ jobs:
           npx playwright test api-*.spec.ts --grep @smoke || true
 
   build-and-release-watcher:
-    if: success() && needs.post-deployment-tests.result == 'success'
-    needs: [build-and-deploy-backend, deploy-frontend, deploy-admin, post-deployment-tests]
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     name: Build and Release DAW Watcher
     runs-on: ${{ matrix.os }}
     strategy:
@@ -723,7 +676,7 @@ jobs:
 
   notification:
     if: always()
-    needs: [build-and-deploy-backend, deploy-frontend, deploy-admin, post-deployment-tests, build-and-release-watcher, create-watcher-release]
+    needs: [build-and-deploy-backend, deploy-frontend, deploy-admin, post-deployment-tests, create-watcher-release]
     runs-on: ubuntu-latest
     steps:
       - name: Deployment Summary
