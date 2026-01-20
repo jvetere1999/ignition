@@ -130,7 +130,7 @@ jobs:
           SESSION_SECRET: e2e-test-secret
 
       - name: Run E2E API tests
-        run: npx playwright test --config=playwright.api.config.ts
+        run: npx playwright test --config=tests/playwright.api.config.ts
         env:
           API_BASE_URL: http://localhost:8080
 
