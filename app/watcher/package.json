@@ -6,7 +6,7 @@
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
-    "build": "tauri build",
+    "build": "cd src-frontend && npm run build && cd ..",
     "test": "cargo test"
   },
   "devDependencies": {

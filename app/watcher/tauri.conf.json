@@ -1,6 +1,6 @@
 {
   "build": {
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "cd src-frontend && npm run build && cd ..",
     "beforeDevCommand": "npm run dev",
     "devPath": "http://localhost:3000"
   },
