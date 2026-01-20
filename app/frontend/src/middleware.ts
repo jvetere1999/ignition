@@ -25,6 +25,8 @@ const PUBLIC_ROUTES_EXACT = new Set([
   "/contact",
   "/help",
   "/auth/signin",
+  "/auth/signup",
+  "/auth/callback",
   "/auth/error",
 ]);
 
@@ -38,6 +40,8 @@ const PUBLIC_ROUTE_PREFIXES = [
   "/contact/",
   "/help/",
   "/auth/signin/",
+  "/auth/signup/",
+  "/auth/callback/",
   "/auth/error/",
 ];
 
