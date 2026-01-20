@@ -17,6 +17,8 @@ const PUBLIC_ROUTES = new Set([
   "/contact",
   "/help",
   "/auth/signin",
+  "/auth/signup",
+  "/auth/callback",
   "/auth/error",
   "/pending-approval",
 ]);
