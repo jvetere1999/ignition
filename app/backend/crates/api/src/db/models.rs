@@ -15,7 +15,6 @@ pub struct User {
     pub image: Option<String>,
     pub role: String,
     pub approved: bool,
-    pub age_verified: bool,
     pub tos_accepted: bool,
     pub tos_accepted_at: Option<DateTime<Utc>>,
     pub tos_version: Option<String>,
