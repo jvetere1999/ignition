@@ -17,36 +17,44 @@ export default function CallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Wait for backend to set session cookie
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Check if session was established
-        const sessionResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'https://api.ecent.online'}/auth/session`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-
-        if (!sessionResponse.ok) {
-          setStatus("Session check failed");
-          setTimeout(() => router.push("/auth/signin"), 2000);
-          return;
-        }
-
-        const data = (await sessionResponse.json()) as any;
+        // Give browser time to process Set-Cookie header from OAuth redirect
+        // Multiple delays to account for redirect chain
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        if (data.user) {
-          // Session established - redirect to next step
-          setStatus("Session established, redirecting...");
-          // Check if user has completed onboarding
-          router.push(data.user.onboarding_completed ? "/today" : "/onboarding");
-        } else {
-          setStatus("No session found, redirecting to signin...");
-          setTimeout(() => router.push("/auth/signin"), 2000);
+        // Retry session check a few times in case cookie is delayed
+        let retries = 3;
+        let sessionResponse;
+        
+        while (retries > 0) {
+          sessionResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL || 'https://api.ecent.online'}/auth/session`,
+            {
+              method: "GET",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+
+          const data = (await sessionResponse.json()) as any;
+          
+          if (data.user) {
+            // Session established - redirect to next step
+            setStatus("Session established, redirecting...");
+            // Check if user has completed onboarding
+            router.push(data.user.onboarding_completed ? "/today" : "/onboarding");
+            return;
+          }
+          
+          retries--;
+          if (retries > 0) {
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
+        
+        // After retries, still no session
+        setStatus("No session found, redirecting to signin...");
+        setTimeout(() => router.push("/auth/signin"), 2000);
       } catch (error) {
         console.error("Callback error:", error);
         setStatus("Error processing callback");
