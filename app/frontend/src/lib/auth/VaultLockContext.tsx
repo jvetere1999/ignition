@@ -244,6 +244,24 @@ export const VaultLockProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Poll for lock state changes (cross-device)
   const pollLockState = useCallback(async () => {
     try {
+      // Check if user is authenticated before polling
+      const sessionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ecent.online'}/auth/session`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      // If no session, skip polling
+      if (!sessionResponse.ok) {
+        return;
+      }
+
+      const sessionData = await sessionResponse.json() as { user: unknown };
+      if (!sessionData.user) {
+        return;
+      }
+
+      // User is authenticated, poll vault lock state
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ecent.online'}/api/sync/poll`, {
         credentials: 'include',
       });
