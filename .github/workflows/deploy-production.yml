@@ -325,7 +325,7 @@ jobs:
         run: flyctl logs --app ignition-api --no-tail | tail -50
 
   deploy-frontend:
-    if: always() && needs.build-checks.result == 'success'
+    if: needs.build-checks.result == 'success'
     needs: build-checks
     runs-on: ubuntu-latest
     environment:
@@ -521,6 +521,12 @@ jobs:
       - name: Install frontend dependencies
         working-directory: app/watcher/src-frontend
         run: pnpm install
+
+      - name: Generate valid RGBA icons
+        working-directory: app/watcher
+        run: |
+          chmod +x create_valid_icons.sh
+          ./create_valid_icons.sh
 
       - name: Build Tauri app
         working-directory: app/watcher
