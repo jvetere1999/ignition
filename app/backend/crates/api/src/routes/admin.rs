@@ -79,6 +79,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .nest("/content", content_routes())
         // Statistics
         .nest("/stats", stats_routes())
+        // Telemetry
+        .nest("/telemetry", telemetry_routes())
         // Database operations (enhanced)
         .nest("/db", db_routes())
         // Session management
@@ -113,6 +115,7 @@ async fn admin_info() -> Json<AdminInfo> {
             "feedback".to_string(),
             "content".to_string(),
             "stats".to_string(),
+            "telemetry".to_string(),
             "db".to_string(),
             "backup".to_string(),
             "templates".to_string(),
@@ -300,6 +303,224 @@ fn content_routes() -> Router<Arc<AppState>> {
 // Statistics routes
 fn stats_routes() -> Router<Arc<AppState>> {
     Router::new().route("/", get(get_stats))
+}
+
+fn telemetry_routes() -> Router<Arc<AppState>> {
+    Router::new().route("/overview", get(get_telemetry_overview))
+}
+
+#[derive(Serialize)]
+struct TelemetryMetric {
+    key: String,
+    label: String,
+    value: Option<f64>,
+    unit: Option<String>,
+    status: String,
+}
+
+#[derive(Serialize)]
+struct TelemetrySection {
+    id: String,
+    title: String,
+    description: String,
+    source: String,
+    metrics: Vec<TelemetryMetric>,
+}
+
+#[derive(Serialize)]
+struct TelemetryOverview {
+    generated_at: DateTime<Utc>,
+    sections: Vec<TelemetrySection>,
+}
+
+/// GET /admin/telemetry/overview
+/// Returns summarized telemetry buckets (placeholder until full telemetry tables exist)
+async fn get_telemetry_overview(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<TelemetryOverview>, AppError> {
+    let stats = AdminStatsRepo::get_stats(&state.db).await?;
+
+    let sections = vec![
+        TelemetrySection {
+            id: "e2ee".to_string(),
+            title: "E2EE Metrics".to_string(),
+            description: "Vault usage and encryption health signals.".to_string(),
+            source: "audit tables (pending)".to_string(),
+            metrics: vec![
+                TelemetryMetric {
+                    key: "active_vault_users".to_string(),
+                    label: "Active vault users".to_string(),
+                    value: None,
+                    unit: None,
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "recovery_codes_7d".to_string(),
+                    label: "Recovery codes (7d)".to_string(),
+                    value: None,
+                    unit: None,
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "failed_unlocks_24h".to_string(),
+                    label: "Failed unlocks (24h)".to_string(),
+                    value: None,
+                    unit: None,
+                    status: "missing".to_string(),
+                },
+            ],
+        },
+        TelemetrySection {
+            id: "feature".to_string(),
+            title: "Feature Adoption".to_string(),
+            description: "Active users across core product surfaces.".to_string(),
+            source: "session logs (partial)".to_string(),
+            metrics: vec![
+                TelemetryMetric {
+                    key: "active_7d".to_string(),
+                    label: "Active users (7d)".to_string(),
+                    value: Some(stats.users.active_7d as f64),
+                    unit: None,
+                    status: "ok".to_string(),
+                },
+                TelemetryMetric {
+                    key: "active_30d".to_string(),
+                    label: "Active users (30d)".to_string(),
+                    value: Some(stats.users.active_30d as f64),
+                    unit: None,
+                    status: "ok".to_string(),
+                },
+                TelemetryMetric {
+                    key: "focus_sessions".to_string(),
+                    label: "Focus sessions".to_string(),
+                    value: Some(stats.activity.total_focus_sessions as f64),
+                    unit: None,
+                    status: "ok".to_string(),
+                },
+            ],
+        },
+        TelemetrySection {
+            id: "system".to_string(),
+            title: "System Health".to_string(),
+            description: "API, database, and infrastructure signals.".to_string(),
+            source: "prometheus + postgres (pending)".to_string(),
+            metrics: vec![
+                TelemetryMetric {
+                    key: "api_latency_p95".to_string(),
+                    label: "API latency p95".to_string(),
+                    value: None,
+                    unit: Some("ms".to_string()),
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "error_rate".to_string(),
+                    label: "Error rate".to_string(),
+                    value: None,
+                    unit: Some("%".to_string()),
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "db_pool_utilization".to_string(),
+                    label: "DB pool utilization".to_string(),
+                    value: None,
+                    unit: Some("%".to_string()),
+                    status: "missing".to_string(),
+                },
+            ],
+        },
+        TelemetrySection {
+            id: "privacy".to_string(),
+            title: "Privacy & Compliance".to_string(),
+            description: "GDPR requests, consent, and retention signals.".to_string(),
+            source: "compliance tables (pending)".to_string(),
+            metrics: vec![
+                TelemetryMetric {
+                    key: "gdpr_requests_open".to_string(),
+                    label: "GDPR requests open".to_string(),
+                    value: None,
+                    unit: None,
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "consent_acceptance".to_string(),
+                    label: "Consent acceptance".to_string(),
+                    value: None,
+                    unit: Some("%".to_string()),
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "retention_cleanup".to_string(),
+                    label: "Retention cleanup status".to_string(),
+                    value: None,
+                    unit: None,
+                    status: "missing".to_string(),
+                },
+            ],
+        },
+        TelemetrySection {
+            id: "watcher".to_string(),
+            title: "DAW Watcher Telemetry".to_string(),
+            description: "Watcher installs, sync events, and health checks.".to_string(),
+            source: "watcher telemetry (pending)".to_string(),
+            metrics: vec![
+                TelemetryMetric {
+                    key: "watcher_active".to_string(),
+                    label: "Active installs".to_string(),
+                    value: None,
+                    unit: None,
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "watcher_sync_events".to_string(),
+                    label: "Sync events (7d)".to_string(),
+                    value: None,
+                    unit: None,
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "watcher_errors".to_string(),
+                    label: "Sync errors (24h)".to_string(),
+                    value: None,
+                    unit: None,
+                    status: "missing".to_string(),
+                },
+            ],
+        },
+        TelemetrySection {
+            id: "infra".to_string(),
+            title: "Observability".to_string(),
+            description: "Request volumes, cache, and uptime.".to_string(),
+            source: "cloudflare + logs (pending)".to_string(),
+            metrics: vec![
+                TelemetryMetric {
+                    key: "uptime_30d".to_string(),
+                    label: "Uptime (30d)".to_string(),
+                    value: None,
+                    unit: Some("%".to_string()),
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "cache_hit_rate".to_string(),
+                    label: "Cache hit rate".to_string(),
+                    value: None,
+                    unit: Some("%".to_string()),
+                    status: "missing".to_string(),
+                },
+                TelemetryMetric {
+                    key: "request_volume".to_string(),
+                    label: "Requests (24h)".to_string(),
+                    value: None,
+                    unit: None,
+                    status: "missing".to_string(),
+                },
+            ],
+        },
+    ];
+
+    Ok(Json(TelemetryOverview {
+        generated_at: Utc::now(),
+        sections,
+    }))
 }
 
 // Database operations routes (enhanced database viewer)

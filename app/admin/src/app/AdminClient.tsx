@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 // For now, use relative paths (works with main app or backend proxy)
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-type AdminTab = "users" | "quests" | "feedback" | "skills" | "content" | "stats" | "database" | "api-test";
+type AdminTab = "users" | "quests" | "feedback" | "skills" | "content" | "stats" | "telemetry" | "database" | "api-test";
 
 interface User {
   id: string;
@@ -374,7 +374,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
 
       {/* Tabs */}
       <div className={styles.tabs}>
-        {(["users", "quests", "feedback", "skills", "content", "stats", "database", "api-test"] as AdminTab[]).map((tab) => (
+        {(["users", "quests", "feedback", "skills", "content", "stats", "telemetry", "database", "api-test"] as AdminTab[]).map((tab) => (
           <button
             key={tab}
             className={`${styles.tab} ${activeTab === tab ? styles.active : ""}`}
@@ -801,6 +801,11 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
             {/* Stats Tab */}
             {activeTab === "stats" && (
               <StatsTab users={users} quests={quests} feedback={feedback} skills={skills} />
+            )}
+
+            {/* Telemetry Tab */}
+            {activeTab === "telemetry" && (
+              <TelemetryTab />
             )}
 
             {/* Database Tab */}
@@ -1569,7 +1574,115 @@ function StatsTab({ users, quests, feedback, skills }: StatsTabProps) {
 
   if (isLoading) {
     return <div className={styles.loading}>Loading statistics...</div>;
+}
+
+/**
+ * Telemetry Tab Component
+ * Admin telemetry overview dashboard
+ */
+interface TelemetryMetric {
+  key: string;
+  label: string;
+  value: number | null;
+  unit?: string | null;
+  status: "ok" | "missing";
+}
+
+interface TelemetrySection {
+  id: string;
+  title: string;
+  description: string;
+  source: string;
+  metrics: TelemetryMetric[];
+}
+
+interface TelemetryOverview {
+  generated_at: string;
+  sections: TelemetrySection[];
+}
+
+function TelemetryTab() {
+  const [data, setData] = useState<TelemetryOverview | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTelemetry = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/telemetry/overview`);
+        if (!res.ok) {
+          throw new Error(`Telemetry fetch failed: ${res.status}`);
+        }
+        const payload = await res.json() as TelemetryOverview;
+        setData(payload);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load telemetry");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTelemetry();
+  }, []);
+
+  if (isLoading) {
+    return <div className={styles.loading}>Loading telemetry...</div>;
   }
+
+  if (error) {
+    return <div className={styles.errorText}>{error}</div>;
+  }
+
+  if (!data) {
+    return <div className={styles.emptyState}>No telemetry data available.</div>;
+  }
+
+  const updatedAt = new Date(data.generated_at).toLocaleString();
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.telemetryHeader}>
+        <div>
+          <h2 className={styles.sectionTitle}>Telemetry Overview</h2>
+          <p className={styles.telemetrySubtitle}>
+            Live health signals and adoption metrics. Updated {updatedAt}.
+          </p>
+        </div>
+        <span className={styles.telemetryPill}>Beta</span>
+      </div>
+
+      {data.sections.map((section) => (
+        <div key={section.id} className={styles.telemetrySection}>
+          <div className={styles.telemetrySectionHeader}>
+            <div>
+              <h3 className={styles.telemetryTitle}>{section.title}</h3>
+              <p className={styles.telemetryDescription}>{section.description}</p>
+            </div>
+            <span className={styles.telemetrySource}>{section.source}</span>
+          </div>
+          <div className={styles.telemetryGrid}>
+            {section.metrics.map((metric) => (
+              <div key={metric.key} className={styles.telemetryCard}>
+                <div className={styles.telemetryValue}>
+                  {metric.value === null ? "—" : metric.value.toLocaleString()}
+                  {metric.unit ? <span className={styles.telemetryUnit}>{metric.unit}</span> : null}
+                </div>
+                <div className={styles.telemetryLabel}>{metric.label}</div>
+                <span
+                  className={
+                    metric.status === "ok" ? styles.telemetryStatusOk : styles.telemetryStatusMissing
+                  }
+                >
+                  {metric.status === "ok" ? "Live" : "Pending"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
   return (
     <div className={styles.section}>

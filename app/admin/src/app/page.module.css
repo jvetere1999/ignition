@@ -640,6 +640,125 @@
   letter-spacing: 0.05em;
 }
 
+.telemetryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.telemetrySubtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.telemetryPill {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #1e293b;
+  background: #facc15;
+  border-radius: 999px;
+}
+
+.telemetrySection {
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-default);
+  border-radius: 16px;
+}
+
+.telemetrySectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.telemetryTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.telemetryDescription {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.telemetrySource {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.telemetryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.telemetryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1rem;
+  background: var(--color-bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--color-border-default);
+}
+
+.telemetryValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.telemetryUnit {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.telemetryLabel {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.telemetryStatusOk,
+.telemetryStatusMissing {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.telemetryStatusOk {
+  color: #15803d;
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.telemetryStatusMissing {
+  color: #b45309;
+  background: rgba(251, 191, 36, 0.15);
+}
+
 .emptyState {
   text-align: center;
   padding: 2rem;
