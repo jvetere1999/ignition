@@ -1,5 +1,8 @@
 use crate::db::vault_models::{LockReason, Vault, VaultLockState};
+use bcrypt;
 use chrono::Utc;
+use rand::{rngs::OsRng, RngCore};
+use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -50,6 +53,34 @@ impl VaultRepo {
             .as_ref()
             .map(|s| s.locked_at.is_some())
             .unwrap_or(false))
+    }
+
+    /// Ensure a vault exists for the user. If missing, provision a placeholder vault
+    /// with a random passphrase hash and placeholder KDF params so downstream
+    /// operations don't hard-fail. Passphrase must still be set by the user later.
+    pub async fn ensure_vault(
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vault, sqlx::Error> {
+        if let Some(vault) = Self::get_by_user_id(pool, user_id).await? {
+            return Ok(vault);
+        }
+
+        // Generate random placeholder secrets; these are not meant for real use.
+        let mut salt = vec![0u8; 16];
+        OsRng.fill_bytes(&mut salt);
+
+        let placeholder_passphrase = Uuid::new_v4().to_string();
+        let placeholder_hash = bcrypt::hash(&placeholder_passphrase, 12)
+            .map_err(|_| sqlx::Error::Protocol("Failed to hash placeholder passphrase".into()))?;
+
+        let kdf_params = json!({
+            "kdf": "bcrypt",
+            "cost": 12,
+            "placeholder": true,
+        });
+
+        Self::create_vault(pool, user_id, salt, placeholder_hash, kdf_params).await
     }
 
     /// Get vault lock state (deprecated: use get_vault_state_full instead)

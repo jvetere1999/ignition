@@ -152,12 +152,23 @@ pub async fn require_auth(
         return Err(AppError::Forbidden);
     }
 
-    // Enforce passkey before accessing authenticated APIs,
-    // but allow onboarding/webauthn flows to run so users can register.
+    // Enforce passkey only after onboarding is completed; always allow onboarding/webauthn flows.
     let path = req.uri().path();
-    let skip_passkey = path.starts_with("/api/onboarding") || path.starts_with("/auth/webauthn");
+    let skip_passkey_paths =
+        path.starts_with("/api/onboarding") || path.starts_with("/auth/webauthn");
 
-    if !skip_passkey {
+    let onboarding_completed = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT status FROM user_onboarding_state WHERE user_id = $1",
+    )
+    .bind(auth_context.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten()
+    .map(|s| s == "completed")
+    .unwrap_or(false);
+
+    if !skip_passkey_paths && onboarding_completed {
         let has_passkey = crate::db::authenticator_repos::AuthenticatorRepo::get_by_user_id(
             &state.db,
             auth_context.user_id,

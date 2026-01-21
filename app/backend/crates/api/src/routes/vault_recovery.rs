@@ -226,8 +226,8 @@ async fn change_passphrase_authenticated(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let user_id = auth.user_id;
 
-    // Get user's vault
-    let vault = VaultRepo::get_by_user_id(&state.db, user_id)
+    // Get or create user's vault (auto-provision placeholder so first change succeeds)
+    let vault = VaultRepo::ensure_vault(&state.db, user_id)
         .await
         .map_err(|e| {
             tracing::error!("Failed to fetch vault: {:?}", e);
@@ -235,17 +235,26 @@ async fn change_passphrase_authenticated(
         })?
         .ok_or_else(|| AppError::NotFound("Vault not found".to_string()))?;
 
-    // Verify current passphrase
-    let passphrase_valid = bcrypt::verify(&payload.current_passphrase, &vault.passphrase_hash)
-        .map_err(|e| {
-            tracing::error!("Bcrypt verification failed: {:?}", e);
-            AppError::Internal("Failed to verify passphrase".to_string())
-        })?;
+    // Verify current passphrase unless this is the first-time placeholder vault
+    let is_placeholder = vault
+        .key_derivation_params
+        .as_object()
+        .and_then(|o| o.get("placeholder"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
-    if !passphrase_valid {
-        return Err(AppError::Unauthorized(
-            "Current passphrase is incorrect".to_string(),
-        ));
+    if !is_placeholder {
+        let passphrase_valid = bcrypt::verify(&payload.current_passphrase, &vault.passphrase_hash)
+            .map_err(|e| {
+                tracing::error!("Bcrypt verification failed: {:?}", e);
+                AppError::Internal("Failed to verify passphrase".to_string())
+            })?;
+
+        if !passphrase_valid {
+            return Err(AppError::Unauthorized(
+                "Current passphrase is incorrect".to_string(),
+            ));
+        }
     }
 
     // Validate new passphrase strength
@@ -267,11 +276,14 @@ async fn change_passphrase_authenticated(
     sqlx::query(
         r#"
         UPDATE vaults
-        SET passphrase_hash = $1, updated_at = NOW()
-        WHERE id = $2
+        SET passphrase_hash = $1,
+            key_derivation_params = $2,
+            updated_at = NOW()
+        WHERE id = $3
         "#,
     )
     .bind(&hashed)
+    .bind(serde_json::json!({ "kdf": "bcrypt", "cost": 12, "placeholder": false }))
     .bind(vault.id)
     .execute(&state.db)
     .await

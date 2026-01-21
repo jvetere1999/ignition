@@ -32,6 +32,14 @@ async fn get_vault_state(
     State(state): State<Arc<AppState>>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<crate::db::vault_models::VaultLockState>, AppError> {
+    // Auto-provision a placeholder vault so state lookups don't 404 for new users
+    let _ = VaultRepo::ensure_vault(&state.db, auth.user_id)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to ensure vault exists: {}", e);
+            AppError::Internal("Failed to fetch vault state".to_string())
+        })?;
+
     let lock_state = VaultRepo::get_vault_state_full(&state.db, auth.user_id)
         .await
         .map_err(|e| {
@@ -67,6 +75,14 @@ async fn lock_vault(
             AppError::BadRequest(
                 format!("Invalid lock reason. Valid reasons: idle, backgrounded, logout, force, rotation, admin")
             )
+        })?;
+
+    // Ensure vault exists so lock operations don't fail for new users
+    let _ = VaultRepo::ensure_vault(&state.db, auth.user_id)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to ensure vault exists: {}", e);
+            AppError::Internal("Failed to lock vault".to_string())
         })?;
 
     VaultRepo::lock_vault(&state.db, auth.user_id, reason)
@@ -110,8 +126,8 @@ async fn unlock_vault(
         ));
     }
 
-    // Fetch vault
-    let vault = VaultRepo::get_by_user_id(&state.db, auth.user_id)
+    // Ensure vault exists before attempting unlock
+    let vault = VaultRepo::ensure_vault(&state.db, auth.user_id)
         .await
         .map_err(|e| {
             tracing::error!("Failed to fetch vault: {}", e);
