@@ -17,12 +17,15 @@ import {
   TEMPLATE_DIFFICULTIES,
 } from "../../lib/api/templates";
 import styles from "./templates.module.css";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 interface TemplatesClientProps {
-  userEmail: string;
+  userEmail?: string;
 }
 
 export function TemplatesClient({ userEmail }: TemplatesClientProps) {
+  const { user } = useAuth();
+  const resolvedUserEmail = userEmail ?? user?.email ?? "Unknown";
   const [templates, setTemplates] = useState<ListeningPromptTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -167,7 +170,7 @@ export function TemplatesClient({ userEmail }: TemplatesClientProps) {
         <p className={styles.subtitle}>
           Admin-curated templates for critical listening exercises
         </p>
-        <p className={styles.userInfo}>Logged in as: {userEmail}</p>
+        <p className={styles.userInfo}>Logged in as: {resolvedUserEmail}</p>
       </header>
 
       {error && <div className={styles.error}>{error}</div>}
@@ -461,4 +464,3 @@ export function TemplatesClient({ userEmail }: TemplatesClientProps) {
     </div>
   );
 }
-

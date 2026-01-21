@@ -8,6 +8,7 @@ import {
   AuditLogQuery,
 } from "../../lib/api/admin";
 import styles from "../page.module.css";
+import { AdminGuard } from "@/components/AdminGuard";
 
 export default function AuditLogPage() {
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
@@ -79,9 +80,10 @@ export default function AuditLogPage() {
   };
 
   return (
-    <div className={styles.main}>
-      <h1>Audit Log</h1>
-      <p>Security and admin action audit trail</p>
+    <AdminGuard>
+      <div className={styles.main}>
+        <h1>Audit Log</h1>
+        <p>Security and admin action audit trail</p>
 
       {/* Filters */}
       <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
@@ -244,6 +246,7 @@ export default function AuditLogPage() {
           </button>
         </div>
       )}
-    </div>
+      </div>
+    </AdminGuard>
   );
 }

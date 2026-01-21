@@ -39,6 +39,7 @@ export default function RootLayout({
               <nav className="admin-nav">
                 <Link href="/" className="admin-nav-link">Dashboard</Link>
                 <Link href="/templates" className="admin-nav-link">Templates</Link>
+                <Link href="/audit" className="admin-nav-link">Audit</Link>
                 <Link href="/docs" className="admin-nav-link">Docs</Link>
               </nav>
             </header>
@@ -51,4 +52,3 @@ export default function RootLayout({
     </html>
   );
 }
-

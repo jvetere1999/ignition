@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback } from "react";
 import styles from "./page.module.css";
 import { ApiTestTool } from "@/components/ApiTestTool";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 // API base URL - will be api.ecent.online once backend is deployed
 // For now, use relative paths (works with main app or backend proxy)
@@ -73,6 +74,8 @@ interface AdminClientProps {
 }
 
 export function AdminClient({ userEmail }: AdminClientProps = {}) {
+  const { user } = useAuth();
+  const resolvedUserEmail = userEmail ?? user?.email ?? "Unknown";
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
   const [users, setUsers] = useState<User[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -365,7 +368,7 @@ export function AdminClient({ userEmail }: AdminClientProps = {}) {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Admin Console</h1>
-          <p className={styles.subtitle}>Logged in as {userEmail}</p>
+          <p className={styles.subtitle}>Logged in as {resolvedUserEmail}</p>
         </div>
       </header>
 
@@ -1701,4 +1704,3 @@ function StatsTab({ users, quests, feedback, skills }: StatsTabProps) {
     </div>
   );
 }
-
