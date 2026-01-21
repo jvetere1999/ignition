@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useRouter, usePathname } from "next/navigation";
-import { TOSModal } from "@/components/shell/TOSModal";
 
 /**
  * Public routes that don't require authentication
@@ -43,14 +42,15 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPublic = isPublicRoute(pathname);
 
-  // Redirect authenticated users away from signin page
+  // If authenticated and on any public page (including auth pages), push into onboarding
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
-      if (pathname === "/auth/signin") {
-        router.replace("/today");
+      // If user lands on a public page (including /auth/signin), push them into the app so onboarding can run
+      if (isPublic) {
+        router.replace("/onboarding");
       }
     }
-  }, [isLoading, isAuthenticated, user, pathname, router]);
+  }, [isLoading, isAuthenticated, user, pathname, router, isPublic]);
 
   // For public routes, render immediately (don't wait for auth)
   if (isPublic) {
@@ -70,10 +70,14 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  if (!user.tosAccepted) {
-    // Show TOS modal, refresh session after acceptance
-    return <TOSModal onAccept={refresh} />;
-  }
+  // TOS should be handled as part of onboarding; if not accepted, push user into onboarding flow
+  useEffect(() => {
+    if (isAuthenticated && user && !user.tosAccepted && pathname !== "/onboarding") {
+      // Backend auto-accepts TOS on first authenticated request; refresh to get updated session
+      refresh?.();
+      router.replace("/onboarding");
+    }
+  }, [isAuthenticated, user, pathname, router, refresh]);
 
   return <>{children}</>;
 }
