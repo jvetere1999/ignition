@@ -619,8 +619,21 @@ export function OnboardingModal({ state, flow, currentStep: initialStep, allStep
 
   // Modal visibility controlled by OnboardingProvider context
   // Will only render when user is in active onboarding flow
-  if (!isVisible || !currentStep) {
+  if (!isVisible) {
     return null;
+  }
+
+  if (!currentStep) {
+    return (
+      <div className={styles.overlay}>
+        <div className={styles.modal}>
+          <div className={styles.content}>
+            <h2 className={styles.stepTitle}>Preparing your onboarding…</h2>
+            <p className={styles.stepDescription}>Fetching your first step. If this takes too long, refresh.</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const canGoBack = currentStepIndex > 0;

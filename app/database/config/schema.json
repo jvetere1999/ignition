@@ -515,6 +515,57 @@
       "rust_type": "Vaults",
       "ts_type": "Vaults"
     },
+    "vault_lock_events": {
+      "fields": {
+        "id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": true,
+          "unique": false,
+          "foreign_key": false,
+          "default": "gen_random_uuid()"
+        },
+        "vault_id": {
+          "type": "UUID",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": true,
+          "comment": "Reference to vault - links events to user's vault"
+        },
+        "locked_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "lock_reason": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "device_id": {
+          "type": "TEXT",
+          "nullable": true,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false
+        },
+        "created_at": {
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "primary": false,
+          "unique": false,
+          "foreign_key": false,
+          "default": "NOW()"
+        }
+      },
+      "rust_type": "VaultLockEvents",
+      "ts_type": "VaultLockEvents"
+    },
     "daw_project_files": {
       "fields": {
         "id": {
@@ -8304,6 +8355,20 @@
       {
         "name": "idx_vaults_locked_at",
         "columns": ["user_id", "locked_at"],
+        "type": "btree",
+        "unique": false
+      }
+    ],
+    "vault_lock_events": [
+      {
+        "name": "idx_vault_lock_events_vault_id",
+        "columns": ["vault_id"],
+        "type": "btree",
+        "unique": false
+      },
+      {
+        "name": "idx_vault_lock_events_created_at",
+        "columns": ["created_at DESC"],
         "type": "btree",
         "unique": false
       }

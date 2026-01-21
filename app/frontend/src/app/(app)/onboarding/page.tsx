@@ -45,7 +45,8 @@ export default function OnboardingPage() {
     };
   }, [isAuthLoading, isAuthenticated, router]);
 
-  const showStatus = isAuthLoading || isLoading || !!error;
+  const hasFlowSteps = !!onboarding?.flow && onboarding.flow.total_steps > 0;
+  const showStatus = isAuthLoading || isLoading || !!error || !hasFlowSteps;
   const statusTitle = error ? "Onboarding unavailable" : "Preparing your onboarding";
   const statusBody = error
     ? "Please refresh to try again."
