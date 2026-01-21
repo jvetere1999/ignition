@@ -8,6 +8,10 @@ use tower_http::cors::CorsLayer;
 
 use crate::config::AppConfig;
 
+fn normalize_origin(origin: &str) -> String {
+    origin.trim_end_matches('/').to_string()
+}
+
 /// Create CORS layer based on configuration
 pub fn cors_layer(config: &AppConfig) -> CorsLayer {
     let mut layer = CorsLayer::new()
@@ -34,29 +38,32 @@ pub fn cors_layer(config: &AppConfig) -> CorsLayer {
         // Expose headers the client may need
         .expose_headers([header::CONTENT_TYPE, header::CONTENT_LENGTH]);
 
-    // Set allowed origins
-    if config.is_development() {
-        // In development, allow localhost origins
-        let origins: Vec<HeaderValue> = config
-            .cors
-            .allowed_origins
-            .iter()
-            .filter_map(|o| o.parse().ok())
-            .collect();
+    let mut origins = config
+        .cors
+        .allowed_origins
+        .iter()
+        .map(|origin| normalize_origin(origin))
+        .collect::<Vec<String>>();
 
-        layer = layer.allow_origin(origins);
-    } else {
-        // In production, use explicit production origins
-        let origins = [
-            "https://ignition.ecent.online",
-            "https://admin.ignition.ecent.online",
-        ]
+    let frontend_origin = normalize_origin(&config.server.frontend_url);
+    if !frontend_origin.is_empty() {
+        origins.push(frontend_origin);
+    }
+
+    if config.is_production() {
+        origins.push("https://ignition.ecent.online".to_string());
+        origins.push("https://admin.ignition.ecent.online".to_string());
+    }
+
+    origins.sort();
+    origins.dedup();
+
+    let allowed: Vec<HeaderValue> = origins
         .iter()
         .filter_map(|o| o.parse().ok())
-        .collect::<Vec<HeaderValue>>();
+        .collect();
 
-        layer = layer.allow_origin(origins);
-    }
+    layer = layer.allow_origin(allowed);
 
     layer
 }
