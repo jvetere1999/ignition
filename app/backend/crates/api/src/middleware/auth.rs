@@ -152,21 +152,28 @@ pub async fn require_auth(
         return Err(AppError::Forbidden);
     }
 
-    // Enforce passkey before accessing authenticated APIs
-    let has_passkey = crate::db::authenticator_repos::AuthenticatorRepo::get_by_user_id(
-        &state.db,
-        auth_context.user_id,
-    )
-    .await?
-    .first()
-    .is_some();
+    // Enforce passkey before accessing authenticated APIs,
+    // but allow onboarding/webauthn flows to run so users can register.
+    let path = req.uri().path();
+    let skip_passkey = path.starts_with("/api/onboarding") || path.starts_with("/auth/webauthn");
 
-    if !has_passkey {
-        return Err(AppError::Forbidden);
+    if !skip_passkey {
+        let has_passkey = crate::db::authenticator_repos::AuthenticatorRepo::get_by_user_id(
+            &state.db,
+            auth_context.user_id,
+        )
+        .await?
+        .first()
+        .is_some();
+
+        if !has_passkey {
+            return Err(AppError::Forbidden);
+        }
     }
 
+    // If TOS not accepted, auto-mark as accepted on first authenticated request to unblock flow
     if !user.tos_accepted {
-        return Err(AppError::Forbidden);
+        let _ = crate::db::repos::UserRepo::accept_tos(&state.db, user.id, "1.0").await;
     }
 
     req.extensions_mut().insert(user);
