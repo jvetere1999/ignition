@@ -749,7 +749,12 @@ class SchemaGenerator:
                 value_rows.append(f"    ({', '.join(values)})")
             
             lines.append(',\n'.join(value_rows))
-            lines.append(f"ON CONFLICT ({unique_key}) DO NOTHING;" if unique_key else "ON CONFLICT DO NOTHING;")
+            if unique_key:
+                if isinstance(unique_key, list):
+                    unique_key = ', '.join(unique_key)
+                lines.append(f"ON CONFLICT ({unique_key}) DO NOTHING;")
+            else:
+                lines.append(";")
             lines.append("")
         
         # Summary

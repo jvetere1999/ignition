@@ -9193,7 +9193,7 @@
       ]
     },
     "workouts": {
-      "unique_key": "name",
+      "unique_key": null,
       "records": [
         {
           "name": "Mobility: Posture Reset (APT + Upper Back)",
@@ -9254,7 +9254,7 @@
       ]
     },
     "workout_sections": {
-      "unique_key": ["workout_name", "name"],
+      "unique_key": null,
       "references": {
         "workout_name": {
           "ref_table": "workouts",
@@ -9391,7 +9391,7 @@
       ]
     },
     "workout_exercises": {
-      "unique_key": ["workout_name", "section_name", "exercise_name", "sort_order"],
+      "unique_key": null,
       "references": {
         "workout_name": {
           "ref_table": "workouts",
