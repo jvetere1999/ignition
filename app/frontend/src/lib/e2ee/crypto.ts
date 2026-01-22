@@ -2,7 +2,7 @@
 
 /**
  * Lightweight E2EE helpers for string payloads.
- * AES-GCM with PBKDF2-derived key from user passphrase.
+ * AES-GCM with PBKDF2-derived key from client key material (passkey-derived).
  */
 
 const PBKDF2_ITERATIONS = 100_000;
@@ -31,11 +31,11 @@ function fromBase64(b64: string): Uint8Array {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
-async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
+async function deriveKey(keyMaterial: string, salt: Uint8Array): Promise<CryptoKey> {
   const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
+  const rawKey = await crypto.subtle.importKey(
     "raw",
-    enc.encode(passphrase),
+    enc.encode(keyMaterial),
     { name: "PBKDF2" },
     false,
     ["deriveKey"]
@@ -48,17 +48,17 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
       iterations: PBKDF2_ITERATIONS,
       hash: PBKDF2_HASH,
     },
-    keyMaterial,
+    rawKey,
     { name: AES_ALGO, length: 256 },
     false,
     ["encrypt", "decrypt"]
   );
 }
 
-export async function encryptString(plaintext: string, passphrase: string): Promise<EncryptedPayload> {
+export async function encryptString(plaintext: string, keyMaterial: string): Promise<EncryptedPayload> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await deriveKey(passphrase, salt);
+  const key = await deriveKey(keyMaterial, salt);
   const enc = new TextEncoder();
   const cipherBuf = await crypto.subtle.encrypt(
     { name: AES_ALGO, iv: iv as BufferSource },
@@ -73,10 +73,10 @@ export async function encryptString(plaintext: string, passphrase: string): Prom
   };
 }
 
-export async function decryptString(payload: EncryptedPayload, passphrase: string): Promise<string> {
+export async function decryptString(payload: EncryptedPayload, keyMaterial: string): Promise<string> {
   const iv = fromBase64(payload.iv);
   const salt = fromBase64(payload.salt);
-  const key = await deriveKey(passphrase, salt);
+  const key = await deriveKey(keyMaterial, salt);
   const cipherBytes = fromBase64(payload.cipher);
   const plainBuf = await crypto.subtle.decrypt(
     { name: AES_ALGO, iv: iv as BufferSource },
@@ -93,10 +93,10 @@ export function isEncryptedPayload(data: unknown): data is EncryptedPayload {
   return typeof maybe.iv === "string" && typeof maybe.salt === "string" && typeof maybe.cipher === "string";
 }
 
-export async function encryptBytes(data: ArrayBuffer, passphrase: string): Promise<EncryptedBytes> {
+export async function encryptBytes(data: ArrayBuffer, keyMaterial: string): Promise<EncryptedBytes> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await deriveKey(passphrase, salt);
+  const key = await deriveKey(keyMaterial, salt);
   const cipherBuf = await crypto.subtle.encrypt(
     { name: AES_ALGO, iv: iv as BufferSource },
     key,
@@ -110,10 +110,10 @@ export async function encryptBytes(data: ArrayBuffer, passphrase: string): Promi
   };
 }
 
-export async function decryptBytes(payload: EncryptedBytes, passphrase: string): Promise<ArrayBuffer> {
+export async function decryptBytes(payload: EncryptedBytes, keyMaterial: string): Promise<ArrayBuffer> {
   const iv = fromBase64(payload.iv);
   const salt = fromBase64(payload.salt);
-  const key = await deriveKey(passphrase, salt);
+  const key = await deriveKey(keyMaterial, salt);
   return crypto.subtle.decrypt(
     { name: AES_ALGO, iv: iv as BufferSource },
     key,

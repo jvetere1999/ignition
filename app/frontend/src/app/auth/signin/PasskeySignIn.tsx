@@ -20,6 +20,7 @@ export function PasskeySignIn() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(false);
+  const [email, setEmail] = useState("");
 
   // Check WebAuthn support on mount
   useEffect(() => {
@@ -31,19 +32,22 @@ export function PasskeySignIn() {
       setError("WebAuthn is not supported on your device");
       return;
     }
+    if (!email.trim()) {
+      setError("Enter your email to continue");
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
     try {
       // Get assertion options from backend
-      const optionsResponse = await safeFetch(
-        `${API_BASE_URL}/auth/webauthn/signin-options`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      const optionsUrl = new URL(`${API_BASE_URL}/auth/webauthn/signin-options`);
+      optionsUrl.searchParams.set("email", email.trim());
+      const optionsResponse = await safeFetch(optionsUrl.toString(), {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
 
       if (!optionsResponse.ok) {
         throw new Error("Failed to get authentication options");
@@ -108,6 +112,22 @@ export function PasskeySignIn() {
           <p>{error}</p>
         </div>
       )}
+
+      <label className={styles.recoveryLabel} htmlFor="passkey-email">
+        Email
+      </label>
+      <input
+        id="passkey-email"
+        type="email"
+        autoComplete="email"
+        placeholder="you@example.com"
+        value={email}
+        onChange={(event) => {
+          setEmail(event.target.value);
+          if (error) setError(null);
+        }}
+        className={styles.recoveryInput}
+      />
 
       <button
         onClick={handlePasskeySignIn}

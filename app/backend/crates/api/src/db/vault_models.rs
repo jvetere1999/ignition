@@ -32,9 +32,10 @@ pub struct LockVaultRequest {
     pub reason: String,
 }
 
-#[derive(Debug, Deserialize)]
+/// Unlock request with no required fields (passkey-only flow).
+#[derive(Debug, Deserialize, Default)]
 pub struct UnlockVaultRequest {
-    pub passphrase: String,
+    // Body intentionally empty; legacy clients may still send fields that are ignored.
 }
 
 /// Response from unlock vault endpoint
@@ -48,16 +49,15 @@ pub struct UnlockVaultResponse {
 /// Lock reasons for vault state transitions
 ///
 /// **Semantics**:
-/// - `Idle`: User inactivity timeout (default, can unlock with passphrase)
-/// - `Backgrounded`: App sent to background (can unlock with passphrase)
-/// - `Logout`: User logged out (REQUIRES full re-authentication, passphrase alone insufficient)
+/// - `Idle`: User inactivity timeout (default)
+/// - `Backgrounded`: App sent to background
+/// - `Logout`: User logged out (requires full re-authentication)
 /// - `Force`: Admin forced lock (requires additional authorization)
 /// - `Rotation`: Vault key rotation in progress (temporary lock)
 /// - `Admin`: Administrator action (highest priority)
 ///
 /// **Sync Implications**:
 /// - Sync must check lock_reason before accessing vault secrets
-/// - Only Idle/Backgrounded can unlock with passphrase alone
 /// - Logout requires re-authentication flow
 #[derive(Debug, Clone, strum_macros::AsRefStr, strum_macros::EnumString)]
 #[strum(serialize_all = "lowercase")]

@@ -14,14 +14,6 @@ export interface VaultLockState {
   lock_reason: string | null;
 }
 
-export interface LockVaultRequest {
-  reason: 'idle' | 'backgrounded' | 'logout' | 'force' | 'rotation' | 'admin';
-}
-
-export interface UnlockVaultRequest {
-  passphrase: string;
-}
-
 export interface UnlockVaultResponse {
   locked_at: string | null;
   lock_reason: string | null;
@@ -30,37 +22,18 @@ export interface UnlockVaultResponse {
 /**
  * Lock the user's vault with specified reason
  */
-export async function lockVault(reason: LockVaultRequest['reason']): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/vault/lock`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json() as Record<string, unknown>;
-    throw new Error((error.message as string) || 'Failed to lock vault');
-  }
+export async function lockVault(): Promise<void> {
+  return;
 }
 
 /**
- * Unlock the user's vault with passphrase
+ * Unlock the user's vault after passkey session
  */
-export async function unlockVault(passphrase: string): Promise<UnlockVaultResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/vault/unlock`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ passphrase }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json() as Record<string, unknown>;
-    throw new Error((error.message as string) || 'Failed to unlock vault');
-  }
-
-  return response.json();
+export async function unlockVault(): Promise<UnlockVaultResponse> {
+  return {
+    locked_at: null,
+    lock_reason: null,
+  };
 }
 
 /**

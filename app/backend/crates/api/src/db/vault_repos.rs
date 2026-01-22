@@ -56,8 +56,8 @@ impl VaultRepo {
     }
 
     /// Ensure a vault exists for the user. If missing, provision a placeholder vault
-    /// with a random passphrase hash and placeholder KDF params so downstream
-    /// operations don't hard-fail. Passphrase must still be set by the user later.
+    /// with random legacy credentials and placeholder KDF params so downstream
+    /// operations don't hard-fail.
     pub async fn ensure_vault(
         pool: &PgPool,
         user_id: Uuid,
@@ -70,9 +70,9 @@ impl VaultRepo {
         let mut salt = vec![0u8; 16];
         OsRng.fill_bytes(&mut salt);
 
-        let placeholder_passphrase = Uuid::new_v4().to_string();
-        let placeholder_hash = bcrypt::hash(&placeholder_passphrase, 12)
-            .map_err(|_| sqlx::Error::Protocol("Failed to hash placeholder passphrase".into()))?;
+        let placeholder_secret = Uuid::new_v4().to_string();
+        let placeholder_hash = bcrypt::hash(&placeholder_secret, 12)
+            .map_err(|_| sqlx::Error::Protocol("Failed to hash placeholder credential".into()))?;
 
         let kdf_params = json!({
             "kdf": "bcrypt",

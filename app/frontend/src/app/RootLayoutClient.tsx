@@ -2,11 +2,8 @@
 
 import { AuthProvider } from "@/lib/auth";
 import { VaultLockProvider } from "@/lib/auth/VaultLockContext";
-import { VaultRecoveryProvider } from "@/contexts/VaultRecoveryContext";
 import { ThemeProvider } from "@/lib/theme";
 import { SiteFooter } from "@/components/shell/SiteFooter";
-import { VaultLockBanner } from "@/components/shell/VaultLockBanner";
-import { VaultUnlockModal } from "@/components/shell/VaultUnlockModal";
 import { ErrorNotifications } from "@/components/ui/ErrorNotifications";
 import { ErrorNotificationInitializer } from "@/components/ui/ErrorNotificationInitializer";
 import { OfflineStatusBanner } from "@/components/ui/OfflineStatusBanner";
@@ -28,22 +25,18 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <VaultLockProvider>
-        <VaultRecoveryProvider>
           <ThemeProvider>
-          <ZenBrowserInitializer />
-          <OnboardingGate>
-            <OfflineStatusBanner />
-            <VaultLockBanner />
-            <VaultUnlockModal />
-            <div id="app-root">{children}</div>
-            <SiteFooter />
-            <ErrorNotifications />
-            <ErrorNotificationInitializer />
-            <ServiceWorkerRegistrar />
-            <OfflineQueueWorker />
-          </OnboardingGate>
-        </ThemeProvider>
-        </VaultRecoveryProvider>
+            <ZenBrowserInitializer />
+            <OnboardingGate>
+              <OfflineStatusBanner />
+              <div id="app-root">{children}</div>
+              <SiteFooter />
+              <ErrorNotifications />
+              <ErrorNotificationInitializer />
+              <ServiceWorkerRegistrar />
+              <OfflineQueueWorker />
+            </OnboardingGate>
+          </ThemeProvider>
       </VaultLockProvider>
     </AuthProvider>
   );

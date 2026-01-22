@@ -30,7 +30,6 @@ import {
   type CreateRegionInput,
   ApiClientError,
 } from "@/lib/api/reference-tracks";
-import { useVault } from "@/lib/auth/VaultProvider";
 import styles from "./ReferenceLibrary.module.css";
 
 // ============================================
@@ -61,7 +60,6 @@ export function ReferenceLibraryV2() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const playerStore = usePlayerStore();
-  const { isLocked: isVaultLocked } = useVault();
 
   // Detect quick mode from URL
   useEffect(() => {
@@ -369,15 +367,6 @@ export function ReferenceLibraryV2() {
       {isQuickMode && <QuickModeHeader title="Quick Start - Reference Library" />}
 
       <div className={styles.container} data-testid="reference-library">
-        {/* Vault Status Banner */}
-        {isVaultLocked && (
-          <div className={styles.vaultLockedBanner} role="status" aria-live="polite">
-            <p className={styles.vaultLockedText}>
-              🔒 Reference tracks are encrypted. Unlock vault to upload or modify tracks.
-            </p>
-          </div>
-        )}
-
         {/* Error Banner */}
         {error && (
           <div className={styles.errorBanner} role="alert">
@@ -409,9 +398,8 @@ export function ReferenceLibraryV2() {
             <button
               className={styles.addButton}
               onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || isVaultLocked}
+              disabled={isUploading}
               type="button"
-              title={isVaultLocked ? "Unlock vault to upload tracks" : ""}
             >
               {isUploading ? "Uploading..." : "+ Upload"}
             </button>

@@ -20,32 +20,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const SESSION_INVALID_COOKIE = "session_invalid=1; Max-Age=120; Path=/; SameSite=Lax";
 const SESSION_INVALID_CLEAR = "session_invalid=; Max-Age=0; Path=/; SameSite=Lax";
 
-const PUBLIC_ROUTES = new Set([
-  "/",
-  "/about",
-  "/privacy",
-  "/terms",
-  "/contact",
-  "/help",
-  "/auth/signin",
-  "/auth/signup",
-  "/auth/callback",
-  "/auth/error",
-  "/pending-approval",
-]);
-
-function isPublicRoute(pathname: string): boolean {
-  if (PUBLIC_ROUTES.has(pathname)) {
-    return true;
-  }
-  for (const route of PUBLIC_ROUTES) {
-    if (pathname.startsWith(`${route}/`)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function setSessionInvalidCookie(): void {
   if (typeof document === "undefined") return;
   document.cookie = SESSION_INVALID_COOKIE;
@@ -131,10 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setSessionInvalidCookie();
 
-    const { pathname } = window.location;
-    if (!isPublicRoute(pathname) && pathname !== "/") {
-      window.location.href = "/";
-    }
+    // Redirects are handled by the app layout; avoid competing navigation here.
   }, [isLoading, user]);
 
   // Sign in - redirect to backend OAuth endpoint
@@ -170,72 +141,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {isLoading && (
-        <div
-          style={{
-            position: "fixed",
-            top: "16px",
-            right: "16px",
-            zIndex: 1000,
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              pointerEvents: "auto",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "12px 16px",
-              borderRadius: "16px",
-              background: "rgba(10, 12, 20, 0.85)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              color: "#e5e7eb",
-              boxShadow: "0 14px 30px rgba(0, 0, 0, 0.4)",
-              backdropFilter: "blur(10px)",
-              minWidth: "220px",
-            }}
-          >
-            <div
-              style={{
-                width: "10px",
-                height: "10px",
-                borderRadius: "999px",
-                background: "#ff764d",
-                boxShadow: "0 0 12px rgba(255, 118, 77, 0.8)",
-                animation: "authToastPulse 1.4s ease-in-out infinite",
-              }}
-            />
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <span
-                style={{
-                  fontSize: "11px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.14em",
-                  color: "rgba(255, 255, 255, 0.6)",
-                }}
-              >
-                Ignition
-              </span>
-              <span style={{ fontSize: "14px", fontWeight: 600 }}>
-                Loading your workspace...
-              </span>
-            </div>
-          </div>
-          <style>{`
-            @keyframes authToastPulse {
-              0%, 100% {
-                transform: scale(1);
-                opacity: 0.7;
-              }
-              50% {
-                transform: scale(1.35);
-                opacity: 1;
-              }
-            }
-          `}</style>
-        </div>
-      )}
     </AuthContext.Provider>
   );
 }

@@ -42,14 +42,6 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPublic = isPublicRoute(pathname);
 
-  // If authenticated and on any public page (including auth pages), push into onboarding
-  useEffect(() => {
-    if (isLoading || !isAuthenticated || !user) return;
-    if (isPublic) {
-      router.replace("/onboarding");
-    }
-  }, [isLoading, isAuthenticated, user, router, isPublic]);
-
   // TOS should be handled as part of onboarding; if not accepted, push user into onboarding flow
   useEffect(() => {
     if (isLoading || !isAuthenticated || !user) return;

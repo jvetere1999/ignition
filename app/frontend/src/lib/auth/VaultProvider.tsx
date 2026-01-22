@@ -11,18 +11,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { lockVault, unlockVault, getVaultLockState, VaultLockState } from '@/lib/api/vault';
-import { getApiBaseUrl } from '@/lib/config/environment';
+import { getVaultLockState } from '@/lib/api/vault';
 
 interface VaultContextType {
   isLocked: boolean;
   lockReason: string | null;
   lockVault: (reason: 'idle' | 'backgrounded' | 'logout' | 'force' | 'rotation' | 'admin') => Promise<void>;
-  unlockVault: (passphrase: string) => Promise<void>;
+  unlockVault: () => Promise<void>;
   setManualLock: (locked: boolean) => void;
 }
-
-const API_BASE_URL = getApiBaseUrl();
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
 
@@ -49,32 +46,12 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
   useEffect(() => {
     const initVaultState = async () => {
       try {
-        // Check if user is authenticated before fetching vault state
-        const sessionResponse = await fetch(`${API_BASE_URL}/auth/session`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-
-        // If no session, skip vault state fetch
-        if (!sessionResponse.ok) {
-          console.log('No active session, skipping vault state initialization');
-          return;
-        }
-
-        const sessionData = await sessionResponse.json() as { user: unknown };
-        if (!sessionData.user) {
-          console.log('No authenticated user, skipping vault state initialization');
-          return;
-        }
-
-        // User is authenticated, fetch vault state
         const state = await getVaultLockState();
         setIsLocked(state.locked_at !== null);
         setLockReason(state.lock_reason);
       } catch (error) {
         console.error('Failed to initialize vault state:', error);
-        setIsLocked(true); // Default to locked on error
+        setIsLocked(false);
       }
     };
 
@@ -90,28 +67,8 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
     if (!isLocked) {
       inactivityTimerRef.current = setTimeout(async () => {
         try {
-          // Check if user is authenticated before locking vault
-          const sessionResponse = await fetch(`${API_BASE_URL}/auth/session`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          });
-
-          // If no session, don't try to lock vault
-          if (!sessionResponse.ok) {
-            console.log('No active session, skipping vault lock on inactivity');
-            return;
-          }
-
-          const sessionData = await sessionResponse.json() as { user: unknown };
-          if (!sessionData.user) {
-            console.log('No authenticated user, skipping vault lock on inactivity');
-            return;
-          }
-
-          await lockVault('idle');
-          setIsLocked(true);
-          setLockReason('idle');
+          setIsLocked(false);
+          setLockReason(null);
         } catch (error) {
           console.error('Failed to auto-lock vault on inactivity:', error);
         }
@@ -151,30 +108,9 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
 
     visibilityHandlerRef.current = async () => {
       if (document.hidden) {
-        // App backgrounded - check auth before locking
         try {
-          // Check if user is authenticated before locking vault
-          const sessionResponse = await fetch(`${API_BASE_URL}/auth/session`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          });
-
-          // If no session, don't try to lock vault
-          if (!sessionResponse.ok) {
-            console.log('No active session, skipping vault lock on background');
-            return;
-          }
-
-          const sessionData = await sessionResponse.json() as { user: unknown };
-          if (!sessionData.user) {
-            console.log('No authenticated user, skipping vault lock on background');
-            return;
-          }
-
-          await lockVault('backgrounded');
-          setIsLocked(true);
-          setLockReason('backgrounded');
+          setIsLocked(false);
+          setLockReason(null);
         } catch (error) {
           console.error('Failed to lock vault on background:', error);
         }
@@ -193,24 +129,16 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
   // Lock vault handler
   const handleLockVault = useCallback(
     async (reason: 'idle' | 'backgrounded' | 'logout' | 'force' | 'rotation' | 'admin') => {
-      try {
-        await lockVault(reason);
-        setIsLocked(true);
-        setLockReason(reason);
-      } catch (error) {
-        console.error('Failed to lock vault:', error);
-        throw error;
-      }
+      return;
     },
     []
   );
 
   // Unlock vault handler
-  const handleUnlockVault = useCallback(async (passphrase: string) => {
+  const handleUnlockVault = useCallback(async () => {
     try {
-      const response = await unlockVault(passphrase);
-      setIsLocked(response.locked_at !== null);
-      setLockReason(response.lock_reason);
+      setIsLocked(false);
+      setLockReason(null);
       resetInactivityTimer();
     } catch (error) {
       console.error('Failed to unlock vault:', error);

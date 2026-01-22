@@ -14,7 +14,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { QuickModeHeader } from "@/components/ui/QuickModeHeader";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
-import { encryptString, decryptString, isEncryptedPayload, type EncryptedPayload } from "@/lib/e2ee/crypto";
+import { isEncryptedPayload } from "@/lib/e2ee/crypto";
 import { SearchBox } from "@/components/Search/SearchBox";
 import { IndexProgress } from "@/components/Search/IndexProgress";
 import { useRouter } from "next/navigation";
@@ -53,8 +53,6 @@ export function InfobaseClient() {
   const [isCreating, setIsCreating] = useState(false);
   const [_isLoading, setIsLoading] = useState(true);
   const [isQuickMode, setIsQuickMode] = useState(false);
-  const [passphrase, setPassphrase] = useState("");
-  const [vaultUnlocked, setVaultUnlocked] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Detect quick mode from URL
@@ -91,8 +89,8 @@ export function InfobaseClient() {
             let content = e.content;
             try {
               const maybe = JSON.parse(e.content);
-              if (isEncryptedPayload(maybe) && vaultUnlocked && passphrase) {
-                content = await decryptString(maybe as EncryptedPayload, passphrase);
+              if (isEncryptedPayload(maybe)) {
+                content = "Encrypted entry (passkey-only)";
               }
             } catch {
               // plaintext or parse error, leave as-is
@@ -138,7 +136,7 @@ export function InfobaseClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCategory, searchQuery, vaultUnlocked, passphrase]);
+  }, [selectedCategory, searchQuery]);
 
   // Load entries on mount and when filters change
   useEffect(() => {
@@ -223,11 +221,7 @@ export function InfobaseClient() {
 
       // Save to D1
       try {
-        let contentToSend: string = newEntry.content;
-        if (vaultUnlocked && passphrase) {
-          const encrypted = await encryptString(newEntry.content, passphrase);
-          contentToSend = JSON.stringify(encrypted);
-        }
+        const contentToSend: string = newEntry.content;
         const res = await safeFetch(`${API_BASE_URL}/api/infobase`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -274,11 +268,7 @@ export function InfobaseClient() {
 
       // Update in D1
       try {
-        let contentToSend: string = updatedEntry.content;
-        if (vaultUnlocked && passphrase) {
-          const encrypted = await encryptString(updatedEntry.content, passphrase);
-          contentToSend = JSON.stringify(encrypted);
-        }
+        const contentToSend: string = updatedEntry.content;
         const res = await safeFetch(`${API_BASE_URL}/api/infobase/${selectedEntry.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -351,35 +341,6 @@ export function InfobaseClient() {
         />
       </div>
 
-      {!vaultUnlocked && (
-        <div className={styles.vaultBanner}>
-          <div>
-            <p className={styles.vaultTitle}>Unlock Private Work (E2EE)</p>
-            <p className={styles.vaultSubtitle}>
-              Enter your passphrase to decrypt entries locally. Passphrase is kept only in-memory.
-            </p>
-          </div>
-          <div className={styles.vaultControls}>
-            <input
-              type="password"
-              placeholder="Passphrase"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              className={styles.vaultInput}
-            />
-            <button
-              className={styles.vaultButton}
-              onClick={() => {
-                if (!passphrase.trim()) return;
-                setVaultUnlocked(true);
-                fetchEntries();
-              }}
-            >
-              Unlock
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className={styles.toolbar}>
         <button className={styles.addButton} onClick={handleCreate}>

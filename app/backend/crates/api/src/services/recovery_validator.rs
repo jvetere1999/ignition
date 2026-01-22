@@ -2,7 +2,6 @@
 //!
 //! Provides validation for recovery codes including:
 //! - Format validation (correct length and character set)
-//! - Passphrase strength validation
 //! - Rate limiting for recovery attempts
 
 use crate::error::AppError;
@@ -54,56 +53,6 @@ impl RecoveryValidator {
         Ok(())
     }
 
-    /// Validate passphrase strength for vault recovery
-    ///
-    /// Requirements:
-    /// - Minimum 8 characters
-    /// - Should have mixed case OR numbers/symbols (basic entropy check)
-    ///
-    /// # Errors
-    /// Returns `AppError::BadRequest` if passphrase is too weak
-    pub fn validate_passphrase_strength(passphrase: &str) -> Result<(), AppError> {
-        if passphrase.is_empty() {
-            return Err(AppError::BadRequest(
-                "Passphrase cannot be empty".to_string(),
-            ));
-        }
-
-        if passphrase.len() < 8 {
-            return Err(AppError::BadRequest(
-                "Passphrase must be at least 8 characters".to_string(),
-            ));
-        }
-
-        // Check for basic entropy: mixed case or presence of numbers/symbols
-        let has_lowercase = passphrase.chars().any(|c| c.is_lowercase());
-        let has_uppercase = passphrase.chars().any(|c| c.is_uppercase());
-        let has_non_alpha = passphrase.chars().any(|c| !c.is_alphabetic());
-
-        let entropy_good = (has_lowercase && has_uppercase) || has_non_alpha;
-
-        if !entropy_good {
-            return Err(AppError::BadRequest(
-                "Passphrase should use mixed case OR include numbers/symbols for better security"
-                    .to_string(),
-            ));
-        }
-
-        Ok(())
-    }
-
-    /// Validate that old and new passphrases are different
-    ///
-    /// # Errors
-    /// Returns `AppError::BadRequest` if passphrases are identical
-    pub fn validate_different_passphrases(old: &str, new: &str) -> Result<(), AppError> {
-        if old == new {
-            return Err(AppError::BadRequest(
-                "New passphrase must be different from current passphrase".to_string(),
-            ));
-        }
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -125,33 +74,4 @@ mod tests {
         assert!(RecoveryValidator::validate_code_format("abcd-1234-wxyz").is_err());
     }
 
-    #[test]
-    fn test_valid_passphrase_mixed_case() {
-        assert!(RecoveryValidator::validate_passphrase_strength("MyPassphrase").is_ok());
-    }
-
-    #[test]
-    fn test_valid_passphrase_with_numbers() {
-        assert!(RecoveryValidator::validate_passphrase_strength("password123").is_ok());
-    }
-
-    #[test]
-    fn test_invalid_passphrase_too_short() {
-        assert!(RecoveryValidator::validate_passphrase_strength("pass123").is_err());
-    }
-
-    #[test]
-    fn test_invalid_passphrase_low_entropy() {
-        assert!(RecoveryValidator::validate_passphrase_strength("allalphabet").is_err());
-    }
-
-    #[test]
-    fn test_different_passphrases_valid() {
-        assert!(RecoveryValidator::validate_different_passphrases("old123", "new456").is_ok());
-    }
-
-    #[test]
-    fn test_different_passphrases_invalid() {
-        assert!(RecoveryValidator::validate_different_passphrases("same123", "same123").is_err());
-    }
 }

@@ -73,8 +73,6 @@ pub fn router() -> Router<Arc<AppState>> {
         .nest("/search", super::search::router())
         // Vault module - E2EE vault lock/unlock
         .nest("/vault", super::vault::router())
-        // Vault recovery module - recovery codes and passphrase reset
-        .nest("/vault", super::vault_recovery::router())
     // Apply middleware (CSRF and auth will be added at top level)
 }
 

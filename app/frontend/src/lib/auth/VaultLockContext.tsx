@@ -1,13 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { useAuth } from '@/lib/auth';
 import { getSearchManager, type SearchableContent } from '@/lib/search/SearchIndexManager';
 import { getIdeas, type Idea } from '@/lib/api/ideas';
 import { getEntries, type InfobaseEntry } from '@/lib/api/infobase';
-import { getApiBaseUrl } from '@/lib/config/environment';
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const POLL_INTERVAL_MS = 30 * 1000; // 30 seconds
-const API_BASE_URL = getApiBaseUrl();
-
 export interface VaultLockState {
   locked_at: string | null;
   lock_reason: string | null;
@@ -16,8 +14,8 @@ export interface VaultLockState {
 export interface VaultLockContextType {
   isLocked: boolean;
   lockReason: string | null;
-  lockVault: (reason: string) => Promise<void>;
-  unlockVault: (passphrase: string) => Promise<void>;
+  lockVault: () => Promise<void>;
+  unlockVault: () => Promise<void>;
   isUnlocking: boolean;
   unlockError: string | null;
   isSearchIndexing: boolean;
@@ -37,6 +35,7 @@ export const useVaultLockStore = {
 };
 
 export const VaultLockProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const [isLocked, setIsLocked] = useState(false);
   const [lockReason, setLockReason] = useState<string | null>(null);
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -46,18 +45,6 @@ export const VaultLockProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const lastActivityRef = useRef<number>(Date.now());
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Clear search index
-  const clearSearchIndex = useCallback(async () => {
-    try {
-      const searchManager = await getSearchManager();
-      await searchManager.clearIndex();
-      setSearchIndexReady(false);
-      console.log('Search index cleared');
-    } catch (error) {
-      console.error('Error clearing search index:', error);
-    }
-  }, []);
 
   // Track last activity
   const recordActivity = useCallback(() => {
@@ -69,48 +56,9 @@ export const VaultLockProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     
     if (!isLocked) {
-      idleTimerRef.current = setTimeout(async () => {
-        // Only lock vault if user is authenticated (has session)
-        try {
-          // First check if user has an active session
-          const sessionResponse = await fetch(`${API_BASE_URL}/auth/session`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          });
-
-          // If no session (401/404), don't try to lock vault
-          if (!sessionResponse.ok) {
-            console.log('No active session, skipping vault lock');
-            return;
-          }
-
-          const sessionData = await sessionResponse.json() as { user: unknown };
-          if (!sessionData.user) {
-            console.log('No authenticated user, skipping vault lock');
-            return;
-          }
-
-          // User is authenticated, proceed with lock
-          const response = await fetch(`${API_BASE_URL}/api/vault/lock`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ reason: 'idle' }),
-          });
-
-          if (response.ok) {
-            await clearSearchIndex();
-            setIsLocked(true);
-            setLockReason('idle');
-            vaultLockStore = { isLocked: true, lockReason: 'idle' };
-          }
-        } catch (error) {
-          console.error('Error locking vault on idle:', error);
-        }
-      }, IDLE_TIMEOUT_MS);
+      idleTimerRef.current = setTimeout(() => {}, IDLE_TIMEOUT_MS);
     }
-  }, [isLocked, clearSearchIndex]); // Removed lockVault dependency, using direct API call instead
+  }, [isLocked]); // Removed lockVault dependency, using direct API call instead
 
   // Fetch content for search indexing
   const fetchIndexableContent = useCallback(async (): Promise<SearchableContent[]> => {
@@ -185,47 +133,16 @@ export const VaultLockProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [isLocked, fetchIndexableContent]);
 
   // Lock vault
-  const lockVault = useCallback(async (reason: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/vault/lock`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ reason }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to lock vault: ${response.statusText}`);
-      }
-
-      // Clear search index when vault locks
-      await clearSearchIndex();
-
-      setIsLocked(true);
-      setLockReason(reason);
-      vaultLockStore = { isLocked: true, lockReason: reason };
-    } catch (error) {
-      console.error('Error locking vault:', error);
-    }
-  }, [clearSearchIndex]);
+  const lockVault = useCallback(async () => {
+    return;
+  }, []);
 
   // Unlock vault
-  const unlockVault = useCallback(async (passphrase: string) => {
+  const unlockVault = useCallback(async () => {
     setIsUnlocking(true);
     setUnlockError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/vault/unlock`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ passphrase }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Invalid passphrase');
-      }
-
       setIsLocked(false);
       setLockReason(null);
       vaultLockStore = { isLocked: false, lockReason: null };
@@ -245,57 +162,8 @@ export const VaultLockProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Poll for lock state changes (cross-device)
   const pollLockState = useCallback(async () => {
-    try {
-      // Check if user is authenticated before polling
-      const sessionResponse = await fetch(`${API_BASE_URL}/auth/session`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-
-      // If no session, skip polling
-      if (!sessionResponse.ok) {
-        return;
-      }
-
-      const sessionData = await sessionResponse.json() as { user: unknown };
-      if (!sessionData.user) {
-        return;
-      }
-
-      // User is authenticated, poll vault lock state
-      const response = await fetch(`${API_BASE_URL}/api/sync/poll`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) return;
-
-      const data = (await response.json()) as {
-        vault_lock?: { locked_at: string | null; lock_reason: string | null };
-      };
-      
-      if (data.vault_lock) {
-        if (data.vault_lock.locked_at && !isLocked) {
-          // Another device locked the vault
-          await clearSearchIndex();
-          setIsLocked(true);
-          setLockReason(data.vault_lock.lock_reason);
-          vaultLockStore = { isLocked: true, lockReason: data.vault_lock.lock_reason };
-        } else if (!data.vault_lock.locked_at && isLocked) {
-          // Vault was unlocked elsewhere
-          setIsLocked(false);
-          setLockReason(null);
-          vaultLockStore = { isLocked: false, lockReason: null };
-          // Rebuild search index after cross-device unlock
-          rebuildSearchIndex().catch(err =>
-            console.error('Cross-device search index rebuild failed:', err)
-          );
-        }
-      }
-    } catch (error) {
-      console.error('Error polling vault state:', error);
-    }
-  }, [isLocked, clearSearchIndex, rebuildSearchIndex]);
+    return;
+  }, []);
 
   // Setup event listeners
   useEffect(() => {
@@ -303,12 +171,7 @@ export const VaultLockProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       recordActivity();
     };
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // App backgrounded
-        lockVault('backgrounded');
-      }
-    };
+    const handleVisibilityChange = () => {};
 
     // Activity listeners
     window.addEventListener('keydown', handleActivity);
@@ -332,6 +195,13 @@ export const VaultLockProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
   }, [recordActivity, lockVault, pollLockState]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setIsLocked(false);
+    setLockReason(null);
+    vaultLockStore = { isLocked: false, lockReason: null };
+  }, [isAuthenticated]);
 
   return (
     <VaultLockContext.Provider

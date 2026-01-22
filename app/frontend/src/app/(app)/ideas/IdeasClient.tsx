@@ -21,8 +21,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { safeFetch, API_BASE_URL } from "@/lib/api";
 import { DISABLE_MASS_LOCAL_PERSISTENCE } from "@/lib/storage/deprecation";
-import { encryptString, decryptString, isEncryptedPayload, type EncryptedPayload } from "@/lib/e2ee/crypto";
-import { useVaultLockPolicy } from "@/lib/e2ee/useVaultLockPolicy";
+import { isEncryptedPayload } from "@/lib/e2ee/crypto";
 import { SearchBox } from "@/components/Search/SearchBox";
 import { IndexProgress } from "@/components/Search/IndexProgress";
 import { useRouter } from "next/navigation";
@@ -61,15 +60,12 @@ export function IdeasClient({}: IdeasClientProps = {}) {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [showTools, setShowTools] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [passphrase, setPassphrase] = useState("");
-  const [vaultUnlocked, setVaultUnlocked] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const loadIdeas = useCallback(async (decryptPassphrase?: string) => {
-    const trimmedPassphrase = decryptPassphrase?.trim();
+  const loadIdeas = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await safeFetch(`${API_BASE_URL}/api/ideas`);
@@ -88,15 +84,7 @@ export function IdeasClient({}: IdeasClientProps = {}) {
           try {
             const maybe = JSON.parse(idea.title);
             if (isEncryptedPayload(maybe)) {
-              if (trimmedPassphrase) {
-                try {
-                  title = await decryptString(maybe as EncryptedPayload, trimmedPassphrase);
-                } catch {
-                  title = "Encrypted idea (locked)";
-                }
-              } else {
-                title = "Encrypted idea (locked)";
-              }
+              title = "Encrypted idea (passkey-only)";
             }
           } catch {
             // leave as plaintext
@@ -138,17 +126,6 @@ export function IdeasClient({}: IdeasClientProps = {}) {
     loadIdeas();
   }, [loadIdeas]);
 
-  const handleVaultLock = useCallback(() => {
-    setVaultUnlocked(false);
-    setPassphrase("");
-    loadIdeas();
-  }, [loadIdeas]);
-
-  useVaultLockPolicy({
-    isUnlocked: vaultUnlocked,
-    onLock: handleVaultLock,
-  });
-
   // Save idea to D1
   const saveIdea = useCallback(async (idea: Idea) => {
     // Keep original ideas list for rollback if needed
@@ -156,10 +133,6 @@ export function IdeasClient({}: IdeasClientProps = {}) {
     
     try {
       let titleToSend: string = idea.content;
-      if (vaultUnlocked && passphrase) {
-        const encrypted = await encryptString(idea.content, passphrase);
-        titleToSend = JSON.stringify(encrypted);
-      }
       const response = await safeFetch(`${API_BASE_URL}/api/ideas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -265,38 +238,6 @@ export function IdeasClient({}: IdeasClientProps = {}) {
     }
   }, [isRecording]);
 
-  const renderVaultBanner = () => (
-    <div className={styles.vaultBanner}>
-      <div>
-        <p className={styles.vaultTitle}>Unlock Ideas (E2EE)</p>
-        <p className={styles.vaultSubtitle}>
-          Enter your passphrase to decrypt ideas locally. Stored only in memory.
-        </p>
-      </div>
-      <div className={styles.vaultControls}>
-        <input
-          type="password"
-          placeholder="Passphrase"
-          value={passphrase}
-          onChange={(e) => setPassphrase(e.target.value)}
-          className={styles.vaultInput}
-        />
-        <button
-          className={styles.vaultButton}
-          onClick={() => {
-            if (!passphrase.trim()) return;
-            const trimmed = passphrase.trim();
-            if (!trimmed) return;
-            setVaultUnlocked(true);
-            loadIdeas(trimmed);
-          }}
-        >
-          Unlock
-        </button>
-      </div>
-    </div>
-  );
-
   // Delete idea
   const handleDelete = useCallback(async (id: string) => {
     // Optimistic update
@@ -339,37 +280,6 @@ export function IdeasClient({}: IdeasClientProps = {}) {
 
   return (
     <div className={styles.page}>
-      {!vaultUnlocked && (
-        <div className={styles.vaultBanner}>
-          <div>
-            <p className={styles.vaultTitle}>Unlock Ideas (E2EE)</p>
-            <p className={styles.vaultSubtitle}>
-              Enter your passphrase to decrypt ideas locally. Stored only in memory.
-            </p>
-          </div>
-          <div className={styles.vaultControls}>
-            <input
-              type="password"
-              placeholder="Passphrase"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              className={styles.vaultInput}
-            />
-            <button
-              className={styles.vaultButton}
-              onClick={() => {
-                if (!passphrase.trim()) return;
-                const trimmed = passphrase.trim();
-                if (!trimmed) return;
-                setVaultUnlocked(true);
-                loadIdeas(trimmed);
-              }}
-            >
-              Unlock
-            </button>
-          </div>
-        </div>
-      )}
       <header className={styles.header}>
         <h1 className={styles.title}>Ideas</h1>
         <p className={styles.subtitle}>Capture it before it disappears.</p>

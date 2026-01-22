@@ -4,7 +4,6 @@ use crate::db::vault_models::{
 use crate::db::vault_repos::VaultRepo;
 use crate::error::AppError;
 use crate::middleware::auth::AuthContext;
-use crate::middleware::trust_boundary::*;
 use crate::state::AppState;
 use axum::{
     extract::{Extension, Json, State},
@@ -118,53 +117,25 @@ async fn lock_vault(
 }
 
 /// POST /api/vault/unlock
-/// Unlock user's vault with passphrase verification
+/// Unlock user's vault (passkey-authenticated session only)
 ///
 /// # Trust Boundary
-/// e2ee_boundary!() - This endpoint crosses the E2EE boundary by:
-/// 1. Accepting plaintext passphrase from client
-/// 2. Verifying it against stored bcrypt hash (security-critical)
-/// 3. On success, vault state changes to unlocked (can now be queried for content)
-///
-/// Security notes:
-/// - Uses bcrypt cost 12 for password verification (time-safe comparison)
-/// - Never logs plaintext passphrase (see logging standards)
-/// - Returns generic error message (doesn't reveal if vault exists)
-/// - Uses advisory lock to prevent concurrent unlock attempts
+/// server_trusted!() - Requires a valid authenticated session. No secrets are
+/// accepted from the client; this only flips lock state on the server.
 async fn unlock_vault(
     State(state): State<Arc<AppState>>,
     Extension(auth): Extension<AuthContext>,
-    Json(req): Json<UnlockVaultRequest>,
+    Json(_req): Json<UnlockVaultRequest>,
 ) -> Result<(StatusCode, Json<UnlockVaultResponse>), AppError> {
-    // Validate passphrase input
-    if req.passphrase.is_empty() {
-        return Err(AppError::BadRequest(
-            "Passphrase cannot be empty".to_string(),
-        ));
-    }
-
     // Ensure vault exists before attempting unlock
-    let vault = VaultRepo::ensure_vault(&state.db, auth.user_id)
+    VaultRepo::ensure_vault(&state.db, auth.user_id)
         .await
         .map_err(|e| {
             tracing::error!("Failed to fetch vault: {}", e);
             AppError::Internal("Failed to fetch vault".to_string())
         })?;
 
-    // Verify passphrase using bcrypt (CLEANUP-1: security-critical)
-    // The vault stores passphrase_hash created with bcrypt cost 12
-    let passphrase_valid =
-        bcrypt::verify(&req.passphrase, &vault.passphrase_hash).map_err(|e| {
-            tracing::error!("Passphrase verification failed: {}", e);
-            AppError::Internal("Passphrase verification failed".to_string())
-        })?;
-
-    if !passphrase_valid {
-        // Don't reveal whether vault exists, just return generic unauthorized
-        return Err(AppError::Unauthorized("Invalid passphrase".to_string()));
-    }
-
-    // Passphrase verified - unlock vault within transaction (atomic operation with advisory lock)
+    // Unlock vault within transaction (atomic operation with advisory lock)
     VaultRepo::unlock_vault(&state.db, auth.user_id)
         .await
         .map_err(|e| {

@@ -22,7 +22,7 @@ export default async function AdminPage() {
         <div className={styles.e2eeBanner}>
           <p className={styles.e2eeTitle}>Encrypted user content</p>
           <p className={styles.e2eeText}>
-            Infobase, Ideas, Journal, and other private work may be end-to-end encrypted. Admins cannot decrypt user content; only users with their passphrase can view it.
+            Infobase, Ideas, Journal, and other private work may be end-to-end encrypted. Admins cannot decrypt user content; only users with their passkey can view it.
           </p>
         </div>
         <AdminClient />

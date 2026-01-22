@@ -350,27 +350,27 @@ Get vault status (locked/unlocked)
 ---
 
 ### POST /api/vault/lock
-Lock vault (requires passphrase)
+Deprecated. Passkey sessions no longer lock the vault client-side.
 
-**Request**: `{ passphrase: string }`
+**Request**: `{ reason?: string }`
 
 **Response**: `{ vault_locked_at: string }`
 
 ---
 
 ### POST /api/vault/unlock
-Unlock vault
+Deprecated. Vault unlock happens with passkey authentication.
 
-**Request**: `{ passphrase: string }`
+**Request**: `{}`
 
 **Response**: `{ vault_unlocked_at: string }`
 
 ---
 
 ### POST /api/vault/recovery
-Generate or reset recovery codes
+Deprecated. Passphrase recovery is no longer part of the flow.
 
-**Request**: `{ action: 'generate' | 'reset', passphrase: string }`
+**Request**: `{ action: 'generate' | 'reset' }`
 
 **Response**: `{ codes: string[], vault_id: string }`
 

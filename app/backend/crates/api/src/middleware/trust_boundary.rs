@@ -23,7 +23,7 @@
 //!
 //! // Client-side crypto - never transmits plaintext
 //! #[client_private]
-//! fn derive_vault_key(passphrase: &str, salt: &[u8]) -> Vec<u8> {
+//! fn derive_vault_key(key_material: &str, salt: &[u8]) -> Vec<u8> {
 //!     // PBKDF2 or similar
 //! }
 //!

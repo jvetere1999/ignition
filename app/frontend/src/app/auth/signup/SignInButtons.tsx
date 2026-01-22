@@ -21,7 +21,8 @@ export function SignInButtons({ isSignUp = false }: SignInButtonsProps) {
       const redirectUri = `${window.location.origin}/auth/callback`;
       const apiUrl = getApiBaseUrl();
       const endpoint = `${apiUrl}/auth/signin/${provider}`;
-      const url = `${endpoint}?redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const params = new URLSearchParams({ redirect_uri: redirectUri, mode: "signup" });
+      const url = `${endpoint}?${params.toString()}`;
       
       console.log(`[SignIn] Redirecting to ${provider}: ${url}`);
       
