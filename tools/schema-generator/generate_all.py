@@ -174,8 +174,11 @@ def format_sql_value(val: Any, field_type: str) -> str:
         # Handle arrays: convert to PostgreSQL ARRAY syntax
         # ARRAY['item1', 'item2'] or ARRAY[1, 2] depending on field type
         if not val:
-            # Empty array
-            return "ARRAY[]"
+            # Empty array - need to cast to proper type
+            # Extract base type from field_type (e.g., "TEXT[]" -> "TEXT")
+            base_type = field_type.replace('[]', '').strip().upper()
+            type_cast = base_type.lower()  # PostgreSQL uses lowercase in casts
+            return f"ARRAY[]::{type_cast}[]"
         # Quote string items, don't quote numeric items
         formatted_items = []
         for item in val:
