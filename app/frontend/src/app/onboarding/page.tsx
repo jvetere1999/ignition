@@ -74,7 +74,7 @@ export default function OnboardingPage() {
     return () => {
       isActive = false;
     };
-  }, [isAuthLoading, isAuthenticated, router, user]);
+  }, [isAuthLoading, isAuthenticated, router, user?.tosAccepted, user?.id]);
 
   useEffect(() => {
     if (!hasRead || !isOldEnough) {

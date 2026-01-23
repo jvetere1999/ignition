@@ -51,15 +51,13 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, user?.id]);
 
-  // TOS should be handled as part of onboarding; if not accepted, push user into onboarding flow
+  // TOS should be handled as part of onboarding; if not accepted, redirect to onboarding
   useEffect(() => {
     if (isLoading || !isAuthenticated || !user) return;
     if (!user.tosAccepted && pathname !== "/onboarding") {
-      // Backend auto-accepts TOS on first authenticated request; refresh to get updated session
-      refresh?.();
       router.replace("/onboarding");
     }
-  }, [isLoading, isAuthenticated, user, pathname, router, refresh]);
+  }, [isLoading, isAuthenticated, user?.tosAccepted, pathname, router]);
 
   useEffect(() => {
     if (pathname !== "/onboarding") return;
@@ -94,7 +92,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     return () => {
       isActive = false;
     };
-  }, [isLoading, isAuthenticated, user, pathname]);
+  }, [isLoading, isAuthenticated, user?.id, pathname]);
 
   useEffect(() => {
     if (needsOnboarding && pathname !== "/onboarding") {
