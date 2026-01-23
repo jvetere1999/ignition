@@ -79,10 +79,17 @@ export default function OnboardingPage() {
         // If we have a flow but no current step, initialize the onboarding
         if (data.flow && data.flow.total_steps > 0 && !data.current_step) {
           try {
+            console.log('[onboarding/page] Flow exists but no current step, calling startOnboarding');
             await startOnboarding();
+            console.log('[onboarding/page] startOnboarding completed, reloading state');
             if (!isActive) return;
             // Reload the state after starting
             data = await getOnboardingState();
+            console.log('[onboarding/page] Reloaded onboarding state after start:', {
+              has_current_step: !!data.current_step,
+              current_step_id: data.current_step?.id,
+              total_steps: data.flow?.total_steps,
+            });
             if (!isActive) return;
           } catch (startErr) {
             console.error('[onboarding/page] Failed to start onboarding:', startErr);

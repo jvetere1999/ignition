@@ -1202,12 +1202,19 @@ impl OnboardingRepo {
 
     /// Start onboarding
     pub async fn start(pool: &PgPool, user_id: Uuid) -> Result<StartOnboardingResponse, AppError> {
+        tracing::info!(user_id = %user_id, "Starting onboarding");
         let flow = Self::get_active_flow(pool)
             .await?
             .ok_or_else(|| AppError::Internal("No active onboarding flow".into()))?;
+        tracing::info!(user_id = %user_id, flow_id = %flow.id, "Found active flow");
 
         let steps = Self::get_flow_steps(pool, flow.id).await?;
+        tracing::info!(user_id = %user_id, step_count = steps.len(), "Retrieved flow steps");
         let first_step = steps.first().cloned();
+
+        if first_step.is_none() {
+            tracing::warn!(user_id = %user_id, flow_id = %flow.id, "No steps found in flow!");
+        }
 
         let now = Utc::now();
         let id = Uuid::new_v4();
@@ -1232,6 +1239,8 @@ impl OnboardingRepo {
         .bind(now)
         .execute(pool)
         .await?;
+
+        tracing::info!(user_id = %user_id, current_step_id = ?first_step.as_ref().map(|s| s.id), "Onboarding started");
 
         Ok(StartOnboardingResponse {
             success: true,
